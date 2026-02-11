@@ -1,0 +1,57 @@
+<div class="signup-container">
+  <mat-card class="signup-card">
+
+    <div class="icon-wrapper">
+      <div class="icon-circle">
+        <mat-icon>person</mat-icon>
+      </div>
+    </div>
+
+    <h2>Create Account</h2>
+    <p class="subtitle">Join CampusEventHub today</p>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Full Name</mat-label>
+      <input matInput placeholder="Enter your full name">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Email Address</mat-label>
+      <input matInput type="email" placeholder="Enter your email">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>College/University</mat-label>
+      <input matInput placeholder="Enter your college name">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Role</mat-label>
+      <mat-select>
+        <mat-option value="student">Student</mat-option>
+        <mat-option value="college-admin">College Admin</mat-option>
+        <mat-option value="super-admin">Super Admin</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Password</mat-label>
+      <input matInput type="password" placeholder="Create a password">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Confirm Password</mat-label>
+      <input matInput type="password" placeholder="Confirm your password">
+    </mat-form-field>
+
+    <button mat-raised-button class="create-btn full-width">
+      Create Account
+    </button>
+
+    <p class="signin-text">
+      Already have an account?
+      <a routerLink="/login">Sign in</a>
+    </p>
+
+  </mat-card>
+</div>
