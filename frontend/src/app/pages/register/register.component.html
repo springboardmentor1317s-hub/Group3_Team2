@@ -1,57 +1,89 @@
 <div class="signup-container">
   <mat-card class="signup-card">
-
+    <!-- Icon -->
     <div class="icon-wrapper">
       <div class="icon-circle">
-        <mat-icon>person</mat-icon>
+        <mat-icon>person_add</mat-icon>
       </div>
     </div>
 
     <h2>Create Account</h2>
-    <p class="subtitle">Join CampusEventHub today</p>
+    <p class="subtitle">Sign up to join CampusEventHub</p>
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Full Name</mat-label>
-      <input matInput placeholder="Enter your full name">
-    </mat-form-field>
+    <!-- Registration Form -->
+    <form #registerForm="ngForm" (ngSubmit)="register()">
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Email Address</mat-label>
-      <input matInput type="email" placeholder="Enter your email">
-    </mat-form-field>
+      <!-- Full Name -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Full Name</mat-label>
+        <input matInput name="fullName"
+               [(ngModel)]="user.fullName"
+               required>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>College/University</mat-label>
-      <input matInput placeholder="Enter your college name">
-    </mat-form-field>
+      <!-- Email -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Email Address</mat-label>
+        <input matInput type="email"
+               name="email"
+               [(ngModel)]="user.email"
+               required>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Role</mat-label>
-      <mat-select>
-        <mat-option value="student">Student</mat-option>
-        <mat-option value="college-admin">College Admin</mat-option>
-        <mat-option value="super-admin">Super Admin</mat-option>
-      </mat-select>
-    </mat-form-field>
+      <!-- College -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>College/University</mat-label>
+        <input matInput name="college"
+               [(ngModel)]="user.college"
+               required>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Password</mat-label>
-      <input matInput type="password" placeholder="Create a password">
-    </mat-form-field>
+      <!-- Role -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Role</mat-label>
+        <mat-select name="role"
+                    [(ngModel)]="user.role"
+                    required>
+          <mat-option value="student">Student</mat-option>
+          <mat-option value="college-admin">College Admin</mat-option>
+          <mat-option value="superadmin">Super Admin</mat-option>
+        </mat-select>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Confirm Password</mat-label>
-      <input matInput type="password" placeholder="Confirm your password">
-    </mat-form-field>
+      <!-- Password -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Password</mat-label>
+        <input matInput type="password"
+               name="password"
+               [(ngModel)]="user.password"
+               required>
+      </mat-form-field>
 
-    <button mat-raised-button class="create-btn full-width">
-      Create Account
-    </button>
+      <!-- Confirm Password -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Confirm Password</mat-label>
+        <input matInput type="password"
+               name="confirmPassword"
+               [(ngModel)]="user.confirmPassword"
+               required>
+      </mat-form-field>
 
+      <!-- Create Account Button -->
+      <button mat-raised-button color="primary"
+              class="create-btn full-width"
+              type="submit"
+              [disabled]="registerForm.invalid">
+        Create Account
+      </button>
+
+    </form>
+
+    <!-- Switch to Login -->
     <p class="signin-text">
-      Already have an account?
-      <a routerLink="/login">Sign in</a>
+      Already have an account? 
+      <a mat-button color="primary" routerLink="/login" class="login-link">
+        Login
+      </a>
     </p>
-
   </mat-card>
 </div>

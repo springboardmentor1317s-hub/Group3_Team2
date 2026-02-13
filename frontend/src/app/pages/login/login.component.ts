@@ -7,7 +7,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
+import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -20,27 +22,68 @@ import { RouterLink } from '@angular/router';
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
-    MatSelectModule
+    MatSelectModule,
+    MatIconModule
   ],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
 export class LoginComponent {
+
   email = '';
   password = '';
   role = '';
 
-  constructor(private router: Router) {}
+  constructor(private router: Router, private authService: AuthService) {}
 
   login() {
-    if (this.role === 'student') {
-      this.router.navigate(['/student-dashboard']);
-    } 
-    else if (this.role === 'admin') {
-      this.router.navigate(['/admin-dashboard']);
-    } 
-    else if (this.role === 'superadmin') {
-      this.router.navigate(['/admin-dashboard']); // for now same page
+    // ✅ Validate all fields
+    if (!this.email || !this.password || !this.role) {
+      alert('Please fill all fields');
+      return;
     }
+
+    const loginData = {
+      email: this.email.trim(),
+      password: this.password,
+      role: this.role
+    };
+
+    // 🔹 Call backend login API
+    this.authService.login(loginData).subscribe({
+      next: (res: any) => {
+        if (!res || !res.token) {
+          alert('Login failed: Invalid response from server');
+          return;
+        }
+
+        // ✅ Show success message
+        alert(res.message || 'Login successful!');
+
+        // ✅ Save token, role, and fullName
+        this.authService.saveUserData(res.token, res.role, res.fullName);
+
+        // ✅ Redirect based on role
+        switch (res.role) {
+          case 'student':
+            this.router.navigate(['/student-dashboard']);
+            break;
+          case 'college-admin':
+            this.router.navigate(['/admin-dashboard']);
+            break;
+          case 'super-admin':
+            this.router.navigate(['/admin-dashboard']); // Or another page if needed
+            break;
+          default:
+            alert('Unknown role. Cannot redirect.');
+            break;
+        }
+      },
+      error: (err) => {
+        console.error(err);
+        // 🔹 Display error message from backend if available
+        alert(err.error?.message || 'Login failed. Please check your credentials and role.');
+      }
+    });
   }
 }

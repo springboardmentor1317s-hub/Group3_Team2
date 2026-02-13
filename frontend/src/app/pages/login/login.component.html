@@ -1,39 +1,43 @@
 <div class="auth-container">
   <mat-card class="auth-card">
-    <h2>Welcome Back</h2>
-    <p class="subtitle">Login to your CampusEventHub account</p>
+    <div class="auth-header">
+      <h2>Welcome Back</h2>
+      <p class="subtitle">Sign in to CampusEventHub</p>
+    </div>
 
-    <!-- Email -->
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Email Address</mat-label>
-      <input matInput type="email" placeholder="Enter your email" [(ngModel)]="email">
-    </mat-form-field>
+    <form #loginForm="ngForm">
+      <!-- Email -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Email Address</mat-label>
+        <input matInput type="email" name="email" [(ngModel)]="email" required>
+      </mat-form-field>
 
-    <!-- Password -->
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Password</mat-label>
-      <input matInput type="password" placeholder="Enter your password" [(ngModel)]="password">
-    </mat-form-field>
+      <!-- Password -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Password</mat-label>
+        <input matInput type="password" name="password" [(ngModel)]="password" required>
+      </mat-form-field>
 
-    <!-- Role Selection -->
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Login As</mat-label>
-      <mat-select [(ngModel)]="role">
-        <mat-option value="student">Student</mat-option>
-        <mat-option value="admin">College Admin</mat-option>
-        <mat-option value="superadmin">Super Admin</mat-option>
-      </mat-select>
-    </mat-form-field>
+      <!-- Role -->
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Login As</mat-label>
+        <mat-select [(ngModel)]="role" name="role" required>
+          <mat-option value="student">Student</mat-option>
+          <mat-option value="college-admin">College Admin</mat-option>
+          <mat-option value="super-admin">Super Admin</mat-option>
+        </mat-select>
+      </mat-form-field>
 
-    <!-- Login Button -->
-    <button mat-raised-button color="primary" class="full-width" (click)="login()">
-      Login
-    </button>
+      <!-- Login Button -->
+      <button mat-raised-button color="primary" class="full-width login-btn" (click)="login()">
+        Login
+      </button>
 
-    <!-- Switch to Register -->
-    <p class="switch-text">
-      Don’t have an account?
-      <a routerLink="/register">Sign up</a>
-    </p>
+      <p class="switch-text">
+        Don’t have an account? <a routerLink="/register">Sign Up</a>
+      </p>
+    </form>
   </mat-card>
 </div>
+
+
