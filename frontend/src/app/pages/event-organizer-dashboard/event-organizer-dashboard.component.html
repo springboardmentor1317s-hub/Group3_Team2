@@ -1,0 +1,380 @@
+<!-- dashboard.component.html - No ngModel version -->
+<div class="dashboard-container">
+  <!-- Header Section -->
+  <header class="dashboard-header">
+    <div class="header-left">
+      <h1>Event Organizer Dashboard</h1>
+      <p class="welcome-message">Welcome back! Here's your event overview.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" (click)="openCreateEventModal()">
+        <i class="fas fa-plus"></i> Create Event
+      </button>
+      <button class="btn btn-secondary" (click)="viewAllRegistrations()">
+        <i class="fas fa-users"></i> View Registrations
+      </button>
+      <button class="btn btn-outline" (click)="openExportModal()">
+        <i class="fas fa-download"></i> Export Data
+      </button>
+    </div>
+  </header>
+
+  <!-- Statistics Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon total-events">
+        <i class="fas fa-calendar"></i>
+      </div>
+      <div class="stat-details">
+        <h3>{{ totalEvents }}</h3>
+        <p>Total Events</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon active-events">
+        <i class="fas fa-play-circle"></i>
+      </div>
+      <div class="stat-details">
+        <h3>{{ activeEvents }}</h3>
+        <p>Active Events</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon registrations">
+        <i class="fas fa-user-check"></i>
+      </div>
+      <div class="stat-details">
+        <h3>{{ totalRegistrations }}</h3>
+        <p>Total Registrations</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon average">
+        <i class="fas fa-chart-line"></i>
+      </div>
+      <div class="stat-details">
+        <h3>{{ averageParticipants }}</h3>
+        <p>Avg. Participants</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Section -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3>Registration Trends</h3>
+        <select class="chart-filter" (change)="onChartFilterChange($event)">
+          <option value="6">Last 6 months</option>
+          <option value="12">Last year</option>
+          <option value="all">All time</option>
+        </select>
+      </div>
+      <div class="chart-container">
+        <div class="chart-placeholder registration-chart">
+          <div class="chart-bars">
+            <div class="bar" style="height: 40px;"></div>
+            <div class="bar" style="height: 60px;"></div>
+            <div class="bar" style="height: 75px;"></div>
+            <div class="bar" style="height: 90px;"></div>
+            <div class="bar" style="height: 110px;"></div>
+            <div class="bar" style="height: 150px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3>Events by Category</h3>
+      </div>
+      <div class="chart-container">
+        <div class="chart-placeholder pie-chart">
+          <div class="pie-segments"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Events Table Section -->
+  <div class="events-section">
+    <div class="section-header">
+      <h2>Your Events</h2>
+      <div class="section-filters">
+        <select class="filter-select" (change)="onStatusFilterChange($event)">
+          <option value="all">All Events</option>
+          <option value="active">Active</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <input type="text" class="search-input" placeholder="Search events..." 
+               (keyup)="onEventSearch($event)">
+      </div>
+    </div>
+
+    <div class="events-table-container">
+      <table class="events-table">
+        <thead>
+          <tr>
+            <th>Event Name</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Registrations</th>
+            <th>Capacity</th>
+            <th>Location</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let event of filteredEvents">
+            <td class="event-name">{{ event.name }}</td>
+           <td>{{ event.date | date:'MM/dd/yyyy' }}</td>
+            <td>
+            <span class="status-badge" [class]="'status-badge ' + getStatusClass(event.status)">
+             {{ event.status }}
+            </span>
+            </td>
+            <td>{{ event.registrations }} / {{ event.capacity }}</td>
+            <td>
+              <div class="capacity-bar">
+                <div class="capacity-fill" [style.width.%]="(event.registrations / event.capacity) * 100"></div>
+                <span>{{ ((event.registrations / event.capacity) * 100).toFixed(0) }}%</span>
+              </div>
+            </td>
+            <td>{{ event.location }}</td>
+            <td class="actions">
+              <button class="action-btn view" (click)="viewEventDetails(event.id)" title="View Details">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button class="action-btn duplicate" (click)="duplicateEvent(event.id)" title="Duplicate">
+                <i class="fas fa-copy"></i>
+              </button>
+              <button class="action-btn cancel" (click)="cancelEvent(event.id)" title="Cancel Event">
+                <i class="fas fa-times"></i>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Quick Actions Grid -->
+  <div class="quick-actions">
+    <h3>Quick Actions</h3>
+    <div class="actions-grid">
+      <div class="action-card" (click)="openCreateEventModal()">
+        <i class="fas fa-plus-circle"></i>
+        <span>Create New Event</span>
+      </div>
+      <div class="action-card" (click)="viewAllRegistrations()">
+        <i class="fas fa-list-check"></i>
+        <span>Manage Registrations</span>
+      </div>
+      <div class="action-card" (click)="openExportModal()">
+        <i class="fas fa-file-export"></i>
+        <span>Generate Reports</span>
+      </div>
+      <div class="action-card" (click)="sendAnnouncements()">
+        <i class="fas fa-bullhorn"></i>
+        <span>Send Announcements</span>
+      </div>
+      <div class="action-card" (click)="manageTickets()">
+        <i class="fas fa-ticket"></i>
+        <span>Manage Tickets</span>
+      </div>
+      <div class="action-card" (click)="teamSettings()">
+        <i class="fas fa-users-gear"></i>
+        <span>Team Settings</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Event Modal -->
+  <div class="modal" *ngIf="showCreateEventModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Create New Event</h2>
+        <button class="close-btn" (click)="closeCreateEventModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="createEventForm" (ngSubmit)="createEvent()">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="eventName">Event Name</label>
+              <input type="text" id="eventName" formControlName="name" placeholder="Enter event name">
+              <div class="error-message" *ngIf="createEventForm.get('name')?.invalid && createEventForm.get('name')?.touched">
+                Event name is required and must be at least 3 characters
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="eventDate">Date</label>
+              <input type="date" id="eventDate" formControlName="date">
+            </div>
+            <div class="form-group">
+              <label for="eventTime">Time</label>
+              <input type="time" id="eventTime" formControlName="time">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="location">Location</label>
+              <input type="text" id="location" formControlName="location" placeholder="Enter venue or virtual link">
+            </div>
+            <div class="form-group">
+              <label for="category">Category</label>
+              <select id="category" formControlName="category">
+                <option value="">Select category</option>
+                <option *ngFor="let category of categoryOptions" [value]="category">{{ category }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="capacity">Capacity</label>
+              <input type="number" id="capacity" formControlName="capacity" placeholder="Maximum attendees">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group full-width">
+              <label for="description">Description</label>
+              <textarea id="description" formControlName="description" rows="4" placeholder="Event description"></textarea>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Ticket Types & Pricing</label>
+              <div class="ticket-types">
+                <div class="ticket-type">
+                  <label>Regular</label>
+                  <input type="number" formControlName="regular" placeholder="Price">
+                </div>
+                <div class="ticket-type">
+                  <label>VIP</label>
+                  <input type="number" formControlName="vip" placeholder="Price">
+                </div>
+                <div class="ticket-type">
+                  <label>Early Bird</label>
+                  <input type="number" formControlName="earlyBird" placeholder="Price">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" (click)="closeCreateEventModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" [disabled]="createEventForm.invalid">Create Event</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registrations Modal -->
+  <div class="modal modal-lg" *ngIf="showRegistrationsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>All Registrations</h2>
+        <button class="close-btn" (click)="closeRegistrationsModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="registrations-filters">
+          <input type="text" class="search-input" placeholder="Search by name, email, or event..." 
+                 #registrationSearch (keyup)="filterRegistrations(registrationSearch.value)">
+          <select class="filter-select" #statusFilter (change)="filterRegistrationsByStatus(statusFilter.value)">
+            <option value="all">All Status</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="pending">Pending</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+
+        <table class="registrations-table">
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Attendee</th>
+              <th>Email</th>
+              <th>Registration Date</th>
+              <th>Ticket Type</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let registration of filteredRegistrations">
+              <td>{{ registration.eventName }}</td>
+              <td>{{ registration.attendeeName }}</td>
+              <td>{{ registration.email }}</td>
+              <td>{{ registration.registrationDate | date:'MM/dd/yyyy' }}</td>
+              <td>{{ registration.ticketType }}</td>
+              <td>
+                <span class="status-badge" [ngClass]="getRegistrationStatusClass(registration.status)">
+                  {{ registration.status }}
+                </span>
+              </td>
+              <td>
+                <button class="action-btn confirm" 
+                        *ngIf="registration.status === 'pending'"
+                        (click)="updateRegistrationStatus(registration.id, 'confirmed')">
+                  <i class="fas fa-check"></i> Confirm
+                </button>
+                <button class="action-btn cancel" 
+                        *ngIf="registration.status !== 'cancelled'"
+                        (click)="updateRegistrationStatus(registration.id, 'cancelled')">
+                  <i class="fas fa-times"></i> Cancel
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Modal -->
+  <div class="modal" *ngIf="showExportModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Export Event Data</h2>
+        <button class="close-btn" (click)="closeExportModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="export-options">
+          <h3>Select Export Format</h3>
+          <div class="export-formats">
+            <label *ngFor="let format of exportFormatOptions">
+              <input type="radio" name="exportFormat" [value]="format" 
+                     (change)="onExportFormatChange(format)">
+              <span>{{ format.toUpperCase() }}</span>
+            </label>
+          </div>
+
+          <div class="export-summary">
+            <p>You are about to export:</p>
+            <ul>
+              <li>{{ totalEvents }} events</li>
+              <li>{{ totalRegistrations }} registrations</li>
+            </ul>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-secondary" (click)="closeExportModal()">Cancel</button>
+            <button class="btn btn-primary" (click)="exportEventData()">Export Now</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
