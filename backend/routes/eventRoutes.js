@@ -1,22 +1,41 @@
 const express = require("express");
 const router = express.Router();
+const eventController = require("../controllers/eventController");
+const auth = require("../middleware/authMiddleware");
+const role = require("../middleware/roleMiddleware");
 
-const { createEvent, getEvents } = require("../controllers/eventController");
-const { authMiddleware } = require("../middleware/authMiddleware");
-const { roleMiddleware } = require("../middleware/roleMiddleware");
+// Public
+router.get("/", eventController.getAllEvents);
+router.get("/:id", eventController.getEventById);
 
+// Admin / SuperAdmin
 router.post(
-  "/create-event",
-  authMiddleware,
-  roleMiddleware(["college-admin"]),
-  // createEventController,
-  createEvent
+    "/create",
+    auth,
+    role(["admin", "superadmin"]),
+    eventController.createEvent
 );
 
-router.get(
-  "/",
-  authMiddleware,
-  getEvents
+router.put(
+    "/:id",
+    auth,
+    role(["admin", "superadmin"]),
+    eventController.updateEvent
+);
+
+router.delete(
+    "/:id",
+    auth,
+    role(["admin", "superadmin"]),
+    eventController.deleteEvent
+);
+
+// Student Registration
+router.post(
+    "/register/:id",
+    auth,
+    role(["student"]),
+    eventController.registerEvent
 );
 
 module.exports = router;
