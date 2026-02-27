@@ -1,0 +1,139 @@
+/* Container */
+.home-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Roboto', sans-serif;
+  color: #ffffff;
+  background: linear-gradient(135deg, #4f46e5, #6366f1, #06b6d4);
+  padding: 20px;
+}
+
+/* Top Bar */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  margin-bottom: 60px;
+}
+
+.app-title {
+  font-size: 2.4rem;
+  font-weight: 700;
+}
+
+.auth-buttons button {
+  margin-left: 12px;
+  border-radius: 50px;
+  font-weight: 600;
+  padding: 10px 22px;
+  transition: all 0.3s ease;
+}
+
+.auth-buttons button.mat-raised-button {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+}
+
+.auth-buttons button.mat-raised-button:hover {
+  background: linear-gradient(135deg, #1d4ed8, #6b21a8);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.auth-buttons button.mat-stroked-button {
+  border-color: #ffffff;
+  color: white;
+}
+
+.auth-buttons button.mat-stroked-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Hero Card */
+.hero-section {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.hero-card {
+  max-width: 850px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(15px);
+  padding: 50px 40px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+}
+
+.hero-card h2 {
+  font-size: 2.6rem;
+  font-weight: 700;
+  margin-bottom: 25px;
+}
+
+.hero-card p {
+  font-size: 1.1rem;
+  line-height: 1.8;
+  color: #e0e0e0;
+  margin-bottom: 35px;
+}
+
+/* Hero Buttons */
+.hero-buttons button {
+  margin: 0 12px;
+  padding: 14px 32px;
+  font-weight: 600;
+  border-radius: 50px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.hero-buttons button.mat-raised-button {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+}
+
+.hero-buttons button.mat-raised-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.hero-buttons button.mat-stroked-button {
+  border-color: #ffffff;
+  color: white;
+}
+
+.hero-buttons button.mat-stroked-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .top-bar {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .hero-card {
+    padding: 35px 20px;
+  }
+
+  .hero-card h2 {
+    font-size: 2rem;
+  }
+
+  .hero-card p {
+    font-size: 1rem;
+  }
+
+  .hero-buttons button {
+    margin: 10px 0;
+    width: 100%;
+  }
+}
+
