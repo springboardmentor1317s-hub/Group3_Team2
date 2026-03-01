@@ -17,13 +17,18 @@ export class SuperAdminDashboardComponent implements OnInit {
   currentDate = new Date();
 
   // Statistics
-  totalColleges = 25;
-  totalAdmins = 25;
-  totalEvents = 0; // Will be updated from API
-  totalUsers = 1250;
-  pendingApprovals = 8;
-  activeColleges = 23;
-  suspendedColleges = 2;
+  totalColleges = 0;
+  totalAdmins = 0;
+  totalEvents = 0;
+  totalUsers = 0;
+  pendingApprovals = 0;
+  activeColleges = 0;
+  suspendedColleges = 0;
+
+  // Filter properties
+  startDateFilter: string = '';
+  endDateFilter: string = '';
+  statusFilter: string = 'all';
 
   // Events Data - from database
   events: any[] = []; // Will be filled from API
@@ -65,7 +70,7 @@ export class SuperAdminDashboardComponent implements OnInit {
     public authService: AuthService,
     private router: Router,
     private eventService: EventService // Add EventService
-  ) {}
+  ) { }
 
   ngOnInit() {
     const role = this.authService.getRole();
@@ -73,43 +78,49 @@ export class SuperAdminDashboardComponent implements OnInit {
       this.router.navigate(['/login']);
       return;
     }
-    
-    // Load events from database
+
+    // Load events and stats
     this.loadEventsFromDB();
+    this.loadStats();
   }
 
-  // Load all events from database
+  // Load dashboard statistics
+  loadStats(): void {
+    this.eventService.getStats().subscribe({
+      next: (stats) => {
+        this.totalEvents = stats.totalEvents;
+        this.totalAdmins = stats.totalAdmins;
+        this.totalUsers = stats.totalStudents;
+        // Mocking others for now since we don't have college management fully in DB yet
+        this.totalColleges = 8;
+        this.activeColleges = 6;
+        this.suspendedColleges = 2;
+      },
+      error: (err) => console.error('Error loading stats:', err)
+    });
+  }
+
+  // Load all events from database with filters
   loadEventsFromDB(): void {
-  console.log('🔍 Super Admin: Loading events from database...');
-  console.log('🔍 API URL:', this.eventService['apiUrl']); // Check the API URL
-  
-  this.eventService.getAllEvents().subscribe({
-    next: (events) => {
-      console.log('✅ Super Admin: Events loaded successfully!');
-      console.log('📊 Number of events:', events.length);
-      console.log('📋 Event data:', events);
-      
-      if (events && events.length > 0) {
+    const filters = {
+      startDate: this.startDateFilter,
+      endDate: this.endDateFilter,
+      status: this.statusFilter
+    };
+
+    this.eventService.getAllEvents(filters).subscribe({
+      next: (events) => {
         this.events = events;
         this.filteredEvents = events;
         this.totalEvents = events.length;
-        console.log('✅ Events assigned to component:', this.events.length);
-      } else {
-        console.log('⚠️ No events returned from API');
-        this.events = [];
-        this.filteredEvents = [];
-        this.totalEvents = 0;
-      }
-    },
-    error: (err) => {
-      console.error('❌ Super Admin: Error loading events:', err);
-      console.error('❌ Error details:', err.message);
-      console.error('❌ Error status:', err.status);
-      this.events = [];
-      this.filteredEvents = [];
-    }
-  });
-}
+      },
+      error: (err) => console.error('Error loading events:', err)
+    });
+  }
+
+  onFilterChange(): void {
+    this.loadEventsFromDB();
+  }
 
   setView(view: 'overview' | 'colleges' | 'admins' | 'events' | 'users' | 'reports' | 'settings') {
     this.currentView.set(view);
@@ -129,14 +140,14 @@ export class SuperAdminDashboardComponent implements OnInit {
     if (collegeId === 'all') {
       this.filteredEvents = this.events;
     } else {
-      this.filteredEvents = this.events.filter(event => 
+      this.filteredEvents = this.events.filter(event =>
         event.collegeId === collegeId || event.organizer?.includes(collegeId)
       );
     }
   }
 
   // ========== HELPER METHODS FOR TEMPLATE ==========
-  
+
   getActiveAdminsCount(): number {
     return this.admins.filter(a => a.status === 'active').length;
   }
@@ -150,7 +161,7 @@ export class SuperAdminDashboardComponent implements OnInit {
   }
 
   // ========== COLLEGE MANAGEMENT METHODS ==========
-  
+
   addCollege() {
     alert('Add College functionality - Form to add new college');
   }
@@ -186,7 +197,7 @@ export class SuperAdminDashboardComponent implements OnInit {
   }
 
   // ========== ADMIN MANAGEMENT METHODS ==========
-  
+
   addAdmin() {
     alert('Add Admin functionality - Form to add new college admin');
   }
@@ -212,7 +223,7 @@ export class SuperAdminDashboardComponent implements OnInit {
   }
 
   // ========== EVENT MANAGEMENT METHODS ==========
-  
+
   viewEvent(id: string) {
     alert(`View event details for ID: ${id}`);
   }
@@ -225,7 +236,7 @@ export class SuperAdminDashboardComponent implements OnInit {
   }
 
   // ========== USER MANAGEMENT METHODS ==========
-  
+
   viewUser(id: number) {
     alert(`View user details for ID: ${id}`);
   }
@@ -237,7 +248,7 @@ export class SuperAdminDashboardComponent implements OnInit {
   }
 
   // ========== REPORT METHODS ==========
-  
+
   generateReport(type: string) {
     alert(`Generating ${type} report...`);
   }
@@ -247,13 +258,13 @@ export class SuperAdminDashboardComponent implements OnInit {
   }
 
   // ========== SETTINGS METHODS ==========
-  
+
   saveSettings() {
     alert('Settings saved successfully');
   }
 
   // ========== HELPER METHODS ==========
-  
+
   formatDate(date: Date): string {
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -263,7 +274,7 @@ export class SuperAdminDashboardComponent implements OnInit {
   }
 
   getStatusClass(status: string): string {
-    switch(status) {
+    switch (status) {
       case 'active': return 'status-active';
       case 'inactive': return 'status-inactive';
       case 'suspended': return 'status-suspended';

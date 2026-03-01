@@ -17,6 +17,8 @@ interface Event {
   averageParticipants?: number;
   location?: string;
   category?: string;
+  imageUrl?: string;
+  feedback?: { userId: any; rating: number; comment?: string; createdAt: Date; }[];
 }
 
 interface Registration {
@@ -63,6 +65,8 @@ export class EventOrganizerDashboardComponent implements OnInit {
   // ========== FILTERS ==========
   eventSearchTerm: string = '';
   eventStatusFilter: string = 'all';
+  startDateFilter: string = '';
+  endDateFilter: string = '';
   searchTerm: string = '';
   selectedStatus: string = 'all';
 
@@ -75,7 +79,8 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   // ========== OPTIONS ==========
   statusOptions = ['all', 'active', 'upcoming', 'completed', 'cancelled'];
-  categoryOptions = ['Conference', 'Workshop', 'Seminar', 'Meetup', 'Webinar', 'Networking'];
+  typeOptions = ['technical', 'cultural', 'sports', 'workshop', 'seminar'];
+  categoryOptions = ['college', 'inter-college'];
   exportFormatOptions = ['csv', 'excel', 'pdf'];
 
   constructor(
@@ -89,9 +94,14 @@ export class EventOrganizerDashboardComponent implements OnInit {
       name: ['', [Validators.required, Validators.minLength(3)]],
       date: ['', Validators.required],
       time: ['', Validators.required],
+      endDate: ['', Validators.required],
+      registrationDeadline: ['', Validators.required],
       location: ['', Validators.required],
-      category: ['', Validators.required],
+      type: ['technical', Validators.required],
+      category: ['college', Validators.required],
       capacity: ['', [Validators.required, Validators.min(1)]],
+      organizer: ['', Validators.required],
+      imageUrl: [''],
       description: ['', Validators.required],
       ticketTypes: this.fb.group({
         regular: ['', Validators.min(0)],
@@ -125,63 +135,6 @@ export class EventOrganizerDashboardComponent implements OnInit {
     this.router.navigate(['/login']);
   }
 
-  // ========== DATA LOADING ==========
-  private loadDashboardData(): void {
-  console.log('Loading dashboard data from API...');
-  
-  // Fetch real events from the database
-  this.eventService.getAllEvents().subscribe({
-    next: (apiEvents: any[]) => {
-      console.log('✅ Real events loaded from API:', apiEvents);
-      
-      if (apiEvents && apiEvents.length > 0) {
-        // Transform API events to match the component's Event interface
-        this.events = apiEvents.map(event => ({
-          id: this.generateNumericId(event._id || ''),
-          name: event.title || '',
-          date: event.startDate ? new Date(event.startDate) : new Date(),
-          status: this.mapStatus(event.status || 'upcoming'),
-          registrations: event.currentParticipants || 0,
-          capacity: event.maxParticipants || 0,
-          averageParticipants: event.currentParticipants || 0,
-          location: event.venue || '',
-          category: this.mapTypeToCategory(event.type || 'technical')
-        }));
-        
-        console.log('Transformed events for dashboard:', this.events);
-      } else {
-        // If no events, use mock data as fallback
-        console.log('No events found, using mock data');
-        this.loadMockData();
-      }
-      
-      this.filteredEvents = [...this.events];
-      this.calculateStatistics();
-    },
-    error: (err) => {
-      console.error('❌ Error loading events from API:', err);
-      // Fallback to mock data if API fails
-      console.log('Falling back to mock data');
-      this.loadMockData();
-      this.filteredEvents = [...this.events];
-      this.calculateStatistics();
-    }
-  });
-
-  // Load mock registrations data (you can replace this with API call later)
-  this.registrations = [
-    { id: 1, eventId: 1, eventName: 'Tech Conference', attendeeName: 'Sneha M', email: 'sneha123@example.com', registrationDate: new Date('2024-05-01'), status: 'confirmed', ticketType: 'VIP' },
-    { id: 2, eventId: 1, eventName: 'Cultural Fest', attendeeName: 'Riya Jane', email: 'jane@example.com', registrationDate: new Date('2024-05-02'), status: 'confirmed', ticketType: 'Regular' },
-    { id: 3, eventId: 2, eventName: 'Start Up', attendeeName: 'Suzy Dsouza', email: 'suzy@example.com', registrationDate: new Date('2024-05-03'), status: 'pending', ticketType: 'Early Bird' },
-    { id: 4, eventId: 1, eventName: 'Tech Conference', attendeeName: 'Alice Williams', email: 'alice@example.com', registrationDate: new Date('2024-05-04'), status: 'confirmed', ticketType: 'Regular' },
-    { id: 5, eventId: 3, eventName: 'Networking Mixer', attendeeName: 'Chris Brown', email: 'chris701@example.com', registrationDate: new Date('2024-04-15'), status: 'confirmed', ticketType: 'Regular' },
-    { id: 6, eventId: 4, eventName: 'AI Summit', attendeeName: 'Diana Prisley', email: 'diana@example.com', registrationDate: new Date('2024-05-10'), status: 'pending', ticketType: 'VIP' },
-    { id: 7, eventId: 2, eventName: 'Hackathon', attendeeName: 'Evan Jain', email: 'evan@example.com', registrationDate: new Date('2024-05-11'), status: 'cancelled', ticketType: 'Regular' },
-  ];
-
-  this.filteredRegistrations = [...this.registrations];
-}
-
   // Helper method to generate numeric ID from MongoDB ObjectId
   private generateNumericId(id: string): number {
     if (!id) return Math.floor(Math.random() * 10000);
@@ -192,7 +145,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   // Helper method to map API status to component status
   private mapStatus(status: string): 'active' | 'upcoming' | 'completed' | 'cancelled' {
-    switch(status) {
+    switch (status) {
       case 'ongoing': return 'active';
       case 'upcoming': return 'upcoming';
       case 'completed': return 'completed';
@@ -203,7 +156,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   // Helper method to map event type to category
   private mapTypeToCategory(type: string): string {
-    const categoryMap: {[key: string]: string} = {
+    const categoryMap: { [key: string]: string } = {
       'technical': 'Conference',
       'workshop': 'Workshop',
       'seminar': 'Seminar',
@@ -259,7 +212,6 @@ export class EventOrganizerDashboardComponent implements OnInit {
     };
   }
 
-  // ========== EVENT METHODS ==========
   openCreateEventModal(): void {
     this.showCreateEventModal = true;
   }
@@ -269,34 +221,59 @@ export class EventOrganizerDashboardComponent implements OnInit {
     this.createEventForm.reset();
   }
 
+  // ========== FEEDBACK MODAL ==========
+  showFeedbackModal = false;
+  selectedEventFeedback: any[] = [];
+  selectedEventName = '';
+  averageRating = 0;
+
+  openFeedbackModal(event: Event): void {
+    this.selectedEventName = event.name;
+    this.selectedEventFeedback = event.feedback || [];
+
+    if (this.selectedEventFeedback.length > 0) {
+      const sum = this.selectedEventFeedback.reduce((acc, f) => acc + f.rating, 0);
+      this.averageRating = sum / this.selectedEventFeedback.length;
+    } else {
+      this.averageRating = 0;
+    }
+
+    this.showFeedbackModal = true;
+  }
+
+  closeFeedbackModal(): void {
+    this.showFeedbackModal = false;
+  }
+
   createEvent(): void {
     if (this.createEventForm.valid) {
       const formValue = this.createEventForm.value;
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         alert('You must be logged in to create events');
         return;
       }
-      
+
       // Prepare event data for API
       const eventData = {
         title: formValue.name,
         description: formValue.description || 'No description provided',
-        type: this.mapEventType(formValue.category),
-        category: formValue.category === 'Conference' || formValue.category === 'Workshop' ? 'college' : 'inter-college',
+        type: formValue.type,
+        category: formValue.category,
         venue: formValue.location,
         startDate: new Date(formValue.date + 'T' + (formValue.time || '00:00')).toISOString(),
-        endDate: new Date(new Date(formValue.date + 'T' + (formValue.time || '00:00')).getTime() + 7200000).toISOString(),
-        registrationDeadline: new Date(new Date(formValue.date + 'T' + (formValue.time || '00:00')).getTime() - 86400000).toISOString(),
+        endDate: new Date(formValue.endDate).toISOString(),
+        registrationDeadline: new Date(formValue.registrationDeadline).toISOString(),
         maxParticipants: formValue.capacity,
+        imageUrl: formValue.imageUrl || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&q=80&w=800',
         registrationFee: 0,
-        organizer: this.authService.getFullName() || 'College Admin',
+        organizer: formValue.organizer,
         contactEmail: this.authService.getEmail() || 'admin@college.edu'
       };
-      
+
       console.log('Sending event data to API:', eventData);
-      
+
       // Call the event service to create event
       this.eventService.createEvent(eventData).subscribe({
         next: (data) => {
@@ -315,7 +292,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   // Helper method to map category to event type
   private mapEventType(category: string): string {
-    const typeMap: {[key: string]: string} = {
+    const typeMap: { [key: string]: string } = {
       'Conference': 'technical',
       'Workshop': 'workshop',
       'Seminar': 'seminar',
@@ -326,6 +303,39 @@ export class EventOrganizerDashboardComponent implements OnInit {
     return typeMap[category] || 'technical';
   }
 
+  onFilterChange(): void {
+    this.loadDashboardData();
+  }
+
+  // Override loadDashboardData to support filters
+  loadDashboardData(): void {
+    const filters = {
+      startDate: this.startDateFilter,
+      endDate: this.endDateFilter,
+      status: this.eventStatusFilter
+    };
+
+    this.eventService.getAllEvents(filters).subscribe({
+      next: (apiEvents: any[]) => {
+        this.events = apiEvents.map(event => ({
+          id: this.generateNumericId(event._id || ''),
+          name: event.title || '',
+          date: event.startDate ? new Date(event.startDate) : new Date(),
+          status: this.mapStatus(event.status || 'upcoming'),
+          registrations: event.currentParticipants || 0,
+          capacity: event.maxParticipants || 0,
+          averageParticipants: event.currentParticipants || 0,
+          location: event.venue || '',
+          category: this.mapTypeToCategory(event.type || 'technical'),
+          imageUrl: event.imageUrl,
+          feedback: event.feedback || []
+        }));
+        this.filterEvents();
+        this.calculateStatistics();
+      }
+    });
+  }
+
   duplicateEvent(eventId: number): void {
     const event = this.events.find(e => e.id === eventId);
     if (event) {
@@ -333,7 +343,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
       const apiEvents: any[] = [];
       this.eventService.getAllEvents().subscribe(events => {
         const originalEvent = events.find((e: any) => this.generateNumericId(e._id) === eventId);
-        
+
         if (originalEvent) {
           const duplicatedEventData = {
             title: `${originalEvent.title} (Copy)`,
@@ -349,7 +359,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
             organizer: this.authService.getFullName() || 'College Admin',
             contactEmail: this.authService.getEmail() || 'admin@college.edu'
           };
-          
+
           this.eventService.createEvent(duplicatedEventData).subscribe({
             next: () => {
               alert('Event duplicated successfully!');
@@ -375,7 +385,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
         this.filteredEvents = [...this.events];
         this.calculateStatistics();
         alert('Event cancelled successfully!');
-        
+
         // TODO: Add API call to update event status in database
       }
     }

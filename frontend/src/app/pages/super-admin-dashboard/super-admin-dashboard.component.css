@@ -8,8 +8,9 @@
 .dashboard {
   display: flex;
   min-height: 100vh;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #f5f7fb;
+  font-family: 'Inter', Arial, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: linear-gradient(to right, #667eea, #764ba2);
+  color: white;
 }
 
 /* ========== SIDEBAR ========== */
@@ -170,12 +171,11 @@
 .main-content {
   flex: 1;
   overflow-y: auto;
-  background: #f5f7fb;
 }
 
 /* Header */
 .header {
-  background: white;
+  background: rgba(0, 0, 0, 0.3);
   padding: 24px 30px;
   display: flex;
   justify-content: space-between;
@@ -189,12 +189,12 @@
 .header-title h1 {
   font-size: 24px;
   font-weight: 700;
-  color: #2d3748;
+  color: white;
   margin: 0 0 5px;
 }
 
 .header-title p {
-  color: #718096;
+  color: rgba(255, 255, 255, 0.8);
   font-size: 14px;
   margin: 0;
 }
@@ -253,14 +253,32 @@
 }
 
 .stat-card {
-  background: white;
   padding: 25px;
-  border-radius: 16px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   gap: 20px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   transition: all 0.3s;
+  text-align: center;
+  flex-direction: column;
+}
+
+.stat-card.colleges {
+  background: #ff6b6b;
+}
+
+.stat-card.admins {
+  background: #4ecdc4;
+}
+
+.stat-card.students {
+  background: #ffe66d;
+  color: black;
+}
+
+.stat-card.events {
+  background: #1dd1a1;
 }
 
 .stat-card:hover {
@@ -271,30 +289,31 @@
 .stat-icon {
   width: 60px;
   height: 60px;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 28px;
-  color: white;
+  color: inherit;
 }
 
 .stat-details h3 {
   font-size: 28px;
   font-weight: 700;
-  color: #2d3748;
+  color: inherit;
   margin: 0 0 5px;
 }
 
 .stat-details p {
-  color: #718096;
+  color: inherit;
   margin: 0 0 5px;
   font-size: 14px;
 }
 
 .stat-details small {
-  color: #a0aec0;
+  color: inherit;
+  opacity: 0.8;
   font-size: 12px;
 }
 
@@ -420,7 +439,9 @@
   background: #f7fafc;
 }
 
-.college-name, .admin-name, .event-name {
+.college-name,
+.admin-name,
+.event-name {
   font-weight: 500;
   color: #2d3748;
 }
@@ -607,6 +628,26 @@
 }
 
 /* Filters Bar */
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 15px;
+  border-radius: 8px;
+}
+
+.filter-input,
+.filter-select {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: white;
+  color: #2d3748;
+  font-size: 13px;
+  outline: none;
+}
+
 .filters-bar {
   display: flex;
   gap: 15px;
@@ -821,7 +862,7 @@
   .sidebar {
     width: 240px;
   }
-  
+
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -831,52 +872,52 @@
   .dashboard {
     flex-direction: column;
   }
-  
+
   .sidebar {
     width: 100%;
     height: auto;
     position: relative;
   }
-  
+
   .nav-menu {
     display: flex;
     overflow-x: auto;
     padding: 10px;
   }
-  
+
   .nav-item {
     width: auto;
     padding: 10px 15px;
     white-space: nowrap;
   }
-  
+
   .header {
     flex-direction: column;
     align-items: flex-start;
     gap: 15px;
   }
-  
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .actions-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .data-table {
     display: block;
     overflow-x: auto;
   }
-  
+
   .filters-bar {
     flex-direction: column;
   }
-  
+
   .search-box {
     width: 100%;
   }
-  
+
   .view-header {
     flex-direction: column;
     align-items: flex-start;
@@ -888,26 +929,27 @@
   .content {
     padding: 15px;
   }
-  
+
   .actions-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .reports-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .approval-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
   }
-  
+
   .approval-actions {
     width: 100%;
   }
-  
-  .btn-approve, .btn-reject {
+
+  .btn-approve,
+  .btn-reject {
     flex: 1;
   }
 }

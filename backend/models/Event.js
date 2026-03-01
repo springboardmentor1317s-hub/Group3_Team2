@@ -76,7 +76,21 @@ const eventSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  imageUrl: {
+    type: String,
+    default: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&q=80&w=800'
   }
+});
+
+// Feedback Schema embedded inside Event
+eventSchema.add({
+  feedback: [{
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    rating: { type: Number, required: true, min: 1, max: 5 },
+    comment: { type: String, required: false },
+    createdAt: { type: Date, default: Date.now }
+  }]
 });
 
 module.exports = mongoose.model('Event', eventSchema);

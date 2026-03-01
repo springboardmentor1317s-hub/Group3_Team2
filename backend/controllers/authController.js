@@ -18,6 +18,13 @@ exports.registerUser = async (req, res) => {
       return res.status(400).json({ message: 'Please fill all required fields' });
     }
 
+    // Check DB state
+    const dbState = require('mongoose').connection.readyState;
+    console.log('📊 DB Ready State during registration:', dbState);
+    if (dbState !== 1) {
+      console.warn('⚠️ MongoDB not connected. Attempting to proceed but might timeout.');
+    }
+
     // Check if user already exists
     const userExists = await User.findOne({ email });
     if (userExists) {

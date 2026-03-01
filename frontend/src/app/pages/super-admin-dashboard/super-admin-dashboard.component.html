@@ -8,7 +8,7 @@
         <p>Super Admin</p>
       </div>
     </div>
-    
+
     <div class="user-info">
       <div class="avatar">
         {{ authService.getFullName()?.charAt(0) || 'SA' }}
@@ -25,34 +25,34 @@
         <span class="label">Overview</span>
         <span class="badge" *ngIf="pendingApprovals > 0">{{ pendingApprovals }}</span>
       </button>
-      
+
       <button class="nav-item" [class.active]="currentView() === 'colleges'" (click)="setView('colleges')">
         <span class="icon">🏛️</span>
         <span class="label">Manage Colleges</span>
         <span class="badge warning" *ngIf="suspendedColleges > 0">{{ suspendedColleges }}</span>
       </button>
-      
+
       <button class="nav-item" [class.active]="currentView() === 'admins'" (click)="setView('admins')">
         <span class="icon">👥</span>
         <span class="label">College Admins</span>
       </button>
-      
+
       <button class="nav-item" [class.active]="currentView() === 'events'" (click)="setView('events')">
         <span class="icon">📅</span>
         <span class="label">All Events</span>
         <span class="badge" *ngIf="events.length > 0">{{ events.length }}</span>
       </button>
-      
+
       <button class="nav-item" [class.active]="currentView() === 'users'" (click)="setView('users')">
         <span class="icon">👤</span>
         <span class="label">All Users</span>
       </button>
-      
+
       <button class="nav-item" [class.active]="currentView() === 'reports'" (click)="setView('reports')">
         <span class="icon">📈</span>
         <span class="label">Reports</span>
       </button>
-      
+
       <button class="nav-item" [class.active]="currentView() === 'settings'" (click)="setView('settings')">
         <span class="icon">⚙️</span>
         <span class="label">System Settings</span>
@@ -73,7 +73,8 @@
     <header class="header">
       <div class="header-title">
         <h1>Super Admin Dashboard</h1>
-        <p>Welcome back, {{ authService.getFullName() || 'Super Admin' }}! Here's what's happening with your platform.</p>
+        <p>Welcome back, {{ authService.getFullName() || 'Super Admin' }}! Here's what's happening with your platform.
+        </p>
       </div>
       <div class="header-actions">
         <div class="date-display">
@@ -91,507 +92,527 @@
     <div class="content">
       <!-- Overview View -->
       @if (currentView() === 'overview') {
-        <div class="overview-view">
-          <!-- Stats Grid -->
-          <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-icon">🏛️</div>
-              <div class="stat-details">
-                <h3>{{ totalColleges }}</h3>
-                <p>Total Colleges</p>
-                <small>{{ activeColleges }} active · {{ suspendedColleges }} suspended</small>
-              </div>
-            </div>
-            
-            <div class="stat-card">
-              <div class="stat-icon">👥</div>
-              <div class="stat-details">
-                <h3>{{ totalAdmins }}</h3>
-                <p>College Admins</p>
-                <small>{{ getActiveAdminsCount() }} active</small>
-              </div>
-            </div>
-            
-            <div class="stat-card">
-              <div class="stat-icon">📅</div>
-              <div class="stat-details">
-                <h3>{{ totalEvents }}</h3>
-                <p>Total Events</p>
-                <small>{{ getUpcomingEventsCount() }} upcoming</small>
-              </div>
-            </div>
-            
-            <div class="stat-card">
-              <div class="stat-icon">👤</div>
-              <div class="stat-details">
-                <h3>{{ totalUsers }}</h3>
-                <p>Total Users</p>
-                <small>Across all colleges</small>
-              </div>
+      <div class="overview-view">
+        <!-- Stats Grid -->
+        <div class="stats-grid cards">
+          <div class="stat-card colleges">
+            <div class="stat-icon">🏛️</div>
+            <div class="stat-details">
+              <h3>{{ totalColleges }}</h3>
+              <p>Total Colleges</p>
+              <small>{{ activeColleges }} active · {{ suspendedColleges }} suspended</small>
             </div>
           </div>
 
-          <!-- Pending Approvals -->
-          <div class="approvals-section" *ngIf="pendingApprovals > 0">
-            <div class="section-header">
-              <h2>Pending Approvals</h2>
-              <button class="btn-link" (click)="setView('colleges')">View All</button>
-            </div>
-            <div class="approvals-list">
-              @for (college of getPendingColleges(); track college.id) {
-                <div class="approval-item">
-                  <div class="approval-info">
-                    <h4>{{ college.name }}</h4>
-                    <p>Admin: {{ college.adminName }} · {{ college.adminEmail }}</p>
-                  </div>
-                  <div class="approval-actions">
-                    <button class="btn-approve" (click)="approveCollege(college.id)">✓ Approve</button>
-                    <button class="btn-reject" (click)="deleteCollege(college.id)">✗ Reject</button>
-                  </div>
-                </div>
-              }
+          <div class="stat-card admins">
+            <div class="stat-icon">👥</div>
+            <div class="stat-details">
+              <h3>{{ totalAdmins }}</h3>
+              <p>College Admins</p>
+              <small>{{ getActiveAdminsCount() }} active</small>
             </div>
           </div>
 
-          <!-- Recent Colleges -->
-          <div class="recent-section">
-            <div class="section-header">
-              <h2>Recent Colleges</h2>
-              <button class="btn-link" (click)="setView('colleges')">Manage Colleges</button>
+          <div class="stat-card events">
+            <div class="stat-icon">📅</div>
+            <div class="stat-details">
+              <h3>{{ totalEvents }}</h3>
+              <p>Total Events</p>
+              <small>{{ getUpcomingEventsCount() }} upcoming</small>
             </div>
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>College Name</th>
-                  <th>Admin</th>
-                  <th>Events</th>
-                  <th>Students</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (college of recentColleges; track college.id) {
-                  <tr>
-                    <td class="college-name">{{ college.name }}</td>
-                    <td>{{ college.adminName }}</td>
-                    <td>{{ college.eventCount }}</td>
-                    <td>{{ college.studentCount }}</td>
-                    <td>
-                      <span class="status-badge" [ngClass]="getStatusClass(college.status)">
-                        {{ college.status }}
-                      </span>
-                    </td>
-                    <td class="actions">
-                      <button class="btn-icon" (click)="viewCollege(college.id)" title="View">👁️</button>
-                      <button class="btn-icon" (click)="editCollege(college.id)" title="Edit">✏️</button>
-                      @if (college.status === 'active') {
-                        <button class="btn-icon" (click)="suspendCollege(college.id)" title="Suspend">⛔</button>
-                      } @else {
-                        <button class="btn-icon" (click)="activateCollege(college.id)" title="Activate">✅</button>
-                      }
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
           </div>
 
-          <!-- Quick Actions -->
-          <div class="quick-actions">
-            <h3>Quick Actions</h3>
-            <div class="actions-grid">
-              <div class="action-card" (click)="addCollege()">
-                <span class="action-icon">➕</span>
-                <span class="action-label">Add College</span>
-              </div>
-              <div class="action-card" (click)="addAdmin()">
-                <span class="action-icon">👤</span>
-                <span class="action-label">Add Admin</span>
-              </div>
-              <div class="action-card" (click)="generateReport('monthly')">
-                <span class="action-icon">📊</span>
-                <span class="action-label">Generate Report</span>
-              </div>
-              <div class="action-card" (click)="exportData('all')">
-                <span class="action-icon">📤</span>
-                <span class="action-label">Export Data</span>
-              </div>
+          <div class="stat-card students">
+            <div class="stat-icon">👤</div>
+            <div class="stat-details">
+              <h3>{{ totalUsers }}</h3>
+              <p>Total Users</p>
+              <small>Across all colleges</small>
             </div>
           </div>
         </div>
+
+        <!-- Pending Approvals -->
+        <div class="approvals-section" *ngIf="pendingApprovals > 0">
+          <div class="section-header">
+            <h2>Pending Approvals</h2>
+            <button class="btn-link" (click)="setView('colleges')">View All</button>
+          </div>
+          <div class="approvals-list">
+            @for (college of getPendingColleges(); track college.id) {
+            <div class="approval-item">
+              <div class="approval-info">
+                <h4>{{ college.name }}</h4>
+                <p>Admin: {{ college.adminName }} · {{ college.adminEmail }}</p>
+              </div>
+              <div class="approval-actions">
+                <button class="btn-approve" (click)="approveCollege(college.id)">✓ Approve</button>
+                <button class="btn-reject" (click)="deleteCollege(college.id)">✗ Reject</button>
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+
+        <!-- Recent Colleges -->
+        <div class="recent-section">
+          <div class="section-header">
+            <h2>Recent Colleges</h2>
+            <button class="btn-link" (click)="setView('colleges')">Manage Colleges</button>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>College Name</th>
+                <th>Admin</th>
+                <th>Events</th>
+                <th>Students</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (college of recentColleges; track college.id) {
+              <tr>
+                <td class="college-name">{{ college.name }}</td>
+                <td>{{ college.adminName }}</td>
+                <td>{{ college.eventCount }}</td>
+                <td>{{ college.studentCount }}</td>
+                <td>
+                  <span class="status-badge" [ngClass]="getStatusClass(college.status)">
+                    {{ college.status }}
+                  </span>
+                </td>
+                <td class="actions">
+                  <button class="btn-icon" (click)="viewCollege(college.id)" title="View">👁️</button>
+                  <button class="btn-icon" (click)="editCollege(college.id)" title="Edit">✏️</button>
+                  @if (college.status === 'active') {
+                  <button class="btn-icon" (click)="suspendCollege(college.id)" title="Suspend">⛔</button>
+                  } @else {
+                  <button class="btn-icon" (click)="activateCollege(college.id)" title="Activate">✅</button>
+                  }
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+          <h3>Quick Actions</h3>
+          <div class="actions-grid">
+            <div class="action-card" (click)="addCollege()">
+              <span class="action-icon">➕</span>
+              <span class="action-label">Add College</span>
+            </div>
+            <div class="action-card" (click)="addAdmin()">
+              <span class="action-icon">👤</span>
+              <span class="action-label">Add Admin</span>
+            </div>
+            <div class="action-card" (click)="generateReport('monthly')">
+              <span class="action-icon">📊</span>
+              <span class="action-label">Generate Report</span>
+            </div>
+            <div class="action-card" (click)="exportData('all')">
+              <span class="action-icon">📤</span>
+              <span class="action-label">Export Data</span>
+            </div>
+          </div>
+        </div>
+      </div>
       }
 
       <!-- Colleges Management View -->
       @if (currentView() === 'colleges') {
-        <div class="colleges-view">
-          <div class="view-header">
-            <div>
-              <h2>Manage Colleges</h2>
-              <p>View and manage all registered colleges</p>
-            </div>
-            <button class="btn-primary" (click)="addCollege()">
-              <span class="btn-icon">➕</span> Add New College
-            </button>
+      <div class="colleges-view">
+        <div class="view-header">
+          <div>
+            <h2>Manage Colleges</h2>
+            <p>View and manage all registered colleges</p>
           </div>
-
-          <!-- Filters -->
-          <div class="filters-bar">
-            <div class="search-box">
-              <span class="search-icon">🔍</span>
-              <input type="text" placeholder="Search colleges...">
-            </div>
-            <select class="filter-select">
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="suspended">Suspended</option>
-              <option value="pending">Pending</option>
-            </select>
-            <button class="btn-secondary">Filter</button>
-          </div>
-
-          <!-- Colleges Table -->
-          <table class="data-table full-width">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>College Name</th>
-                <th>Admin</th>
-                <th>Email</th>
-                <th>Events</th>
-                <th>Students</th>
-                <th>Joined Date</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (college of colleges; track college.id) {
-                <tr>
-                  <td>#{{ college.id }}</td>
-                  <td class="college-name">{{ college.name }}</td>
-                  <td>{{ college.adminName }}</td>
-                  <td>{{ college.adminEmail }}</td>
-                  <td>{{ college.eventCount }}</td>
-                  <td>{{ college.studentCount }}</td>
-                  <td>{{ formatDate(college.createdAt) }}</td>
-                  <td>
-                    <span class="status-badge" [ngClass]="getStatusClass(college.status)">
-                      {{ college.status }}
-                    </span>
-                  </td>
-                  <td class="actions">
-                    <button class="btn-icon" (click)="viewCollege(college.id)" title="View">👁️</button>
-                    <button class="btn-icon" (click)="editCollege(college.id)" title="Edit">✏️</button>
-                    @if (college.status === 'active') {
-                      <button class="btn-icon" (click)="suspendCollege(college.id)" title="Suspend">⛔</button>
-                    } @else if (college.status === 'suspended') {
-                      <button class="btn-icon" (click)="activateCollege(college.id)" title="Activate">✅</button>
-                    } @else if (college.status === 'pending') {
-                      <button class="btn-icon" (click)="approveCollege(college.id)" title="Approve">✓</button>
-                    }
-                    <button class="btn-icon delete" (click)="deleteCollege(college.id)" title="Delete">🗑️</button>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-
-          <!-- Pagination -->
-          <div class="pagination">
-            <button class="btn-pagination" disabled>Previous</button>
-            <span class="page-info">Page 1 of 3</span>
-            <button class="btn-pagination">Next</button>
-          </div>
+          <button class="btn-primary" (click)="addCollege()">
+            <span class="btn-icon">➕</span> Add New College
+          </button>
         </div>
+
+        <!-- Filters -->
+        <div class="filters-bar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search colleges...">
+          </div>
+          <select class="filter-select">
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+            <option value="pending">Pending</option>
+          </select>
+          <button class="btn-secondary">Filter</button>
+        </div>
+
+        <!-- Colleges Table -->
+        <table class="data-table full-width">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>College Name</th>
+              <th>Admin</th>
+              <th>Email</th>
+              <th>Events</th>
+              <th>Students</th>
+              <th>Joined Date</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (college of colleges; track college.id) {
+            <tr>
+              <td>#{{ college.id }}</td>
+              <td class="college-name">{{ college.name }}</td>
+              <td>{{ college.adminName }}</td>
+              <td>{{ college.adminEmail }}</td>
+              <td>{{ college.eventCount }}</td>
+              <td>{{ college.studentCount }}</td>
+              <td>{{ formatDate(college.createdAt) }}</td>
+              <td>
+                <span class="status-badge" [ngClass]="getStatusClass(college.status)">
+                  {{ college.status }}
+                </span>
+              </td>
+              <td class="actions">
+                <button class="btn-icon" (click)="viewCollege(college.id)" title="View">👁️</button>
+                <button class="btn-icon" (click)="editCollege(college.id)" title="Edit">✏️</button>
+                @if (college.status === 'active') {
+                <button class="btn-icon" (click)="suspendCollege(college.id)" title="Suspend">⛔</button>
+                } @else if (college.status === 'suspended') {
+                <button class="btn-icon" (click)="activateCollege(college.id)" title="Activate">✅</button>
+                } @else if (college.status === 'pending') {
+                <button class="btn-icon" (click)="approveCollege(college.id)" title="Approve">✓</button>
+                }
+                <button class="btn-icon delete" (click)="deleteCollege(college.id)" title="Delete">🗑️</button>
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+
+        <!-- Pagination -->
+        <div class="pagination">
+          <button class="btn-pagination" disabled>Previous</button>
+          <span class="page-info">Page 1 of 3</span>
+          <button class="btn-pagination">Next</button>
+        </div>
+      </div>
       }
 
       <!-- College Admins View -->
       @if (currentView() === 'admins') {
-        <div class="admins-view">
-          <div class="view-header">
-            <div>
-              <h2>College Administrators</h2>
-              <p>Manage admin accounts across all colleges</p>
-            </div>
-            <button class="btn-primary" (click)="addAdmin()">
-              <span class="btn-icon">➕</span> Add New Admin
-            </button>
+      <div class="admins-view">
+        <div class="view-header">
+          <div>
+            <h2>College Administrators</h2>
+            <p>Manage admin accounts across all colleges</p>
           </div>
-
-          <div class="filters-bar">
-            <div class="search-box">
-              <span class="search-icon">🔍</span>
-              <input type="text" placeholder="Search admins...">
-            </div>
-            <select class="filter-select">
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="suspended">Suspended</option>
-              <option value="pending">Pending</option>
-            </select>
-          </div>
-
-          <table class="data-table full-width">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>College</th>
-                <th>Events Managed</th>
-                <th>Last Login</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (admin of admins; track admin.id) {
-                <tr>
-                  <td>#{{ admin.id }}</td>
-                  <td class="admin-name">{{ admin.name }}</td>
-                  <td>{{ admin.email }}</td>
-                  <td>{{ admin.college }}</td>
-                  <td>{{ admin.eventsManaged }}</td>
-                  <td>{{ formatDate(admin.lastLogin) }}</td>
-                  <td>
-                    <span class="status-badge" [ngClass]="getStatusClass(admin.status)">
-                      {{ admin.status }}
-                    </span>
-                  </td>
-                  <td class="actions">
-                    <button class="btn-icon" (click)="editAdmin(admin.id)" title="Edit">✏️</button>
-                    <button class="btn-icon" (click)="resetAdminPassword(admin.id)" title="Reset Password">🔑</button>
-                    @if (admin.status === 'active') {
-                      <button class="btn-icon" (click)="suspendAdmin(admin.id)" title="Suspend">⛔</button>
-                    } @else {
-                      <button class="btn-icon" (click)="activateAdmin(admin.id)" title="Activate">✅</button>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+          <button class="btn-primary" (click)="addAdmin()">
+            <span class="btn-icon">➕</span> Add New Admin
+          </button>
         </div>
+
+        <div class="filters-bar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search admins...">
+          </div>
+          <select class="filter-select">
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+
+        <table class="data-table full-width">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>College</th>
+              <th>Events Managed</th>
+              <th>Last Login</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (admin of admins; track admin.id) {
+            <tr>
+              <td>#{{ admin.id }}</td>
+              <td class="admin-name">{{ admin.name }}</td>
+              <td>{{ admin.email }}</td>
+              <td>{{ admin.college }}</td>
+              <td>{{ admin.eventsManaged }}</td>
+              <td>{{ formatDate(admin.lastLogin) }}</td>
+              <td>
+                <span class="status-badge" [ngClass]="getStatusClass(admin.status)">
+                  {{ admin.status }}
+                </span>
+              </td>
+              <td class="actions">
+                <button class="btn-icon" (click)="editAdmin(admin.id)" title="Edit">✏️</button>
+                <button class="btn-icon" (click)="resetAdminPassword(admin.id)" title="Reset Password">🔑</button>
+                @if (admin.status === 'active') {
+                <button class="btn-icon" (click)="suspendAdmin(admin.id)" title="Suspend">⛔</button>
+                } @else {
+                <button class="btn-icon" (click)="activateAdmin(admin.id)" title="Activate">✅</button>
+                }
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
       }
 
       <!-- EVENTS VIEW - FIXED VERSION -->
       @if (currentView() === 'events') {
-        <div class="events-view">
-          <div class="view-header">
-            <div>
-              <h2>All Events Across Colleges</h2>
-              <p>Total events: <strong>{{ events.length }}</strong></p>
-            </div>
-            <div class="header-actions">
-              <button class="btn-primary" (click)="loadEventsFromDB()">
-                <span class="btn-icon">🔄</span> Refresh Events
-              </button>
-            </div>
+      <div class="events-view">
+        <div class="view-header">
+          <div>
+            <h2>All Events Across Colleges</h2>
+            <p>Total events: <strong>{{ events.length }}</strong></p>
           </div>
-
-          <!-- Debug Info - Shows what's happening -->
-          <div style="background: #e8f4fd; padding: 15px; margin-bottom: 20px; border-radius: 5px; border-left: 4px solid #2196F3;">
-            <h3 style="margin: 0 0 10px; color: #1976D2;">🔍 Debug Information</h3>
-            <p><strong>Events in component:</strong> {{ events.length }}</p>
-            <p><strong>Filtered events:</strong> {{ filteredEvents.length }}</p>
-            <p><strong>Current view:</strong> {{ currentView() }}</p>
-            <p><strong>API Status:</strong> Check browser console (F12) for logs</p>
+          <div class="header-actions">
+            <div class="filter-group">
+              <label>From:</label>
+              <input type="date" [(ngModel)]="startDateFilter" (change)="onFilterChange()" class="filter-input">
+              <label>To:</label>
+              <input type="date" [(ngModel)]="endDateFilter" (change)="onFilterChange()" class="filter-input">
+              <select [(ngModel)]="statusFilter" (change)="onFilterChange()" class="filter-select">
+                <option value="all">All Status</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="ongoing">Ongoing</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <button class="btn-primary" (click)="loadEventsFromDB()">
+              <span class="btn-icon">🔄</span> Refresh
+            </button>
           </div>
-
-          <!-- Events Table -->
-          @if (events.length > 0) {
-            <div class="events-table-container" style="overflow-x: auto;">
-              <table class="data-table full-width" style="width: 100%; border-collapse: collapse;">
-                <thead>
-                  <tr style="background: #f5f5f5;">
-                    <th style="padding: 12px; text-align: left;">Title</th>
-                    <th style="padding: 12px; text-align: left;">Date</th>
-                    <th style="padding: 12px; text-align: left;">Venue</th>
-                    <th style="padding: 12px; text-align: left;">Registrations</th>
-                    <th style="padding: 12px; text-align: left;">Status</th>
-                    <th style="padding: 12px; text-align: left;">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (event of events; track event._id) {
-                    <tr style="border-bottom: 1px solid #e0e0e0;">
-                      <td style="padding: 12px; font-weight: 500;">{{ event.title }}</td>
-                      <td style="padding: 12px;">{{ formatDate(event.startDate) }}</td>
-                      <td style="padding: 12px;">{{ event.venue }}</td>
-                      <td style="padding: 12px;">{{ event.currentParticipants || 0 }}/{{ event.maxParticipants || 0 }}</td>
-                      <td style="padding: 12px;">
-                        <span class="status-badge" [ngClass]="getStatusClass(event.status)">
-                          {{ event.status }}
-                        </span>
-                      </td>
-                      <td style="padding: 12px;">
-                        <button class="btn-icon" (click)="viewEvent(event._id)" title="View Details">👁️</button>
-                        <button class="btn-icon" (click)="cancelEvent(event._id)" title="Cancel Event">❌</button>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          } @else {
-            <div style="text-align: center; padding: 60px 20px; background: #f9f9f9; border-radius: 8px;">
-              <p style="font-size: 18px; color: #666; margin-bottom: 15px;">No events found</p>
-              <p style="color: #999; margin-bottom: 20px;">Events array length: {{ events.length }}</p>
-              <button class="btn-primary" (click)="loadEventsFromDB()" style="padding: 10px 25px;">
-                Refresh Events
-              </button>
-            </div>
-          }
-
-          <!-- Raw Data Display (for debugging) -->
-          @if (events.length > 0) {
-            <details style="margin-top: 30px;">
-              <summary style="cursor: pointer; color: #666; padding: 10px; background: #f5f5f5;">View Raw Event Data</summary>
-              <pre style="background: #f0f0f0; padding: 15px; overflow: auto; max-height: 300px;">{{ events | json }}</pre>
-            </details>
-          }
         </div>
-      }
 
-      <!-- Users View -->
-      @if (currentView() === 'users') {
-        <div class="users-view">
-          <div class="view-header">
-            <h2>All Users</h2>
-            <div class="search-box large">
-              <span class="search-icon">🔍</span>
-              <input type="text" placeholder="Search users by name, email, or college...">
-            </div>
-          </div>
+        <!-- Debug Info - Shows what's happening -->
+        <div
+          style="background: #e8f4fd; padding: 15px; margin-bottom: 20px; border-radius: 5px; border-left: 4px solid #2196F3;">
+          <h3 style="margin: 0 0 10px; color: #1976D2;">🔍 Debug Information</h3>
+          <p><strong>Events in component:</strong> {{ events.length }}</p>
+          <p><strong>Filtered events:</strong> {{ filteredEvents.length }}</p>
+          <p><strong>Current view:</strong> {{ currentView() }}</p>
+          <p><strong>API Status:</strong> Check browser console (F12) for logs</p>
+        </div>
 
-          <table class="data-table full-width">
+        <!-- Events Table -->
+        @if (events.length > 0) {
+        <div class="events-table-container" style="overflow-x: auto;">
+          <table class="data-table full-width" style="width: 100%; border-collapse: collapse;">
             <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>College</th>
-                <th>Role</th>
-                <th>Events Registered</th>
-                <th>Joined Date</th>
-                <th>Actions</th>
+              <tr style="background: #f5f5f5;">
+                <th style="padding: 12px; text-align: left;">Image</th>
+                <th style="padding: 12px; text-align: left;">Title</th>
+                <th style="padding: 12px; text-align: left;">Date</th>
+                <th style="padding: 12px; text-align: left;">Venue</th>
+                <th style="padding: 12px; text-align: left;">Registrations</th>
+                <th style="padding: 12px; text-align: left;">Status</th>
+                <th style="padding: 12px; text-align: left;">Actions</th>
               </tr>
             </thead>
             <tbody>
-              @for (user of users; track user.id) {
-                <tr>
-                  <td>#{{ user.id }}</td>
-                  <td>{{ user.name }}</td>
-                  <td>{{ user.email }}</td>
-                  <td>{{ user.college }}</td>
-                  <td>{{ user.role }}</td>
-                  <td>{{ user.registeredEvents }}</td>
-                  <td>{{ formatDate(user.joinedDate) }}</td>
-                  <td class="actions">
-                    <button class="btn-icon" (click)="viewUser(user.id)" title="View">👁️</button>
-                    <button class="btn-icon" (click)="suspendUser(user.id)" title="Suspend">⛔</button>
-                  </td>
-                </tr>
+              @for (event of events; track event._id) {
+              <tr style="border-bottom: 1px solid #e0e0e0;">
+                <td style="padding: 12px;">
+                  <img [src]="event.imageUrl || 'assets/default-event.jpg'" alt="Event"
+                    style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">
+                </td>
+                <td style="padding: 12px; font-weight: 500;">{{ event.title }}</td>
+                <td style="padding: 12px;">{{ formatDate(event.startDate) }}</td>
+                <td style="padding: 12px;">{{ event.venue }}</td>
+                <td style="padding: 12px;">{{ event.currentParticipants || 0 }}/{{ event.maxParticipants || 0 }}</td>
+                <td style="padding: 12px;">
+                  <span class="status-badge" [ngClass]="getStatusClass(event.status)">
+                    {{ event.status }}
+                  </span>
+                </td>
+                <td style="padding: 12px;">
+                  <button class="btn-icon" (click)="viewEvent(event._id)" title="View Details">👁️</button>
+                  <button class="btn-icon" (click)="cancelEvent(event._id)" title="Cancel Event">❌</button>
+                </td>
+              </tr>
               }
             </tbody>
           </table>
         </div>
+        } @else {
+        <div style="text-align: center; padding: 60px 20px; background: #f9f9f9; border-radius: 8px;">
+          <p style="font-size: 18px; color: #666; margin-bottom: 15px;">No events found</p>
+          <p style="color: #999; margin-bottom: 20px;">Events array length: {{ events.length }}</p>
+          <button class="btn-primary" (click)="loadEventsFromDB()" style="padding: 10px 25px;">
+            Refresh Events
+          </button>
+        </div>
+        }
+
+        <!-- Raw Data Display (for debugging) -->
+        @if (events.length > 0) {
+        <details style="margin-top: 30px;">
+          <summary style="cursor: pointer; color: #666; padding: 10px; background: #f5f5f5;">View Raw Event Data
+          </summary>
+          <pre style="background: #f0f0f0; padding: 15px; overflow: auto; max-height: 300px;">{{ events | json }}</pre>
+        </details>
+        }
+      </div>
+      }
+
+      <!-- Users View -->
+      @if (currentView() === 'users') {
+      <div class="users-view">
+        <div class="view-header">
+          <h2>All Users</h2>
+          <div class="search-box large">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search users by name, email, or college...">
+          </div>
+        </div>
+
+        <table class="data-table full-width">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>College</th>
+              <th>Role</th>
+              <th>Events Registered</th>
+              <th>Joined Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (user of users; track user.id) {
+            <tr>
+              <td>#{{ user.id }}</td>
+              <td>{{ user.name }}</td>
+              <td>{{ user.email }}</td>
+              <td>{{ user.college }}</td>
+              <td>{{ user.role }}</td>
+              <td>{{ user.registeredEvents }}</td>
+              <td>{{ formatDate(user.joinedDate) }}</td>
+              <td class="actions">
+                <button class="btn-icon" (click)="viewUser(user.id)" title="View">👁️</button>
+                <button class="btn-icon" (click)="suspendUser(user.id)" title="Suspend">⛔</button>
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
       }
 
       <!-- Reports View -->
       @if (currentView() === 'reports') {
-        <div class="reports-view">
-          <h2>System Reports</h2>
-          
-          <div class="reports-grid">
-            <div class="report-card" (click)="generateReport('monthly')">
-              <div class="report-icon">📊</div>
-              <div class="report-info">
-                <h3>Monthly Activity Report</h3>
-                <p>View platform activity for the current month</p>
-              </div>
-              <button class="btn-generate">Generate</button>
-            </div>
+      <div class="reports-view">
+        <h2>System Reports</h2>
 
-            <div class="report-card" (click)="generateReport('college')">
-              <div class="report-icon">🏛️</div>
-              <div class="report-info">
-                <h3>College Performance Report</h3>
-                <p>Compare event metrics across colleges</p>
-              </div>
-              <button class="btn-generate">Generate</button>
+        <div class="reports-grid">
+          <div class="report-card" (click)="generateReport('monthly')">
+            <div class="report-icon">📊</div>
+            <div class="report-info">
+              <h3>Monthly Activity Report</h3>
+              <p>View platform activity for the current month</p>
             </div>
+            <button class="btn-generate">Generate</button>
+          </div>
 
-            <div class="report-card" (click)="generateReport('user')">
-              <div class="report-icon">👤</div>
-              <div class="report-info">
-                <h3>User Engagement Report</h3>
-                <p>Analyze user participation and activity</p>
-              </div>
-              <button class="btn-generate">Generate</button>
+          <div class="report-card" (click)="generateReport('college')">
+            <div class="report-icon">🏛️</div>
+            <div class="report-info">
+              <h3>College Performance Report</h3>
+              <p>Compare event metrics across colleges</p>
             </div>
+            <button class="btn-generate">Generate</button>
+          </div>
 
-            <div class="report-card" (click)="generateReport('financial')">
-              <div class="report-icon">💰</div>
-              <div class="report-info">
-                <h3>Financial Summary</h3>
-                <p>View payment and revenue statistics</p>
-              </div>
-              <button class="btn-generate">Generate</button>
+          <div class="report-card" (click)="generateReport('user')">
+            <div class="report-icon">👤</div>
+            <div class="report-info">
+              <h3>User Engagement Report</h3>
+              <p>Analyze user participation and activity</p>
             </div>
+            <button class="btn-generate">Generate</button>
+          </div>
+
+          <div class="report-card" (click)="generateReport('financial')">
+            <div class="report-icon">💰</div>
+            <div class="report-info">
+              <h3>Financial Summary</h3>
+              <p>View payment and revenue statistics</p>
+            </div>
+            <button class="btn-generate">Generate</button>
           </div>
         </div>
+      </div>
       }
 
       <!-- Settings View -->
       @if (currentView() === 'settings') {
-        <div class="settings-view">
-          <h2>System Settings</h2>
-          
-          <div class="settings-section">
-            <h3>General Settings</h3>
-            <div class="settings-form">
-              <div class="form-group">
-                <label>Platform Name</label>
-                <input type="text" value="Campus Event Hub" class="form-control">
-              </div>
-              <div class="form-group">
-                <label>Support Email</label>
-                <input type="email" value="support@campuseventhub.com" class="form-control">
-              </div>
-              <div class="form-group">
-                <label>Default Registration Fee</label>
-                <input type="number" value="0" class="form-control">
-              </div>
-            </div>
-          </div>
+      <div class="settings-view">
+        <h2>System Settings</h2>
 
-          <div class="settings-section">
-            <h3>Security Settings</h3>
-            <div class="settings-form">
-              <div class="form-group checkbox">
-                <label>
-                  <input type="checkbox" checked> Require email verification
-                </label>
-              </div>
-              <div class="form-group checkbox">
-                <label>
-                  <input type="checkbox" checked> Enable two-factor authentication for admins
-                </label>
-              </div>
-              <div class="form-group">
-                <label>Session Timeout (minutes)</label>
-                <input type="number" value="30" class="form-control">
-              </div>
+        <div class="settings-section">
+          <h3>General Settings</h3>
+          <div class="settings-form">
+            <div class="form-group">
+              <label>Platform Name</label>
+              <input type="text" value="Campus Event Hub" class="form-control">
             </div>
-          </div>
-
-          <div class="settings-actions">
-            <button class="btn-primary" (click)="saveSettings()">Save Settings</button>
-            <button class="btn-secondary">Reset to Default</button>
+            <div class="form-group">
+              <label>Support Email</label>
+              <input type="email" value="support@campuseventhub.com" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Default Registration Fee</label>
+              <input type="number" value="0" class="form-control">
+            </div>
           </div>
         </div>
+
+        <div class="settings-section">
+          <h3>Security Settings</h3>
+          <div class="settings-form">
+            <div class="form-group checkbox">
+              <label>
+                <input type="checkbox" checked> Require email verification
+              </label>
+            </div>
+            <div class="form-group checkbox">
+              <label>
+                <input type="checkbox" checked> Enable two-factor authentication for admins
+              </label>
+            </div>
+            <div class="form-group">
+              <label>Session Timeout (minutes)</label>
+              <input type="number" value="30" class="form-control">
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-actions">
+          <button class="btn-primary" (click)="saveSettings()">Save Settings</button>
+          <button class="btn-secondary">Reset to Default</button>
+        </div>
+      </div>
       }
     </div>
   </main>

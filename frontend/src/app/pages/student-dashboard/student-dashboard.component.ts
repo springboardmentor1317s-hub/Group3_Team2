@@ -1,10 +1,12 @@
 import { NgClass, SlicePipe } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
 import { Component, OnInit, signal, computed, effect } from '@angular/core';
+import { trigger, transition, style, animate, query, group } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { EventService, Event } from '../../services/event.service';
+import { ChatService } from '../../services/chat.service';
 
 // ========== INTERFACES ==========
 interface User {
@@ -19,6 +21,9 @@ interface User {
   phone: string;
   walletBalance: number;
   registeredEvents: string[];
+  points: number;
+  rank: number;
+  badges: string[];
 }
 
 interface Notification {
@@ -70,6 +75,8 @@ interface DashboardEvent {
   createdBy?: string;
   registeredUsers?: string[];
   createdAt?: Date;
+  imageUrl?: string;
+  feedback?: { userId: string; rating: number; comment?: string; }[];
 }
 
 @Component({
@@ -77,37 +84,76 @@ interface DashboardEvent {
   standalone: true,
   imports: [CommonModule, FormsModule, NgClass, SlicePipe],
   templateUrl: './student-dashboard.component.html',
-  styleUrls: ['./student-dashboard.component.css']
+  styleUrls: ['./student-dashboard.component.css'],
+  animations: [
+    trigger('viewAnimation', [
+      transition('* => *', [
+        group([
+          query(':enter', [
+            style({ opacity: 0, transform: 'translateY(10px)' }),
+            animate('300ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
+          ], { optional: true }),
+          query(':leave', [
+            animate('200ms ease-in', style({ opacity: 0, transform: 'translateY(-10px)' }))
+          ], { optional: true })
+        ])
+      ])
+    ])
+  ]
 })
 export class StudentDashboardComponent implements OnInit {
   // ========== SIGNALS ==========
-  currentView = signal<'overview' | 'events' | 'registered' | 'profile' | 'notifications' | 'payments' | 'schedule' | 'register'>('overview');
+  currentView = signal<'overview' | 'events' | 'registered' | 'profile' | 'notifications' | 'payments' | 'schedule' | 'leaderboard'>('overview');
   sidebarCollapsed = signal<boolean>(false);
   showMobileMenu = signal<boolean>(false);
   searchQuery = signal<string>('');
   selectedEventType = signal<string>('all');
   selectedCategory = signal<string>('all');
   selectedEvent = signal<DashboardEvent | null>(null);
-  
+  showEventModal = signal<boolean>(false);
+  isDarkMode = signal<boolean>(false);
+
+  currentActivityIndex = signal<number>(0);
+  activities = signal<string[]>([
+    "🎓 Someone from LPU just registered for TechQuest 2024!",
+    "🔥 Robo-Wars is now 85% full! Grab your spot now.",
+    "🚀 Aditi Sharma just earned the 'Innovator' badge!",
+    "📅 New Workshop 'AI Ethics' added for next Friday.",
+    "✨ 50+ students joined the Cultural Fest planning committee."
+  ]);
+
   registrationData = signal<RegistrationData>({
     eventId: '',
     teamName: '',
     teamMembers: [],
     paymentMethod: 'wallet'
   });
-  
+
+  showConfetti = signal<boolean>(false);
+
+  leaderboardData = signal<any[]>([
+    { rank: 1, name: 'Aditi Sharma', points: 1250, college: 'IIT Bombay', badges: ['🏆', '🔥'] },
+    { rank: 2, name: 'Rahul Verma', points: 1100, college: 'NSUT', badges: ['🧠'] },
+    { rank: 3, name: 'Sneha Kapur', points: 950, college: 'DTU', badges: ['🎨'] },
+    { rank: 4, name: 'Me (You)', points: 840, college: 'LPU', badges: ['🚀'] },
+    { rank: 5, name: 'Vikram Singh', points: 720, college: 'BIT Mesra', badges: [] }
+  ]);
+
   // ========== USER DATA ==========
   currentUser = signal<User>({
     id: '',
     name: '',
     email: '',
     college: '',
-    department: '',
-    year: '',
-    rollNumber: '',
-    phone: '',
-    walletBalance: 0,
-    registeredEvents: []
+    department: 'Computer Science',
+    year: '3rd',
+    rollNumber: 'LPU12345',
+    phone: '+91 9876543210',
+    walletBalance: 2500,
+    registeredEvents: [],
+    points: 840,
+    rank: 4,
+    badges: ['🚀', '🌟']
   });
 
   // ========== EVENTS DATA FROM DATABASE ==========
@@ -194,8 +240,8 @@ export class StudentDashboardComponent implements OnInit {
 
   upcomingEvents = computed(() => {
     const now = new Date();
-    return this.allEvents().filter(event => 
-      event.status === 'upcoming' && 
+    return this.allEvents().filter(event =>
+      event.status === 'upcoming' &&
       new Date(event.startDate) > now
     );
   });
@@ -210,24 +256,24 @@ export class StudentDashboardComponent implements OnInit {
 
   filteredEvents = computed(() => {
     let filtered = this.allEvents();
-    
+
     if (this.searchQuery()) {
       const query = this.searchQuery().toLowerCase();
-      filtered = filtered.filter(event => 
+      filtered = filtered.filter(event =>
         event.title.toLowerCase().includes(query) ||
         event.description.toLowerCase().includes(query) ||
         event.venue.toLowerCase().includes(query)
       );
     }
-    
+
     if (this.selectedEventType() !== 'all') {
       filtered = filtered.filter(event => event.type === this.selectedEventType());
     }
-    
+
     if (this.selectedCategory() !== 'all') {
       filtered = filtered.filter(event => event.category === this.selectedCategory());
     }
-    
+
     return filtered;
   });
 
@@ -253,45 +299,104 @@ export class StudentDashboardComponent implements OnInit {
     return this.payments().filter(p => p.status === 'pending');
   });
 
+  trendingEvents = computed(() => {
+    return this.allEvents()
+      .filter(e => e.status === 'upcoming')
+      .sort((a, b) => (b.currentParticipants / b.maxParticipants) - (a.currentParticipants / a.maxParticipants))
+      .slice(0, 4);
+  });
+
   // ========== CONSTRUCTOR ==========
   constructor(
     private authService: AuthService,
     private router: Router,
-    private eventService: EventService
+    private eventService: EventService,
+    private chatService: ChatService
   ) {
+    // Initialize theme from localStorage
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      this.isDarkMode.set(true);
+    }
+
     effect(() => {
       console.log('Current view:', this.currentView());
+    });
+
+    // Effect to apply theme class and save to localStorage
+    effect(() => {
+      const dark = this.isDarkMode();
+      if (dark) {
+        document.body.classList.add('dark-theme');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.body.classList.remove('dark-theme');
+        localStorage.setItem('theme', 'light');
+      }
+    });
+
+    // Effect to handle Nav-Assist requests from Chatbot
+    effect(() => {
+      const navView = this.chatService.navRequest();
+      if (navView) {
+        // Map common terms to actual view keys
+        const viewMap: any = {
+          'profile': 'profile',
+          'notifications': 'notifications',
+          'payments': 'payments',
+          'wallet': 'payments',
+          'events': 'events',
+          'browse': 'events',
+          'schedule': 'registered',
+          'registered': 'registered',
+          'overview': 'overview',
+          'home': 'overview'
+        };
+
+        const targetView = viewMap[navView];
+        if (targetView) {
+          this.setView(targetView);
+          this.chatService.isOpen.set(false); // Close chat to show the navigation
+        }
+      }
     });
   }
 
   // ========== LIFECYCLE ==========
   ngOnInit(): void {
+    this.startActivityTicker();
     try {
       if (!this.authService.isLoggedIn()) {
         this.router.navigate(['/login']);
         return;
       }
-      
+
       const userRole = this.authService.getRole();
       if (userRole !== 'student') {
         this.router.navigate(['/login']);
         return;
       }
-      
+
       this.loadUserData();
       this.loadEventsFromDB();
-      
+
     } catch (error) {
       console.error('Auth check failed:', error);
       this.router.navigate(['/login']);
     }
   }
 
+  startActivityTicker() {
+    setInterval(() => {
+      this.currentActivityIndex.update(idx => (idx + 1) % this.activities().length);
+    }, 6000);
+  }
+
   // ========== LOAD DATA ==========
   loadUserData(): void {
     const fullName = this.authService.getFullName() || 'Student';
     const email = this.authService.getEmail() || 'student@college.edu';
-    
+
     this.currentUser.update(user => ({
       ...user,
       id: localStorage.getItem('userId') || '1',
@@ -332,7 +437,8 @@ export class StudentDashboardComponent implements OnInit {
           status: event.status || 'upcoming',
           createdBy: event.createdBy,
           registeredUsers: event.registeredUsers || [],
-          createdAt: event.createdAt ? new Date(event.createdAt) : undefined
+          createdAt: event.createdAt ? new Date(event.createdAt) : undefined,
+          imageUrl: event.imageUrl || ''
         }));
         this.allEvents.set(dashboardEvents);
       },
@@ -359,11 +465,9 @@ export class StudentDashboardComponent implements OnInit {
   }
 
   // ========== UI ACTIONS ==========
-  setView(view: 'overview' | 'events' | 'registered' | 'profile' | 'notifications' | 'payments' | 'schedule' | 'register'): void {
+  setView(view: 'overview' | 'events' | 'registered' | 'profile' | 'notifications' | 'payments' | 'schedule'): void {
     this.currentView.set(view);
-    if (view !== 'register') {
-      this.selectedEvent.set(null);
-    }
+    this.selectedEvent.set(null);
     this.showMobileMenu.set(false);
   }
 
@@ -373,6 +477,10 @@ export class StudentDashboardComponent implements OnInit {
 
   toggleMobileMenu(): void {
     this.showMobileMenu.update(value => !value);
+  }
+
+  toggleDarkMode(): void {
+    this.isDarkMode.update(dark => !dark);
   }
 
   // ========== SEARCH & FILTERS ==========
@@ -413,7 +521,12 @@ export class StudentDashboardComponent implements OnInit {
       teamMembers: [],
       paymentMethod: 'wallet'
     }));
-    this.setView('register');
+    this.showEventModal.set(true);
+  }
+
+  closeModal(): void {
+    this.showEventModal.set(false);
+    setTimeout(() => this.selectedEvent.set(null), 300);
   }
 
   registerForEvent(): void {
@@ -448,12 +561,16 @@ export class StudentDashboardComponent implements OnInit {
 
     this.currentUser.update(user => ({
       ...user,
-      registeredEvents: [...user.registeredEvents, eventId]
+      registeredEvents: [...user.registeredEvents, eventId],
+      points: user.points + 50
     }));
 
-    this.allEvents.update(events => 
-      events.map(e => 
-        this.getEventId(e) === eventId 
+    this.showConfetti.set(true);
+    setTimeout(() => this.showConfetti.set(false), 4000);
+
+    this.allEvents.update(events =>
+      events.map(e =>
+        this.getEventId(e) === eventId
           ? { ...e, currentParticipants: e.currentParticipants + 1 }
           : e
       )
@@ -478,8 +595,8 @@ export class StudentDashboardComponent implements OnInit {
         eventName: event.title,
         amount: event.registrationFee,
         status: 'completed',
-        paymentMethod: this.registrationData().paymentMethod === 'wallet' ? 'Wallet' : 
-                      this.registrationData().paymentMethod === 'card' ? 'Credit Card' : 'UPI',
+        paymentMethod: this.registrationData().paymentMethod === 'wallet' ? 'Wallet' :
+          this.registrationData().paymentMethod === 'card' ? 'Credit Card' : 'UPI',
         transactionId: 'TXN' + Math.random().toString(36).substring(2, 10).toUpperCase(),
         paymentDate: new Date()
       };
@@ -487,7 +604,8 @@ export class StudentDashboardComponent implements OnInit {
     }
 
     alert(`Successfully registered for ${event.title}!`);
-    this.setView('registered');
+    this.closeModal();
+    setTimeout(() => this.setView('registered'), 100);
   }
 
   cancelRegistration(eventId: string): void {
@@ -541,7 +659,7 @@ export class StudentDashboardComponent implements OnInit {
         .split(',')
         .map(member => member.trim())
         .filter(member => member.length > 0);
-      
+
       this.registrationData.update(data => ({
         ...data,
         teamMembers: members
@@ -564,10 +682,10 @@ export class StudentDashboardComponent implements OnInit {
   isRegisterButtonDisabled(): boolean {
     const event = this.selectedEvent();
     if (!event) return true;
-    
+
     if (event.isPaid && event.registrationFee > 0) {
-      if (this.registrationData().paymentMethod === 'wallet' && 
-          this.currentUser().walletBalance < event.registrationFee) {
+      if (this.registrationData().paymentMethod === 'wallet' &&
+        this.currentUser().walletBalance < event.registrationFee) {
         return true;
       }
     }
@@ -662,11 +780,11 @@ export class StudentDashboardComponent implements OnInit {
     } else if (format === 'h:mm a') {
       return d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     } else if (format === 'fullDate') {
-      return d.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+      return d.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       });
     } else {
       return d.toLocaleDateString('en-US', {
@@ -725,8 +843,80 @@ export class StudentDashboardComponent implements OnInit {
   }
 
   isRegistrationAvailable(event: DashboardEvent): boolean {
-    return event.status === 'upcoming' && 
-           event.currentParticipants < event.maxParticipants &&
-           new Date() < new Date(event.registrationDeadline);
+    return event.status === 'upcoming' &&
+      event.currentParticipants < event.maxParticipants &&
+      new Date() < new Date(event.registrationDeadline);
+  }
+
+  // ========== FEEDBACK SYSTEM ==========
+  feedbackState: Record<string, { rating: number, comment: string, hover: number }> = {};
+
+  initFeedbackState(eventId: string) {
+    if (!this.feedbackState[eventId]) {
+      this.feedbackState[eventId] = { rating: 0, comment: '', hover: 0 };
+    }
+  }
+
+  hasSubmittedFeedback(eventId: string): boolean {
+    const event = this.allEvents().find(e => e._id === eventId);
+    return event?.feedback?.some((f: any) => f.userId === this.currentUser().id) || false;
+  }
+
+  setRating(eventId: string, rating: number) {
+    this.initFeedbackState(eventId);
+    this.feedbackState[eventId].rating = rating;
+  }
+
+  getRating(eventId: string): number {
+    return this.feedbackState[eventId]?.rating || 0;
+  }
+
+  hoverRating(eventId: string, rating: number) {
+    this.initFeedbackState(eventId);
+    this.feedbackState[eventId].hover = rating;
+  }
+
+  getDisplayRating(eventId: string): number {
+    this.initFeedbackState(eventId);
+    return this.feedbackState[eventId].hover || this.feedbackState[eventId].rating || 0;
+  }
+
+  setComment(eventId: string, event: any) {
+    this.initFeedbackState(eventId);
+    this.feedbackState[eventId].comment = event.target.value;
+  }
+
+  getComment(eventId: string): string {
+    return this.feedbackState[eventId]?.comment || '';
+  }
+
+  submitFeedback(event: DashboardEvent) {
+    const eventId = event._id!;
+    const state = this.feedbackState[eventId];
+
+    if (!state || state.rating === 0) {
+      alert('Please select a rating before submitting.');
+      return;
+    }
+
+    this.eventService.submitFeedback(eventId, {
+      rating: state.rating,
+      comment: state.comment
+    }).subscribe({
+      next: (res) => {
+        // Optimistically update the local event store so the UI updates to showing the checkmark
+        this.allEvents.update(events => events.map(e =>
+          e._id === eventId ? {
+            ...e,
+            feedback: [...(e.feedback || []), { userId: this.currentUser().id, rating: state.rating, comment: state.comment }]
+          } : e
+        ));
+
+        alert('Thank you! Your feedback has been submitted successfully.');
+      },
+      error: (err) => {
+        alert(err.error?.message || 'Error submitting feedback. Please try again.');
+      }
+    });
   }
 }

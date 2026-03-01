@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -8,6 +8,9 @@ import { Observable } from 'rxjs';
 export class AuthService {
   private apiUrl = 'http://localhost:5000/api/auth';
   private useMock = false;
+
+  // Observable to let components react to successful login
+  public loginEvent$ = new Subject<void>();
 
   constructor(private http: HttpClient) {
     console.log('🔵 AuthService initialized with URL:', this.apiUrl);
@@ -31,6 +34,9 @@ export class AuthService {
       localStorage.setItem('email', email);
     }
     console.log('✅ User data saved');
+
+    // Notify subscribers
+    this.loginEvent$.next();
   }
 
   getToken(): string | null {
