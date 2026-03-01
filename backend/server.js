@@ -32,8 +32,13 @@ const startServer = async () => {
     };
 
     console.log('🕒 Mongoose connect starting...');
-    await mongoose.connect(MONGODB_URI, options);
-    console.log('✅ Connected to MongoDB successfully');
+    try {
+      await mongoose.connect(MONGODB_URI, options);
+      console.log('✅ Connected to MongoDB successfully');
+    } catch (dbErr) {
+      console.error('⚠️ MongoDB connection failed, but starting server anyway:', dbErr.message);
+      console.warn('Note: Some features may not work without a database connection.');
+    }
 
     // Import and use routes only AFTER successful connection
     const authRoutes = require('./routes/authRoutes');

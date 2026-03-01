@@ -465,7 +465,7 @@ export class StudentDashboardComponent implements OnInit {
   }
 
   // ========== UI ACTIONS ==========
-  setView(view: 'overview' | 'events' | 'registered' | 'profile' | 'notifications' | 'payments' | 'schedule'): void {
+  setView(view: 'overview' | 'events' | 'registered' | 'profile' | 'notifications' | 'payments' | 'schedule' | 'leaderboard'): void {
     this.currentView.set(view);
     this.selectedEvent.set(null);
     this.showMobileMenu.set(false);
