@@ -49,8 +49,11 @@ npm install
 node server.js
 ```
 *Server runs on `http://localhost:5000`*
+### 2.MongoDB connection :
+MONGODB_URI=mongodb+srv://shalinivanjinathan_db_user:Shalini@123@cluster0.iwimuje.mongodb.net/campus-event-hub?retryWrites=true&w=majority
 
-### 2. Frontend Setup
+
+### 3. Frontend Setup
 ```bash
 cd frontend
 npm install
@@ -71,4 +74,5 @@ npm start
 1. **API Migration**: Move the `leaderboardData` and `activities` signals from mock arrays to real `HttpClient` calls fetching from the port 5000 backend.
 2. **Badge Persistence**: Currently, badges added during the session are not saved to the DB. Need to implement a `PUT /api/users/badges` endpoint.
 3. **Payment Security**: When moving to Milestone 3, the `walletBalance` deduction logic must move to the backend to prevent client-side manipulation.
+
 
