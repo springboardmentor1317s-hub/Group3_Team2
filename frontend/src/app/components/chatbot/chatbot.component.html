@@ -44,3 +44,31 @@
         </div>
     </div>
 </div>
+
+<!-- <div class="chat-window" *ngIf="chatService.isOpen()">
+    <div class="chat-header">
+        <span>🤖 Campus Assistant</span>
+        <button (click)="chatService.toggleChat()">✖</button>
+    </div>
+
+    <div class="chat-body" #chatBody>
+        <div *ngFor="let msg of chatService.messages()" [ngClass]="msg.sender + '-message'">
+            <div class="message-bubble">
+                <p>{{ msg.text }}</p>
+                
+                <div class="option-container" *ngIf="msg.options">
+                    <button *ngFor="let opt of msg.options" 
+                            (click)="chatService.handleAction(opt.action)" 
+                            class="chat-option-btn">
+                        {{ opt.label }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-footer">
+        <input [(ngModel)]="userInput" (keyup.enter)="sendMessage()" placeholder="Type a message...">
+        <button (click)="sendMessage()">➤</button>
+    </div>
+</div> -->
