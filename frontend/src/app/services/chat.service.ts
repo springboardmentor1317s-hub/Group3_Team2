@@ -57,80 +57,121 @@ export class ChatService {
   sendWelcomeMessage() {
     const role = this.authService.getRole();
     const isLoggedIn = this.authService.isLoggedIn();
+    const fullName = this.authService.getFullName() || 'User';
     this.botState = 'IDLE';
     this.flowData = {};
 
     if (isLoggedIn && role === 'student') {
-      const email = this.authService.getEmail() || 'guest';
-      const storageKey = `hasSeenOnboarding_${email}`;
-      const hasSeen = localStorage.getItem(storageKey);
-
-      if (!hasSeen) {
-        // Trigger First-Time Student Onboarding
-        this.addMessage({
-          sender: 'bot',
-          text: 'Welcome to Campus Event Hub! 🎉 I see this is your first time here. I\'m your virtual assistant.',
-          options: [{ label: 'Next: Show me how', action: 'ONBOARD_STUDENT_NEXT' }]
-        });
-      } else {
-        this.addMessage({
-          sender: 'bot',
-          text: 'Hi 👋 I can help you with events.\nWould you like to:',
-          options: [
-            { label: '1️⃣ View all events', action: 'STUDENT_BROWSE' },
-            { label: '2️⃣ Filter by date', action: 'STUDENT_FILTER_DATE' },
-            { label: '3️⃣ Filter by category', action: 'STUDENT_FILTER_CAT' },
-            { label: '🏆 View Leaderboard', action: 'STUDENT_LEADERBOARD' },
-            { label: '🎲 Surprise Me!', action: 'STUDENT_SURPRISE' },
-            { label: '✨ Event Wizard Quiz', action: 'STUDENT_WIZARD_START' },
-            { label: '📊 Take a Quick Poll', action: 'STUDENT_POLL_START' }
-          ]
-        });
-      }
-    } else if (isLoggedIn && role === 'college-admin') {
-      const email = this.authService.getEmail() || 'admin';
-      const storageKey = `hasSeenOnboarding_${email}`;
-      const hasSeen = localStorage.getItem(storageKey);
-
-      if (!hasSeen) {
-        // Trigger First-Time Admin Onboarding
-        this.addMessage({
-          sender: 'bot',
-          text: 'Welcome aboard, Admin! 🎓 I\'m so glad you\'re here to start organizing events.',
-          options: [{ label: 'Next: Show me what I can do', action: 'ONBOARD_ADMIN_NEXT' }]
-        });
-      } else {
-        this.addMessage({
-          sender: 'bot',
-          text: 'Hello Admin 👋\nHow can I assist you today?',
-          options: [
-            { label: '✏️ Create new event', action: 'ADMIN_CREATE_START' },
-            { label: '📊 Manage created events', action: 'ADMIN_MANAGE' },
-            { label: '❌ Cancel an event', action: 'ADMIN_CANCEL_FLOW' }
-          ]
-        });
-      }
-    } else if (isLoggedIn && role === 'superadmin') {
       this.addMessage({
         sender: 'bot',
-        text: 'Welcome Super Admin. What would you like to do?',
+        text: `Hi ${fullName} 👋 I can help you with events.\nWould you like to:`,
         options: [
-          { label: '📈 View Statistics', action: 'SUPER_STATS' },
-          { label: '👥 Manage Users/Colleges', action: 'SUPER_USERS' }
+          { label: '1️⃣ View all events', action: 'STUDENT_BROWSE' },
+          { label: '2️⃣ My Schedule', action: 'STUDENT_SCHEDULE' },
+          { label: '🏆 Leaderboard', action: 'STUDENT_LEADERBOARD' },
+          { label: '🎲 Surprise Me!', action: 'STUDENT_SURPRISE' },
+          { label: '✨ Event Wizard', action: 'STUDENT_WIZARD_START' }
+        ]
+      });
+    } else if (isLoggedIn && role === 'college-admin') {
+      this.addMessage({
+        sender: 'bot',
+        text: `Hello Admin ${fullName} 👋\nHow can I assist you today?`,
+        options: [
+          { label: '✏️ Create new event', action: 'ADMIN_CREATE_START' },
+          { label: '📊 Manage my events', action: 'ADMIN_MANAGE' },
+          { label: '❌ Cancel my event', action: 'ADMIN_CANCEL_FLOW' }
         ]
       });
     } else {
       this.addMessage({
         sender: 'bot',
-        text: 'Hi! Please log in to access your personalized event hub. How can I help?',
+        text: 'Hi! Please log in to access your personalized event hub.',
         options: [
           { label: '🔑 How to Login', action: 'AUTH_LOGIN' },
-          { label: '📝 How to Register', action: 'AUTH_REGISTER' },
-          { label: '👀 Preview Upcoming Events', action: 'GUEST_PREVIEW_EVENTS' }
+          { label: '📝 How to Register', action: 'AUTH_REGISTER' }
         ]
       });
     }
   }
+
+  // sendWelcomeMessage() {
+  //   const role = this.authService.getRole();
+  //   const isLoggedIn = this.authService.isLoggedIn();
+  //   this.botState = 'IDLE';
+  //   this.flowData = {};
+
+  //   if (isLoggedIn && role === 'student') {
+  //     const email = this.authService.getEmail() || 'guest';
+  //     const storageKey = `hasSeenOnboarding_${email}`;
+  //     const hasSeen = localStorage.getItem(storageKey);
+
+  //     if (!hasSeen) {
+  //       // Trigger First-Time Student Onboarding
+  //       this.addMessage({
+  //         sender: 'bot',
+  //         text: 'Welcome to Campus Event Hub! 🎉 I see this is your first time here. I\'m your virtual assistant.',
+  //         options: [{ label: 'Next: Show me how', action: 'ONBOARD_STUDENT_NEXT' }]
+  //       });
+  //     } else {
+  //       this.addMessage({
+  //         sender: 'bot',
+  //         text: 'Hi 👋 I can help you with events.\nWould you like to:',
+  //         options: [
+  //           { label: '1️⃣ View all events', action: 'STUDENT_BROWSE' },
+  //           { label: '2️⃣ Filter by date', action: 'STUDENT_FILTER_DATE' },
+  //           { label: '3️⃣ Filter by category', action: 'STUDENT_FILTER_CAT' },
+  //           { label: '🏆 View Leaderboard', action: 'STUDENT_LEADERBOARD' },
+  //           { label: '🎲 Surprise Me!', action: 'STUDENT_SURPRISE' },
+  //           { label: '✨ Event Wizard Quiz', action: 'STUDENT_WIZARD_START' },
+  //           { label: '📊 Take a Quick Poll', action: 'STUDENT_POLL_START' }
+  //         ]
+  //       });
+  //     }
+  //   } else if (isLoggedIn && role === 'college-admin') {
+  //     const email = this.authService.getEmail() || 'admin';
+  //     const storageKey = `hasSeenOnboarding_${email}`;
+  //     const hasSeen = localStorage.getItem(storageKey);
+
+  //     if (!hasSeen) {
+  //       // Trigger First-Time Admin Onboarding
+  //       this.addMessage({
+  //         sender: 'bot',
+  //         text: 'Welcome aboard, Admin! 🎓 I\'m so glad you\'re here to start organizing events.',
+  //         options: [{ label: 'Next: Show me what I can do', action: 'ONBOARD_ADMIN_NEXT' }]
+  //       });
+  //     } else {
+  //       this.addMessage({
+  //         sender: 'bot',
+  //         text: 'Hello Admin 👋\nHow can I assist you today?',
+  //         options: [
+  //           { label: '✏️ Create new event', action: 'ADMIN_CREATE_START' },
+  //           { label: '📊 Manage created events', action: 'ADMIN_MANAGE' },
+  //           { label: '❌ Cancel an event', action: 'ADMIN_CANCEL_FLOW' }
+  //         ]
+  //       });
+  //     }
+  //   } else if (isLoggedIn && role === 'superadmin') {
+  //     this.addMessage({
+  //       sender: 'bot',
+  //       text: 'Welcome Super Admin. What would you like to do?',
+  //       options: [
+  //         { label: '📈 View Statistics', action: 'SUPER_STATS' },
+  //         { label: '👥 Manage Users/Colleges', action: 'SUPER_USERS' }
+  //       ]
+  //     });
+  //   } else {
+  //     this.addMessage({
+  //       sender: 'bot',
+  //       text: 'Hi! Please log in to access your personalized event hub. How can I help?',
+  //       options: [
+  //         { label: '🔑 How to Login', action: 'AUTH_LOGIN' },
+  //         { label: '📝 How to Register', action: 'AUTH_REGISTER' },
+  //         { label: '👀 Preview Upcoming Events', action: 'GUEST_PREVIEW_EVENTS' }
+  //       ]
+  //     });
+  //   }
+  // }
 
   handleUserMessage(text: string) {
     // Add user message to UI
@@ -257,6 +298,27 @@ export class ChatService {
   }
 
   handleAction(action: string) {
+
+    if (action === 'ADMIN_CANCEL_FLOW') {
+      this.addMessage({ sender: 'bot', text: 'Fetching events you created... ⏳' });
+      this.eventService.getAllEvents().subscribe(events => {
+        const myEmail = this.authService.getEmail();
+
+        // BUG FIX: Filters events so you only see what YOU created
+        const myEvents = events.filter(e => e.contactEmail === myEmail);
+
+        if (myEvents.length === 0) {
+          this.addMessage({ sender: 'bot', text: 'You have no active events to cancel.' });
+        } else {
+          this.addMessage({
+            sender: 'bot',
+            text: 'Select an event to cancel (Owner Only):',
+            options: myEvents.map(e => ({ label: `❌ Cancel: ${e.title}`, action: `CONFIRM_DELETE_${e._id}` }))
+          });
+        }
+      });
+    }
+
     if (action === 'MAIN_MENU') {
       this.sendWelcomeMessage();
       return;
@@ -708,7 +770,14 @@ export class ChatService {
       maxParticipants: 100,
       imageUrl: this.flowData.imageUrl || undefined,
       registrationFee: 0,
-      organizer: 'College Admin'
+
+      // --- CHANGES START HERE ---
+      // 1. Use the actual name of the logged-in user
+      organizer: this.authService.getFullName() || 'College Admin',
+
+      // 2. Add the contactEmail so the chatbot can filter "My Events" later
+      contactEmail: this.authService.getEmail()
+      // --- CHANGES END HERE ---
     };
 
     this.eventService.createEvent(payload).subscribe({
