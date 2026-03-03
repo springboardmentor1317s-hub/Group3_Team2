@@ -98,30 +98,63 @@ exports.registerUser = async (req, res) => {
 
 
 // LOGIN USER
+// exports.loginUser = async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+
+//     // Check if user exists
+//     const user = await User.findOne({ email });
+//     if (!user) {
+//       return res.status(400).json({
+//         message: 'You are not registered. Please sign up first.'
+//       });
+//     }
+
+//     // Check password
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) {
+//       return res.status(400).json({
+//         message: 'Invalid credentials'
+//       });
+//     }
+
+//     // Generate JWT (role from DB)
+//     const token = jwt.sign(
+//       { id: user._id, role: user.role },
+//       process.env.JWT_SECRET,
+//       { expiresIn: '1d' }
+//     );
+
+//     res.json({
+//       message: 'Login successful',
+//       token,
+//       role: user.role,
+//       fullName: user.fullName
+//     });
+
+//   } catch (error) {
+//     console.error('Login error:', error.message);
+//     res.status(500).json({ message: 'Server error' });
+//   }
+// };
+
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({
-        message: 'You are not registered. Please sign up first.'
-      });
+      return res.status(400).json({ message: 'You are not registered. Please sign up first.' });
     }
 
-    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({
-        message: 'Invalid credentials'
-      });
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Generate JWT (role from DB)
     const token = jwt.sign(
       { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'supersecretkey123',
       { expiresIn: '1d' }
     );
 
@@ -129,7 +162,8 @@ exports.loginUser = async (req, res) => {
       message: 'Login successful',
       token,
       role: user.role,
-      fullName: user.fullName
+      fullName: user.fullName,
+      email: user.email 
     });
 
   } catch (error) {
@@ -137,3 +171,4 @@ exports.loginUser = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
