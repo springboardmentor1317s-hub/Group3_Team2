@@ -51,6 +51,7 @@ export class LoginComponent {
 
     this.authService.login(loginData).subscribe({
       next: (res: any) => {
+        console.log("LOGIN RESPONSE:", res); // Debug line
   if (!res?.token) {
     this.errorMessage = 'Invalid server response.';
     return;
@@ -61,7 +62,8 @@ export class LoginComponent {
     res.token,
     res.role,
     res.fullName,
-    res.email  // Pass email here
+    // res.email  // Pass email here
+    trimmedEmail
   );
 
   // Redirect based on role
@@ -92,4 +94,6 @@ export class LoginComponent {
         this.router.navigate(['/login']);
     }
   }
+
+  
 }
