@@ -26,16 +26,33 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/login`, loginData);
   }
 
-  saveUserData(token: string, role: string, fullName: string, email?: string) {
-    localStorage.setItem('token', token);
-    localStorage.setItem('role', role);
-    localStorage.setItem('fullName', fullName);
-    if (email) {
-      localStorage.setItem('email', email);
-    }
-    console.log('✅ User data saved');
+  // saveUserData(token: string, role: string, fullName: string, email?: string) {
+  //   localStorage.setItem('token', token);
+  //   localStorage.setItem('role', role);
+  //   localStorage.setItem('fullName', fullName);
+  //   if (email) {
+  //     localStorage.setItem('email', email);
+  //   }
+  //   console.log('✅ User data saved');
 
-    // Notify subscribers
+  //   // Notify subscribers
+  //   this.loginEvent$.next();
+  // }
+
+  saveUserData(token: string, role: string, fullName: string, email: string) {
+
+    const user = {
+      token: token,
+      role: role,
+      fullName: fullName,
+      email: email
+    };
+
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+
+    console.log('✅ User data saved', user);
+
     this.loginEvent$.next();
   }
 
@@ -43,16 +60,31 @@ export class AuthService {
     return localStorage.getItem('token');
   }
 
+  // getRole(): string | null {
+  //   return localStorage.getItem('role');
+  // }
+
+  // getFullName(): string | null {
+  //   return localStorage.getItem('fullName');
+  // }
+
+  // getEmail(): string | null {
+  //   return localStorage.getItem('email');
+  // }
+
   getRole(): string | null {
-    return localStorage.getItem('role');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return user.role || null;
   }
 
   getFullName(): string | null {
-    return localStorage.getItem('fullName');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return user.fullName || null;
   }
 
   getEmail(): string | null {
-    return localStorage.getItem('email');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return user.email || null;
   }
 
   isLoggedIn(): boolean {
