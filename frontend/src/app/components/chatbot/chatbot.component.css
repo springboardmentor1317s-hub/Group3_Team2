@@ -240,3 +240,30 @@
 .send-btn .icon {
     font-size: 18px;
 }
+
+.option-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* FIXED: This overrides any global round button styles */
+.chat-option-btn {
+    background: #ffffff;
+    color: #007bff;
+    border: 1px solid #007bff;
+    padding: 8px 12px;
+    border-radius: 6px !important; /* Forces rectangle shape */
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    height: auto !important; /* Allows text to define height */
+    transition: all 0.2s;
+}
+
+.chat-option-btn:hover {
+    background: #007bff;
+    color: white;
+}

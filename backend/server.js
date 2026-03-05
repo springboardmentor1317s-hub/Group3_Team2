@@ -1,9 +1,12 @@
+const dns = require('node:dns');
+dns.setServers(['8.8.8.8', '1.1.1.1']);
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 
-// Load environment variables immediately
+// Load environment variables 
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
@@ -16,6 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 // Server Start Logic
 const startServer = async () => {
   try {
+    // console.log("ENV VAR RAW:", process.env.MONGODB_URI);
     const MONGODB_URI = (process.env.MONGODB_URI || '').trim();
 
     console.log('🔌 Attempting to connect to MongoDB...');
@@ -58,6 +62,10 @@ const startServer = async () => {
       });
     });
 
+    app.get('/', (req, res) => {
+      res.send('<h1>Campus Event Hub API is running!</h1><p>Try visiting <a href="/api/test">/api/test</a> to verify the connection.</p>');
+    });
+    
     // 404 handler
     app.use((req, res) => {
       res.status(404).json({
