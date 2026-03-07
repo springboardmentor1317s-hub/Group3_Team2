@@ -31,17 +31,13 @@ exports.registerUser = async (req, res) => {
       return res.status(400).json({ message: 'User already registered. Please login.' });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
     // Create user
     const user = await User.create({
       fullName,
       email,
       college,
       role,
-      password: hashedPassword
+      password // The pre-save hook in User model will hash this
     });
 
     // Generate JWT token
@@ -163,7 +159,7 @@ exports.loginUser = async (req, res) => {
       token,
       role: user.role,
       fullName: user.fullName,
-      email: user.email 
+      email: user.email
     });
 
   } catch (error) {
