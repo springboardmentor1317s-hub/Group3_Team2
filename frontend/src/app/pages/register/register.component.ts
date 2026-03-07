@@ -76,36 +76,40 @@ export class RegisterComponent {
       password: this.user.password
     };
 
+    // Clear any previous error messages
+    this.errorMessage = '';
+
     // Call AuthService to register
     this.authService.register(userData).subscribe({
       next: (res: any) => {
         alert(res.message || "Registration successful!");
-        
-  // Save token and user info (including email)
-  if (res.token) {
-    this.authService.saveUserData(
-      res.token, 
-      res.role, 
-      res.fullName,
-      res.email  // Pass email here
-    );
-    
-    // Redirect based on role
-    this.redirectBasedOnRole(res.role);
-  } else {
-    // If no token (maybe email verification required), go to login
-    this.router.navigate(['/login']);
-  }
-},
+
+        // Save token and user info (including email)
+        if (res.token) {
+          this.authService.saveUserData(
+            res.token,
+            res.role,
+            res.fullName,
+            res.email  // Pass email here
+          );
+
+          // Redirect based on role
+          this.redirectBasedOnRole(res.role);
+        } else {
+          // If no token (maybe email verification required), go to login
+          this.router.navigate(['/login']);
+        }
+      },
       error: (err) => {
-        alert(err.error?.message || "Registration failed");
+        // Show error natively on the form instead of an alert
+        this.errorMessage = err.error?.message || "Registration failed. Please try again.";
       }
     });
   }
 
   // Helper method for role-based redirection
   private redirectBasedOnRole(role: string): void {
-    switch(role) {
+    switch (role) {
       case 'student':
         this.router.navigate(['/student-dashboard']);
         break;
