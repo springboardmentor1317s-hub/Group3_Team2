@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 export interface Event {
@@ -28,13 +28,32 @@ export interface Event {
   providedIn: 'root'
 })
 export class EventService {
-  private apiUrl = 'http://localhost:5000/api/events';
 
-  constructor(private http: HttpClient) { }
+  // Correct backend API
+  private apiUrl = 'http://localhost:8800/api/events';
 
-  // Get all events with optional filters
-  getAllEvents(filters?: { startDate?: string; endDate?: string; status?: string; type?: string; organizer?: string }): Observable<Event[]> {
+  constructor(private http: HttpClient) {}
+
+  // Helper function to get headers with token
+  private getAuthHeaders(): HttpHeaders {
+    const token = localStorage.getItem('token');
+    return new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    });
+  }
+
+  // Get all events
+  getAllEvents(filters?: {
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    type?: string;
+    organizer?: string;
+  }): Observable<Event[]> {
+
     let params: any = {};
+
     if (filters) {
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
@@ -44,84 +63,70 @@ export class EventService {
     }
 
     console.log('Fetching events from:', this.apiUrl, 'with filters:', params);
+
     return this.http.get<Event[]>(this.apiUrl, { params });
   }
 
   // Get dashboard statistics
   getStats(): Observable<any> {
-    const token = localStorage.getItem('token');
     return this.http.get(`${this.apiUrl}/stats`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: this.getAuthHeaders()
     });
   }
 
-  // Get single event
+  // Get single event by ID
   getEventById(id: string): Observable<Event> {
     return this.http.get<Event>(`${this.apiUrl}/${id}`);
   }
 
   // Create event (admin only)
   createEvent(eventData: any): Observable<any> {
-    const token = localStorage.getItem('token');
-    console.log('🔵 Creating event with data:', eventData);
-    console.log('🔵 Token exists:', !!token);
-
-    if (!token) {
-      console.error('❌ No token found!');
-    }
+    console.log('Creating event:', eventData);
 
     return this.http.post(this.apiUrl, eventData, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
+      headers: this.getAuthHeaders()
     });
   }
+
   // Update event (admin only)
   updateEvent(id: string, eventData: Event): Observable<any> {
-    const token = localStorage.getItem('token');
     return this.http.put(`${this.apiUrl}/${id}`, eventData, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: this.getAuthHeaders()
     });
   }
 
   // Delete event (admin only)
   deleteEvent(id: string): Observable<any> {
-    const token = localStorage.getItem('token');
     return this.http.delete(`${this.apiUrl}/${id}`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: this.getAuthHeaders()
     });
   }
 
-  // Register for event (student only)
+  // Register for event (student)
   registerForEvent(id: string): Observable<any> {
-    const token = localStorage.getItem('token');
     return this.http.post(`${this.apiUrl}/${id}/register`, {}, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: this.getAuthHeaders()
     });
   }
 
-  // Unregister from event (student only)
+  // Unregister from event
   unregisterFromEvent(id: string): Observable<any> {
-    const token = localStorage.getItem('token');
     return this.http.delete(`${this.apiUrl}/${id}/unregister`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: this.getAuthHeaders()
     });
   }
 
-  // Submit feedback for completed event (student only)
+  // Submit feedback
   submitFeedback(id: string, feedbackData: { rating: number; comment: string }): Observable<any> {
-    const token = localStorage.getItem('token');
     return this.http.post(`${this.apiUrl}/${id}/feedback`, feedbackData, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: this.getAuthHeaders()
     });
   }
 
-  // Get user registrations (student only)
-  getUserRegistrations(email?: string): Observable<any> {
-    const token = localStorage.getItem('token');
+  // Get user's registered events
+  getUserRegistrations(): Observable<any> {
     return this.http.get(`${this.apiUrl}/my-registrations`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: this.getAuthHeaders()
     });
   }
 }

@@ -510,7 +510,7 @@ export class ChatService {
           this.addMessage({ sender: 'bot', text: 'Could not find your user data to check your schedule.' });
           return;
         }
-        this.eventService.getUserRegistrations(email).subscribe({
+        this.eventService.getUserRegistrations().subscribe({
           next: (regs) => {
             if (!regs || regs.length === 0) {
               this.addMessage({ sender: 'bot', text: 'You are not registered for any events yet!' });
