@@ -1,95 +1,108 @@
-const dns = require('node:dns');
+const dns = require('dns');
 dns.setServers(['8.8.8.8', '1.1.1.1']);
-
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-
-// Load environment variables 
+const mongoose = require('mongoose');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// ─── Middleware ─────────────────────────────────
+app.use(cors({
+  origin: 'http://localhost:4200', // Angular app
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Server Start Logic
-const startServer = async () => {
-  try {
-    // console.log("ENV VAR RAW:", process.env.MONGODB_URI);
-    const MONGODB_URI = (process.env.MONGODB_URI || '').trim();
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-    console.log('🔌 Attempting to connect to MongoDB...');
-    console.log('🔗 URI Prefix:', MONGODB_URI.substring(0, 20) + '...');
+// ─── MongoDB Connection ─────────────────────────
+const connectDB = async () => {
 
-    if (!MONGODB_URI) {
-      throw new Error('MONGODB_URI is not defined in .env');
-    }
+  const MONGODB_URI = (process.env.MONGODB_URI || '').trim();
 
-    // Set connection options for better reliability
-    const options = {
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-    };
-
-    console.log('🕒 Mongoose connect starting...');
-    try {
-      await mongoose.connect(MONGODB_URI, options);
-      console.log('✅ Connected to MongoDB successfully');
-    } catch (dbErr) {
-      console.error('⚠️ MongoDB connection failed, but starting server anyway:', dbErr.message);
-      console.warn('Note: Some features may not work without a database connection.');
-    }
-
-    // Import and use routes only AFTER successful connection
-    const authRoutes = require('./routes/authRoutes');
-    const eventRoutes = require('./routes/eventRoutes');
-    const chatRoutes = require('./routes/chatRoutes');
-
-    app.use('/api/auth', authRoutes);
-    app.use('/api/events', eventRoutes);
-    app.use('/api/chat', chatRoutes);
-
-    // Test route
-    app.get('/api/test', (req, res) => {
-      res.json({
-        message: 'Backend is working!',
-        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-        dbName: mongoose.connection.name
-      });
-    });
-
-    app.get('/', (req, res) => {
-      res.send('<h1>Campus Event Hub API is running!</h1><p>Try visiting <a href="/api/test">/api/test</a> to verify the connection.</p>');
-    });
-    
-    // 404 handler
-    app.use((req, res) => {
-      res.status(404).json({
-        message: 'Route not found',
-        requestedUrl: req.originalUrl
-      });
-    });
-
-    // Error handler
-    app.use((err, req, res, next) => {
-      console.error('❌ Server error:', err.stack);
-      res.status(500).json({ message: 'Something went wrong!', error: err.message });
-    });
-
-    const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-    });
-
-  } catch (err) {
-    console.error('❌ Server failed to start:');
-    console.error(err.name + ': ' + err.message);
+  if (!MONGODB_URI) {
+    console.error('❌ MONGODB_URI missing in .env');
     process.exit(1);
   }
+
+  try {
+
+    console.log('🔌 Connecting to MongoDB...');
+
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000
+    });
+
+    console.log('✅ MongoDB connected');
+
+  } catch (error) {
+
+    console.error('❌ MongoDB connection failed:', error.message);
+    process.exit(1);
+
+  }
+};
+
+// ─── Routes ─────────────────────────────────────
+const authRoutes = require('./routes/authRoutes');
+const eventRoutes = require('./routes/eventRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+
+app.use('/api/auth', authRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/chat', chatRoutes);
+
+// ─── Test Route ─────────────────────────────────
+app.get('/api/test', (req, res) => {
+  res.json({
+    message: 'Backend working!',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    dbName: mongoose.connection.name
+  });
+});
+
+// Root route
+app.get('/', (req, res) => {
+  res.send(`
+    <h1>Campus Event Hub API Running</h1>
+    <p>Test API: <a href="/api/test">/api/test</a></p>
+  `);
+});
+
+// ─── 404 Handler ────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({
+    message: 'Route not found',
+    url: req.originalUrl
+  });
+});
+
+// ─── Global Error Handler ───────────────────────
+app.use((err, req, res, next) => {
+  console.error('❌ Server error:', err.stack);
+  res.status(500).json({
+    message: 'Internal server error',
+    error: err.message
+  });
+});
+
+// ─── Start Server ───────────────────────────────
+const startServer = async () => {
+
+  await connectDB();
+
+  const PORT = process.env.PORT || 5000;
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+  });
+
 };
 
 startServer();
