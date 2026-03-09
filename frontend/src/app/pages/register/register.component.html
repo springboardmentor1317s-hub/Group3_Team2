@@ -1,135 +1,191 @@
-<div class="signup-container">
-  <mat-card class="signup-card">
-    <!-- Icon -->
-    <div class="icon-wrapper">
-      <div class="icon-circle">
-        <mat-icon>person_add</mat-icon>
+<div class="auth-page">
+
+  <!-- LEFT PANEL -->
+  <div class="auth-left">
+
+    <div class="brand">
+      <div class="brand-logo">🎓</div>
+      <div class="brand-text">CampusEventHub</div>
+    </div>
+
+    <div class="hero-content">
+      <h1>Join CampusEventHub Today !!</h1>
+      <p>
+        Register to explore technical, cultural and sports events
+        happening across colleges in India.
+      </p>
+    </div>
+
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="num">50+</div>
+        <div class="lbl">Colleges</div>
+      </div>
+
+      <div class="hero-stat">
+        <div class="num">500+</div>
+        <div class="lbl">Events</div>
+      </div>
+
+      <div class="hero-stat">
+        <div class="num">10K+</div>
+        <div class="lbl">Students</div>
       </div>
     </div>
 
-    <h2>Create Account</h2>
-    <p class="subtitle">Sign up to join CampusEventHub</p>
+    <!-- <div class="hero-boundary">
 
-    <!-- Registration Form -->
-    <form #registerForm="ngForm" (ngSubmit)="register()">
+  <div class="brand">
+    <div class="brand-logo">🎓</div>
+    <div class="brand-text">CampusEventHub</div>
+  </div>
 
-      <!-- Full Name -->
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Full Name</mat-label>
-        <input matInput name="fullName"
-               [(ngModel)]="user.fullName"
-               required
-               pattern="^[A-Za-z ]+$"
-               #fullName="ngModel">
-        <mat-error *ngIf="fullName.invalid && fullName.touched">
-          Full Name is required
-        </mat-error>
-      </mat-form-field>
+  <div class="hero-content">
+    <h1>Join CampusEventHub Today</h1>
+    <p>
+      Register to explore technical, cultural and sports events
+      happening across colleges in India.
+    </p>
+  </div>
 
-      <!-- Email -->
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Email Address</mat-label>
-        <input matInput type="email"
-               name="email"
-               [(ngModel)]="user.email"
-               required
-               email
-               #email="ngModel">
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="num">50+</div>
+      <div class="lbl">Colleges</div>
+    </div>
 
-        <mat-error *ngIf="email.errors?.['required'] && email.touched">
-          Email is required
-        </mat-error>
-        <mat-error *ngIf="email.errors?.['email'] && email.touched">
-          Enter a valid email address
-        </mat-error>
-      </mat-form-field>
+    <div class="hero-stat">
+      <div class="num">500+</div>
+      <div class="lbl">Events</div>
+    </div>
 
-      <!-- College -->
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>College/University</mat-label>
-        <input matInput name="college"
-               [(ngModel)]="user.college"
-               required
-               #college="ngModel">
+    <div class="hero-stat">
+      <div class="num">10K+</div>
+      <div class="lbl">Students</div>
+    </div>
+  </div> -->
 
-        <mat-error *ngIf="college.invalid && college.touched">
-          College is required
-        </mat-error>
-      </mat-form-field>
+<!-- </div> -->
 
-      <!-- Role -->
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Role</mat-label>
-        <mat-select name="role"
-                    [(ngModel)]="user.role"
-                    required
-                    #role="ngModel">
-          <mat-option value="student">Student</mat-option>
-          <mat-option value="college-admin">College Admin</mat-option>
-          <mat-option value="superadmin">Super Admin</mat-option>
-        </mat-select>
-        <mat-error *ngIf="role.invalid && role.touched">
-          Role is required
-        </mat-error>
-      </mat-form-field>
+    <!-- FLOATING TEXTS -->
+    <div class="floating-cards">
+      <div class="float-card c1">Discover Events</div>
+      <div class="float-card c2">Compete & Win</div>
+      <div class="float-card c3">Cultural Fests</div>
+      <div class="float-card c4">Hackathons</div>
+      <div class="float-card c5">Networking</div>
+      <div class="float-card c6">Workshops</div>
+    </div>
 
-      <!-- Password -->
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Password</mat-label>
-        <input matInput type="password"
-               name="password"
-               [(ngModel)]="user.password"
-               required
-               minlength="6"
-               #password="ngModel">
+  </div>
 
-        <mat-error *ngIf="password.errors?.['required'] && password.touched">
-          Password is required
-        </mat-error>
-        <mat-error *ngIf="password.errors?.['minlength'] && password.touched">
-          Minimum 6 characters required
-        </mat-error>
-      </mat-form-field>
 
-      <!-- Confirm Password -->
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Confirm Password</mat-label>
-        <input matInput type="password"
-               name="confirmPassword"
-               [(ngModel)]="user.confirmPassword"
-               required
-               #confirmPassword="ngModel">
 
-        <mat-error *ngIf="confirmPassword.invalid && confirmPassword.touched">
-          Confirm Password is required
-        </mat-error>
+  <!-- RIGHT PANEL -->
+  <div class="auth-right">
 
-        <mat-error *ngIf="user.password !== user.confirmPassword && confirmPassword.touched">
-          Passwords do not match
-        </mat-error>
-      </mat-form-field>
+    <div class="auth-form-wrap">
 
-      <!-- Create Account Button -->
-      <button mat-raised-button color="primary"
-              class="create-btn full-width"
-              type="submit"
-              [disabled]="registerForm.invalid || user.password !== user.confirmPassword">
-        Create Account
+      <h2 class="form-title">Create your account</h2>
+      <p class="form-subtitle">Start exploring campus events today</p>
+
+      @if (errorMessage) {
+        <div class="alert alert-error">⚠️ {{ errorMessage }}</div>
+      }
+
+      @if (successMessage) {
+        <div class="alert alert-success">✅ {{ successMessage }}</div>
+      }
+
+      <!-- FULL NAME -->
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <div class="input-wrap">
+          <span class="input-icon">👤</span>
+          <input type="text" class="form-control"
+            placeholder="Enter your full name"
+            [(ngModel)]="fullName">
+        </div>
+      </div>
+
+      <!-- EMAIL -->
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <div class="input-wrap">
+          <span class="input-icon">📧</span>
+          <input type="email" class="form-control"
+            placeholder="you@college.edu"
+            [(ngModel)]="email">
+        </div>
+      </div>
+
+      <!-- COLLEGE -->
+      <div class="form-group">
+        <label class="form-label">College</label>
+        <div class="input-wrap">
+          <span class="input-icon">🏫</span>
+          <input type="text" class="form-control"
+            placeholder="Your college name"
+            [(ngModel)]="college">
+        </div>
+      </div>
+
+      <!-- ROLE -->
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <div class="input-wrap">
+          <span class="input-icon">🎭</span>
+          <select class="form-control"
+            style="padding-left:40px"
+            [(ngModel)]="role">
+
+            <option value="student">Student</option>
+            <option value="college-admin">College Admin</option>
+            <option value="superadmin">Super Admin</option>
+
+          </select>
+        </div>
+      </div>
+
+      <!-- PASSWORD -->
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔒</span>
+          <input type="password" class="form-control"
+            placeholder="Minimum 8 characters"
+            [(ngModel)]="password">
+        </div>
+      </div>
+
+      <!-- CONFIRM PASSWORD -->
+      <div class="form-group">
+        <label class="form-label">Confirm Password</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔒</span>
+          <input type="password" class="form-control"
+            placeholder="Repeat password"
+            [(ngModel)]="confirmPassword">
+        </div>
+      </div>
+
+      <button class="btn-auth"
+        (click)="register()"
+        [disabled]="isLoading">
+
+        {{ isLoading ? 'Creating account...' : 'Create Account →' }}
+
       </button>
 
-      <!-- Backend Error -->
-      <p class="error-message" *ngIf="errorMessage">
-        {{ errorMessage }}
+      <div class="divider"><span>OR</span></div>
+
+      <p class="form-footer">
+        Already have an account?
+        <a (click)="goToLogin()">Sign in</a>
       </p>
 
-    </form>
+    </div>
 
-    <!-- Switch to Login -->
-    <p class="signin-text">
-      Already have an account? 
-      <button mat-button color="primary" routerLink="/login" type="button">
-        Login
-      </button>
-    </p>
-  </mat-card>
+  </div>
+
 </div>
