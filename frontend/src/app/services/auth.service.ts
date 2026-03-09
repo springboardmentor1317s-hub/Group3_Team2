@@ -2,57 +2,33 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
 
-@Injectable({
-  providedIn: 'root'
-})
+export interface UserData {
+  token: string;
+  role: string;
+  fullName: string;
+  email: string;
+  userId?: string;
+}
+
+@Injectable({ providedIn: 'root' })
 export class AuthService {
   private apiUrl = 'http://localhost:5000/api/auth';
-  private useMock = false;
-
-  // Observable to let components react to successful login
   public loginEvent$ = new Subject<void>();
 
-  constructor(private http: HttpClient) {
-    console.log('🔵 AuthService initialized with URL:', this.apiUrl);
+  constructor(private http: HttpClient) {}
+
+  register(data: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/register`, data);
   }
 
-  register(userData: any): Observable<any> {
-    console.log('📝 Registering user with:', userData);
-    return this.http.post(`${this.apiUrl}/register`, userData);
+  login(data: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/login`, data);
   }
 
-  login(loginData: any): Observable<any> {
-    console.log('🔑 Logging in with:', loginData);
-    return this.http.post(`${this.apiUrl}/login`, loginData);
-  }
-
-  // saveUserData(token: string, role: string, fullName: string, email?: string) {
-  //   localStorage.setItem('token', token);
-  //   localStorage.setItem('role', role);
-  //   localStorage.setItem('fullName', fullName);
-  //   if (email) {
-  //     localStorage.setItem('email', email);
-  //   }
-  //   console.log('✅ User data saved');
-
-  //   // Notify subscribers
-  //   this.loginEvent$.next();
-  // }
-
-  saveUserData(token: string, role: string, fullName: string, email: string) {
-
-    const user = {
-      token: token,
-      role: role,
-      fullName: fullName,
-      email: email
-    };
-
+  saveUserData(token: string, role: string, fullName: string, email: string, userId?: string) {
+    const user: UserData = { token, role, fullName, email, userId };
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
-
-    console.log('✅ User data saved', user);
-
     this.loginEvent$.next();
   }
 
@@ -60,42 +36,33 @@ export class AuthService {
     return localStorage.getItem('token');
   }
 
-  // getRole(): string | null {
-  //   return localStorage.getItem('role');
-  // }
-
-  // getFullName(): string | null {
-  //   return localStorage.getItem('fullName');
-  // }
-
-  // getEmail(): string | null {
-  //   return localStorage.getItem('email');
-  // }
-
-  getRole(): string | null {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    return user.role || null;
+  public getUser(): UserData | null {
+    try { return JSON.parse(localStorage.getItem('user') || 'null'); }
+    catch { return null; }
   }
 
-  getFullName(): string | null {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    return user.fullName || null;
-  }
+  getRole(): string | null     { return this.getUser()?.role     || null; }
+  getFullName(): string | null { return this.getUser()?.fullName || null; }
+  getEmail(): string | null    { return this.getUser()?.email    || null; }
+  getUserId(): string | null   { return this.getUser()?.userId   || null; }
 
-  getEmail(): string | null {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    return user.email || null;
-  }
+  isLoggedIn(): boolean { return !!this.getToken(); }
 
-  isLoggedIn(): boolean {
-    return !!localStorage.getItem('token');
+  /**
+   * Call this inside every protected dashboard's ngOnInit.
+   * Returns true if the current session matches the expected role.
+   * If not, it clears stale data so the next tab refresh won't bleed credentials.
+   */
+  isAuthorized(expectedRole: string | string[]): boolean {
+    const role = this.getRole();
+    if (!role || !this.isLoggedIn()) return false;
+    const allowed = Array.isArray(expectedRole) ? expectedRole : [expectedRole];
+    return allowed.includes(role);
   }
 
   logout() {
     localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    localStorage.removeItem('fullName');
-    localStorage.removeItem('email');
-    console.log('👋 User logged out');
+    localStorage.removeItem('user');
+    this.loginEvent$.next();   // notify subscribers (e.g. chat) that session ended
   }
 }
