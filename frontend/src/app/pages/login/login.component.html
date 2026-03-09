@@ -1,59 +1,79 @@
-<div class="auth-container">
-  <mat-card class="auth-card">
-    <div class="auth-header">
-      <h2>Welcome Back</h2>
-      <p class="subtitle">Sign in to CampusEventHub</p>
+<div class="auth-page">
+  <!-- Left Brand Panel -->
+  <div class="auth-left">
+    <div class="brand">
+      <div class="brand-logo">🎓</div>
+      <div class="brand-text">CampusEventHub</div>
     </div>
+    <div class="hero-content">
+      <h1>Discover Campus Events Like Never Before</h1>
+      <p>Your one stop platform to explore, register, and manage inter-college events across the nation.</p>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="num">50+</div><div class="lbl">Colleges</div></div>
+      <div class="hero-stat"><div class="num">500+</div><div class="lbl">Events</div></div>
+      <div class="hero-stat"><div class="num">10K+</div><div class="lbl">Students</div></div>
+    </div>
+    <div class="floating-cards">
+      <!-- <div class="float-card">What's SPECIAL here ?</div> -->
+      <div class="float-card c1">Vibrant Fests</div>
+      <div class="float-card c2">Team Collaboration</div>
+      <div class="float-card c3">Culturals & Networking</div>
+      <div class="float-card c4">Technical Events</div>
+      <div class="float-card c5">Collaboration</div>
 
-    <form #loginForm="ngForm">
-      <!-- Email -->
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Email Address</mat-label>
-        <input matInput type="email" name="email" [(ngModel)]="email" required email #emailModel="ngModel">
+    </div>
+  </div>
 
-        <mat-error *ngIf="emailModel.errors?.['required'] && emailModel.touched">
-          Email is required
-        </mat-error>
+  <!-- Right Form Panel -->
+  <div class="auth-right">
+    <div class="auth-form-wrap">
+      <h2 class="form-title">Welcome Back</h2>
+      <p class="form-subtitle">Sign in to your CampusEventHub account</p>
 
-        <mat-error *ngIf="emailModel.errors?.['email'] && emailModel.touched">
-          Enter a valid email address
-        </mat-error>
-      </mat-form-field>
+      @if (errorMessage) {
+        <div class="alert alert-error">⚠️ {{ errorMessage }}</div>
+      }
+      @if (successMessage) {
+        <div class="alert alert-success">✅ {{ successMessage }}</div>
+      }
 
-      <!-- Password -->
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Password</mat-label>
-        <input matInput type="password" name="password" [(ngModel)]="password" required #passwordModel="ngModel">
-        <mat-error *ngIf="passwordModel.invalid && passwordModel.touched">
-          Password is required
-        </mat-error>
-      </mat-form-field>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <div class="input-wrap">
+          <span class="input-icon">📧</span>
+          <input type="email" class="form-control" placeholder="you@college.edu"
+            [(ngModel)]="email" [class.error]="emailError" (ngModelChange)="emailError = ''">
+        </div>
+        @if (emailError) { <p class="error-msg">{{ emailError }}</p> }
+      </div>
 
-      <!-- Role
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Login As</mat-label>
-        <mat-select [(ngModel)]="role" name="role" required>
-          <mat-option value="student">Student</mat-option>
-          <mat-option value="college-admin">College Admin</mat-option>
-          <mat-option value="super-admin">Super Admin</mat-option>
-        </mat-select>
-      </mat-form-field> -->
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔒</span>
+          <input [type]="showPassword ? 'text' : 'password'" class="form-control" placeholder="Your password"
+            [(ngModel)]="password" [class.error]="passwordError" (ngModelChange)="passwordError = ''">
+        </div>
+        @if (passwordError) { <p class="error-msg">{{ passwordError }}</p> }
+      </div>
 
-      <!-- Login Button -->
-      <button mat-raised-button color="primary" class="full-width login-btn" (click)="login()" type="submit" [disabled]="loginForm.invalid">
-        Login
+      <div class="form-options">
+        <label class="form-check">
+          <input type="checkbox" [(ngModel)]="rememberMe"> Remember me
+        </label>
+        <button class="forgot" type="button">Forgot password?</button>
+      </div>
+
+      <button class="btn-auth" (click)="login()" [disabled]="isLoading">
+        {{ isLoading ? 'Signing in...' : 'Sign In →' }}
       </button>
 
-      <!-- Backend Error -->
-      <p class="error-message" *ngIf="errorMessage">
-        {{ errorMessage }}
-      </p>
+      <div class="divider"><span>OR</span></div>
 
-      <p class="switch-text">
-        Don’t have an account? <a routerLink="/register">Sign Up</a>
+      <p class="form-footer">
+        Don't have an account? <a (click)="goToRegister()">Create one here</a>
       </p>
-    </form>
-  </mat-card>
+    </div>
+  </div>
 </div>
-
-
