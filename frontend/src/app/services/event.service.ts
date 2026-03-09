@@ -27,7 +27,6 @@ export interface Event {
 
 @Injectable({ providedIn: 'root' })
 export class EventService {
-  private apiUrl = 'http://localhost:5000/api/events';
 
   constructor(private http: HttpClient) {}
 
