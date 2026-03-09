@@ -1,922 +1,292 @@
-import { NgClass, SlicePipe } from '@angular/common';
-import { AuthService } from '../../services/auth.service';
-import { Component, OnInit, signal, computed, effect } from '@angular/core';
-import { trigger, transition, style, animate, query, group } from '@angular/animations';
+import { Component, OnInit, OnDestroy, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { EventService, Event } from '../../services/event.service';
+import { Subscription } from 'rxjs';
+import { EventService } from '../../services/event.service';
+import { AuthService } from '../../services/auth.service';
 import { ChatService } from '../../services/chat.service';
-
-// ========== INTERFACES ==========
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  college: string;
-  department: string;
-  year: string;
-  rollNumber: string;
-  phone: string;
-  walletBalance: number;
-  registeredEvents: string[];
-  points: number;
-  rank: number;
-  badges: string[];
-}
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  read: boolean;
-  createdAt: Date;
-  eventId?: string;
-}
-
-interface Payment {
-  id: string;
-  eventId: string;
-  eventName: string;
-  amount: number;
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
-  paymentMethod: string;
-  transactionId: string;
-  paymentDate: Date;
-}
-
-interface RegistrationData {
-  eventId: string;
-  teamName?: string;
-  teamMembers?: string[];
-  paymentMethod: 'wallet' | 'card' | 'upi' | string;
-}
-
-// Dashboard Event Interface
-interface DashboardEvent {
-  _id: string;
-  title: string;
-  description: string;
-  type: string;
-  category: string;
-  venue: string;
-  startDate: Date;
-  endDate: Date;
-  registrationDeadline: Date;
-  maxParticipants: number;
-  currentParticipants: number;
-  registrationFee: number;
-  isPaid: boolean;
-  organizer: string;
-  contactEmail: string;
-  status: string;
-  createdBy?: string;
-  registeredUsers?: string[];
-  createdAt?: Date;
-  imageUrl?: string;
-  feedback?: { userId: string; rating: number; comment?: string; }[];
-}
 
 @Component({
   selector: 'app-student-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, NgClass, SlicePipe],
+  imports: [CommonModule, FormsModule],
   templateUrl: './student-dashboard.component.html',
-  styleUrls: ['./student-dashboard.component.css'],
-  animations: [
-    trigger('viewAnimation', [
-      transition('* => *', [
-        group([
-          query(':enter', [
-            style({ opacity: 0, transform: 'translateY(10px)' }),
-            animate('300ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
-          ], { optional: true }),
-          query(':leave', [
-            animate('200ms ease-in', style({ opacity: 0, transform: 'translateY(-10px)' }))
-          ], { optional: true })
-        ])
-      ])
-    ])
-  ]
+  styleUrls: ['./student-dashboard.component.css']
 })
-export class StudentDashboardComponent implements OnInit {
-  // ========== SIGNALS ==========
-  currentView = signal<'overview' | 'events' | 'registered' | 'profile' | 'notifications' | 'payments' | 'schedule' | 'leaderboard'>('overview');
-  sidebarCollapsed = signal<boolean>(false);
-  showMobileMenu = signal<boolean>(false);
-  searchQuery = signal<string>('');
-  selectedEventType = signal<string>('all');
-  selectedCategory = signal<string>('all');
-  selectedEvent = signal<DashboardEvent | null>(null);
-  showEventModal = signal<boolean>(false);
-  isDarkMode = signal<boolean>(false);
+export class StudentDashboardComponent implements OnInit, OnDestroy {
 
-  currentActivityIndex = signal<number>(0);
-  activities = signal<string[]>([
-    "🎓 Someone from LPU just registered for TechQuest 2024!",
-    "🔥 Robo-Wars is now 85% full! Grab your spot now.",
-    "🚀 Aditi Sharma just earned the 'Innovator' badge!",
-    "📅 New Workshop 'AI Ethics' added for next Friday.",
-    "✨ 50+ students joined the Cultural Fest planning committee."
-  ]);
+  currentView = signal<string>('overview');
+  activeTab   = signal<string>('details');
 
-  registrationData = signal<RegistrationData>({
-    eventId: '',
-    teamName: '',
-    teamMembers: [],
-    paymentMethod: 'wallet'
-  });
+  events: any[]          = [];
+  filteredEvents: any[]  = [];
+  registeredEventIds     = new Set<string>();
+  registeredEvents: any[] = [];
 
-  showConfetti = signal<boolean>(false);
+  notifications: any[] = [];
+  payments: any[]      = [];
+  leaderboard: any[]   = [];
 
-  leaderboardData = signal<any[]>([
-    { rank: 1, name: 'Aditi Sharma', points: 1250, college: 'IIT Bombay', badges: ['🏆', '🔥'] },
-    { rank: 2, name: 'Rahul Verma', points: 1100, college: 'NSUT', badges: ['🧠'] },
-    { rank: 3, name: 'Sneha Kapur', points: 950, college: 'DTU', badges: ['🎨'] },
-    { rank: 4, name: 'Me (You)', points: 840, college: 'LPU', badges: ['🚀'] },
-    { rank: 5, name: 'Vikram Singh', points: 720, college: 'BIT Mesra', badges: [] }
-  ]);
+  selectedEvent: any = null;
 
-  // ========== USER DATA ==========
-  currentUser = signal<User>({
-    id: '',
-    name: '',
-    email: '',
-    college: '',
-    department: 'Computer Science',
-    year: '3rd',
-    rollNumber: 'LPU12345',
-    phone: '+91 9876543210',
-    walletBalance: 2500,
-    registeredEvents: [],
-    points: 840,
-    rank: 4,
-    badges: ['🚀', '🌟']
-  });
+  showEventModal = false;
+  registering    = false;
 
-  // ========== EVENTS DATA FROM DATABASE ==========
-  allEvents = signal<DashboardEvent[]>([]);
+  searchQuery    = '';
+  categoryFilter = 'all';
+  dateFilter     = '';
+  statusFilter   = 'all';
 
-  // ========== MOCK DATA FOR OTHER FEATURES ==========
-  notifications = signal<Notification[]>([
-    {
-      id: 'not001',
-      title: 'Registration Successful',
-      message: 'You have successfully registered for Tech Fest 2024',
-      type: 'success',
-      read: false,
-      createdAt: new Date('2024-03-01T10:30:00'),
-      eventId: 'evt001'
-    },
-    {
-      id: 'not002',
-      title: 'Payment Received',
-      message: 'Your payment of ₹500 for Tech Fest 2024 has been confirmed',
-      type: 'success',
-      read: false,
-      createdAt: new Date('2024-03-01T10:31:00'),
-      eventId: 'evt001'
-    },
-    {
-      id: 'not003',
-      title: 'Event Reminder',
-      message: 'Sports Meet starts tomorrow. Don\'t forget to carry your ID card',
-      type: 'info',
-      read: true,
-      createdAt: new Date('2024-04-30T09:00:00'),
-      eventId: 'evt003'
-    },
-    {
-      id: 'not004',
-      title: 'Event Cancelled',
-      message: 'Cultural Night has been postponed due to unforeseen circumstances',
-      type: 'warning',
-      read: false,
-      createdAt: new Date('2024-03-18T14:20:00'),
-      eventId: 'evt002'
-    }
-  ]);
+  errorMessage = '';
 
-  payments = signal<Payment[]>([
-    {
-      id: 'pay001',
-      eventId: 'evt001',
-      eventName: 'Tech Fest 2024',
-      amount: 500,
-      status: 'completed',
-      paymentMethod: 'Wallet',
-      transactionId: 'TXN123456789',
-      paymentDate: new Date('2024-03-01T10:31:00')
-    },
-    {
-      id: 'pay002',
-      eventId: 'evt003',
-      eventName: 'Inter-College Sports Meet',
-      amount: 300,
-      status: 'completed',
-      paymentMethod: 'Credit Card',
-      transactionId: 'TXN987654321',
-      paymentDate: new Date('2024-02-28T15:45:00')
-    },
-    {
-      id: 'pay003',
-      eventId: 'evt004',
-      eventName: 'AI & ML Workshop',
-      amount: 200,
-      status: 'pending',
-      paymentMethod: 'Wallet',
-      transactionId: 'TXN456789123',
-      paymentDate: new Date('2024-03-05T11:20:00')
-    }
-  ]);
+  user: any = null;
 
-  // ========== COMPUTED SIGNALS ==========
-  registeredEvents = computed(() => {
-    const userEvents = this.currentUser().registeredEvents;
-    return this.allEvents().filter(event => userEvents.includes(this.getEventId(event)));
-  });
+  sidebarCollapsed    = false;
+  mobileSidebarOpen   = false;
+  selectedPaymentMethod = 'upi';
 
-  upcomingEvents = computed(() => {
-    const now = new Date();
-    return this.allEvents().filter(event =>
-      event.status === 'upcoming' &&
-      new Date(event.startDate) > now
-    );
-  });
+  totalPoints = 0;
+  myRank      = 0;
+  showConfetti = false;
 
-  ongoingEvents = computed(() => {
-    return this.allEvents().filter(event => event.status === 'ongoing');
-  });
+  private navSub!: Subscription | undefined;
 
-  completedEvents = computed(() => {
-    return this.allEvents().filter(event => event.status === 'completed');
-  });
-
-  filteredEvents = computed(() => {
-    let filtered = this.allEvents();
-
-    if (this.searchQuery()) {
-      const query = this.searchQuery().toLowerCase();
-      filtered = filtered.filter(event =>
-        event.title.toLowerCase().includes(query) ||
-        event.description.toLowerCase().includes(query) ||
-        event.venue.toLowerCase().includes(query)
-      );
-    }
-
-    if (this.selectedEventType() !== 'all') {
-      filtered = filtered.filter(event => event.type === this.selectedEventType());
-    }
-
-    if (this.selectedCategory() !== 'all') {
-      filtered = filtered.filter(event => event.category === this.selectedCategory());
-    }
-
-    return filtered;
-  });
-
-  unreadNotifications = computed(() => {
-    return this.notifications().filter(n => !n.read).length;
-  });
-
-  upcomingSchedule = computed(() => {
-    const now = new Date();
-    return this.registeredEvents()
-      .filter(event => new Date(event.startDate) > now)
-      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-      .slice(0, 5);
-  });
-
-  totalSpent = computed(() => {
-    return this.payments()
-      .filter(p => p.status === 'completed')
-      .reduce((sum, p) => sum + p.amount, 0);
-  });
-
-  pendingPayments = computed(() => {
-    return this.payments().filter(p => p.status === 'pending');
-  });
-
-  trendingEvents = computed(() => {
-    return this.allEvents()
-      .filter(e => e.status === 'upcoming')
-      .sort((a, b) => (b.currentParticipants / b.maxParticipants) - (a.currentParticipants / a.maxParticipants))
-      .slice(0, 4);
-  });
-
-  // ========== CONSTRUCTOR ==========
   constructor(
-    private authService: AuthService,
-    private router: Router,
+    public authService: AuthService,
     private eventService: EventService,
+    private router: Router,
     private chatService: ChatService
   ) {
-    // Initialize theme from localStorage
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      this.isDarkMode.set(true);
-    }
-
+    // ✅ React to chatbot navigation requests (e.g. "Browse Events" button)
     effect(() => {
-      console.log('Current view:', this.currentView());
-    });
+      const req = this.chatService.navRequest();
+      if (!req) return;
 
-    // Effect to apply theme class and save to localStorage
-    effect(() => {
-      const dark = this.isDarkMode();
-      if (dark) {
-        document.body.classList.add('dark-theme');
-        localStorage.setItem('theme', 'dark');
-      } else {
-        document.body.classList.remove('dark-theme');
-        localStorage.setItem('theme', 'light');
-      }
-    });
+      if (req === 'BROWSE_EVENTS')  { this.setView('events');      }
+      if (req === 'LEADERBOARD')    { this.setView('leaderboard'); }
 
-    // Effect to handle Nav-Assist requests from Chatbot
-    effect(() => {
-      const navView = this.chatService.navRequest();
-      if (navView) {
-        // Map common terms to actual view keys
-        const viewMap: any = {
-          'profile': 'profile',
-          'notifications': 'notifications',
-          'payments': 'payments',
-          'wallet': 'payments',
-          'events': 'events',
-          'browse': 'events',
-          'schedule': 'registered',
-          'registered': 'registered',
-          'overview': 'overview',
-          'home': 'overview'
-        };
-
-        const targetView = viewMap[navView];
-        if (targetView) {
-          this.setView(targetView);
-          this.chatService.isOpen.set(false); // Close chat to show the navigation
-        }
-      }
+      // Clear the request so it won't fire again
+      this.chatService.navRequest.set(null);
     });
   }
 
-  // ========== LIFECYCLE ==========
-  ngOnInit(): void {
-    this.startActivityTicker();
-    try {
-      if (!this.authService.isLoggedIn()) {
-        this.router.navigate(['/login']);
-        return;
-      }
-
-      const userRole = this.authService.getRole();
-      if (userRole !== 'student') {
-        this.router.navigate(['/login']);
-        return;
-      }
-
-      this.loadUserData();
-      this.loadEventsFromDB();
-
-    } catch (error) {
-      console.error('Auth check failed:', error);
+  ngOnInit() {
+    // ✅ PROTECTED ROUTE CHECK: verify this tab's stored session is actually a student
+    if (!this.authService.isLoggedIn() || !this.authService.isAuthorized('student')) {
+      // Clear any stale/wrong-role session and redirect
+      this.authService.logout();
       this.router.navigate(['/login']);
+      return;
     }
+
+    // ✅ FIX: UserData uses `fullName`, not `name`
+    this.user = this.authService.getUser() || {};
+
+    this.loadEvents();
+    this.loadMyRegistrations();
+    this.loadMockData();
   }
 
-  startActivityTicker() {
-    setInterval(() => {
-      this.currentActivityIndex.update(idx => (idx + 1) % this.activities().length);
-    }, 6000);
+  ngOnDestroy() {
+    this.navSub?.unsubscribe();
   }
 
-  // ========== LOAD DATA ==========
-  loadUserData(): void {
-    const fullName = this.authService.getFullName() || 'Student';
-    const email = this.authService.getEmail() || 'student@college.edu';
+  // ─── UI CONTROLS ────────────────────────────────────────────────────────────
 
-    this.currentUser.update(user => ({
-      ...user,
-      id: localStorage.getItem('userId') || '1',
-      name: fullName,
-      email: email,
-      college: 'Your College',
-      department: 'Computer Science',
-      year: '3rd Year',
-      rollNumber: 'CS' + Math.floor(Math.random() * 10000),
-      phone: '+1 234 567 8900',
-      walletBalance: 2500,
-      registeredEvents: []
-    }));
+  setView(view: string) { this.currentView.set(view); }
+  setTab(tab: string)   { this.activeTab.set(tab);    }
+
+  toggleSidebar()       { this.sidebarCollapsed    = !this.sidebarCollapsed;    }
+  toggleMobileSidebar() { this.mobileSidebarOpen   = !this.mobileSidebarOpen;   }
+  closeMobileSidebar()  { this.mobileSidebarOpen   = false;                     }
+
+  // ─── USER HELPERS ───────────────────────────────────────────────────────────
+
+  getInitial(): string {
+    return this.getFullName()?.charAt(0)?.toUpperCase() || 'U';
   }
 
-  loadEventsFromDB(): void {
-    console.log('Loading events from database...');
-    this.eventService.getAllEvents().subscribe({
-      next: (events: any[]) => {
-        console.log('Events loaded from DB:', events);
-        // Map the events to ensure they have all required fields
-        const dashboardEvents: DashboardEvent[] = events.map(event => ({
-          _id: event._id || '',
-          title: event.title || '',
-          description: event.description || '',
-          type: event.type || '',
-          category: event.category || '',
-          venue: event.venue || '',
-          startDate: event.startDate ? new Date(event.startDate) : new Date(),
-          endDate: event.endDate ? new Date(event.endDate) : new Date(),
-          registrationDeadline: event.registrationDeadline ? new Date(event.registrationDeadline) : new Date(),
-          maxParticipants: event.maxParticipants || 0,
-          currentParticipants: event.currentParticipants || 0,
-          registrationFee: event.registrationFee || 0,
-          isPaid: event.isPaid || false,
-          organizer: event.organizer || '',
-          contactEmail: event.contactEmail || '',
-          status: event.status || 'upcoming',
-          createdBy: event.createdBy,
-          registeredUsers: event.registeredUsers || [],
-          createdAt: event.createdAt ? new Date(event.createdAt) : undefined,
-          imageUrl: event.imageUrl || ''
-        }));
-        this.allEvents.set(dashboardEvents);
+  // ✅ FIX: read `fullName` (the actual UserData field), not `name`
+  getFullName(): string {
+    return this.user?.fullName || 'Student User';
+  }
+
+  getEmail(): string {
+    return this.user?.email || '';
+  }
+
+  // ─── EVENT DATA ─────────────────────────────────────────────────────────────
+
+  loadEvents() {
+    const filters: any = {};
+    if (this.categoryFilter !== 'all') filters.category = this.categoryFilter;
+    if (this.statusFilter   !== 'all') filters.status   = this.statusFilter;
+    if (this.dateFilter)               filters.date      = this.dateFilter;
+
+    this.eventService.getAllEvents(filters).subscribe({
+      next: (data: any) => {
+        const list     = Array.isArray(data) ? data : data?.events || [];
+        this.events    = list;
+        this.filterEvents();
       },
-      error: (err) => {
-        console.error('Error loading events:', err);
-        this.allEvents.set([]);
+      error: () => {
+        this.events        = [];
+        this.filteredEvents = [];
       }
     });
   }
 
-  // ========== HELPER METHODS FOR EVENT ID ==========
-  getEventId(event: DashboardEvent): string {
-    return event._id || '';
+  loadMyRegistrations() {
+    this.eventService.getMyRegistrations().subscribe({
+      next: (data: any) => {
+        const list              = Array.isArray(data) ? data : data?.events || [];
+        this.registeredEvents   = list;
+        this.registeredEventIds = new Set(list.map((ev: any) => String(ev?._id || ev?.id)));
+      },
+      error: () => {
+        this.registeredEvents   = [];
+        this.registeredEventIds = new Set();
+      }
+    });
   }
 
-  trackByEventId(index: number, event: DashboardEvent): string {
-    return event._id || index.toString();
+  loadMockData() {
+    this.notifications = [
+      { id: 1, icon: '📅', title: 'Tech Fest Registration Open',  message: 'Slots filling fast',              time: '2h ago', read: false },
+      { id: 2, icon: '✅', title: 'Registration Confirmed',       message: 'You registered for Cultural Night', time: '1d ago', read: true  }
+    ];
   }
 
-  // ========== LOGOUT ==========
-  logout(): void {
+  // ─── FILTERING ──────────────────────────────────────────────────────────────
+
+  filterEvents() {
+    let list = [...this.events];
+
+    if (this.searchQuery) {
+      const q = this.searchQuery.toLowerCase();
+      list = list.filter((e: any) =>
+        e.title?.toLowerCase().includes(q) ||
+        e.description?.toLowerCase().includes(q)
+      );
+    }
+
+    if (this.categoryFilter !== 'all') list = list.filter((e: any) => e.category === this.categoryFilter);
+    if (this.statusFilter   !== 'all') list = list.filter((e: any) => e.status   === this.statusFilter);
+
+    this.filteredEvents = list;
+  }
+
+  onSearchChange() { this.filterEvents(); }
+  onFilterChange() { this.loadEvents();   }
+
+  // ─── EVENT UTILITIES ────────────────────────────────────────────────────────
+
+  isRegistered(ev: any): boolean {
+    return this.registeredEventIds.has(String(ev._id || ev.id));
+  }
+
+  isFull(ev: any): boolean {
+    if (!ev.maxParticipants) return false;
+    return (ev.currentParticipants || 0) >= ev.maxParticipants;
+  }
+
+  getSpotsLeft(ev: any): number {
+    return Math.max((ev.maxParticipants || 0) - (ev.currentParticipants || 0), 0);
+  }
+
+  isSpotsUrgent(ev: any): boolean {
+    return this.getSpotsLeft(ev) <= 5;
+  }
+
+  // ─── DASHBOARD HELPERS ──────────────────────────────────────────────────────
+
+  getDashboardStats() {
+    return {
+      registered: this.registeredEvents.length,
+      upcoming:   this.registeredEvents.filter((e: any) => e.status === 'upcoming').length,
+      completed:  this.registeredEvents.filter((e: any) => e.status === 'completed').length
+    };
+  }
+
+  getTrendingEvents()   { return this.events.slice(0, 4); }
+
+  getUpcomingSchedule() {
+    return this.registeredEvents
+      .filter((e: any) => e.status === 'upcoming')
+      .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+  }
+
+  // ─── DATE FORMATTERS ────────────────────────────────────────────────────────
+
+  formatDate(date: any)     { if (!date) return ''; return new Date(date).toLocaleDateString();  }
+  formatDateTime(date: any) { if (!date) return ''; return new Date(date).toLocaleString();      }
+
+  // ─── NOTIFICATIONS ──────────────────────────────────────────────────────────
+
+  get unreadCount()             { return this.notifications.filter(n => !n.read).length;   }
+  markNotificationRead(n: any)  { n.read = true;                                            }
+  markAllRead()                 { this.notifications.forEach(n => n.read = true);           }
+
+  // ─── REGISTRATION ───────────────────────────────────────────────────────────
+
+  registerForEvent() {
+    if (!this.selectedEvent) return;
+    const id      = this.selectedEvent._id || this.selectedEvent.id;
+    this.registering = true;
+
+    this.eventService.registerForEvent(id).subscribe({
+      next: () => {
+        this.registeredEventIds.add(String(id));
+        this.registering = false;
+        this.loadMyRegistrations();
+        this.closeEventModal();
+      },
+      error: (err: any) => {
+        this.errorMessage = err?.error?.message || 'Registration failed.';
+        this.registering  = false;
+      }
+    });
+  }
+
+  cancelRegistration(ev: any) {
+    const id = ev._id || ev.id;
+    this.eventService.unregisterFromEvent(id).subscribe({
+      next: () => {
+        this.registeredEventIds.delete(String(id));
+        this.registeredEvents = this.registeredEvents.filter(e => e !== ev);
+        this.loadEvents();
+      },
+      error: (err: any) => {
+        this.errorMessage = err?.error?.message || 'Could not cancel registration.';
+      }
+    });
+  }
+
+  cancelFromModal() {
+    if (!this.selectedEvent) return;
+    this.cancelRegistration(this.selectedEvent);
+    this.closeEventModal();
+  }
+
+  openEventModal(event: any)  { this.selectedEvent = event; this.showEventModal = true;  }
+  closeEventModal()           { this.showEventModal = false; this.selectedEvent = null;  }
+
+  // ─── PAYMENT STATUS ─────────────────────────────────────────────────────────
+
+  getStatusClass(status: string) {
+    switch (status) {
+      case 'success': return 'text-success';
+      case 'failed':  return 'text-danger';
+      case 'pending': return 'text-warning';
+      default:        return 'text-info';
+    }
+  }
+
+  // ─── AUTH ───────────────────────────────────────────────────────────────────
+
+  logout() {
     this.authService.logout();
     this.router.navigate(['/login']);
-  }
-
-  // ========== UI ACTIONS ==========
-  setView(view: 'overview' | 'events' | 'registered' | 'profile' | 'notifications' | 'payments' | 'schedule' | 'leaderboard'): void {
-    this.currentView.set(view);
-    this.selectedEvent.set(null);
-    this.showMobileMenu.set(false);
-  }
-
-  toggleSidebar(): void {
-    this.sidebarCollapsed.update(value => !value);
-  }
-
-  toggleMobileMenu(): void {
-    this.showMobileMenu.update(value => !value);
-  }
-
-  toggleDarkMode(): void {
-    this.isDarkMode.update(dark => !dark);
-  }
-
-  // ========== SEARCH & FILTERS ==========
-  onSearchInput(event: any): void {
-    const input = event.target as HTMLInputElement;
-    if (input) {
-      this.searchQuery.set(input.value);
-    }
-  }
-
-  onEventTypeChange(event: any): void {
-    const select = event.target as HTMLSelectElement;
-    if (select) {
-      this.selectedEventType.set(select.value);
-    }
-  }
-
-  onCategoryChange(event: any): void {
-    const select = event.target as HTMLSelectElement;
-    if (select) {
-      this.selectedCategory.set(select.value);
-    }
-  }
-
-  resetFilters(): void {
-    this.searchQuery.set('');
-    this.selectedEventType.set('all');
-    this.selectedCategory.set('all');
-  }
-
-  // ========== EVENT REGISTRATION ==========
-  selectEventForRegistration(event: DashboardEvent): void {
-    this.selectedEvent.set(event);
-    this.registrationData.update(data => ({
-      ...data,
-      eventId: this.getEventId(event),
-      teamName: '',
-      teamMembers: [],
-      paymentMethod: 'wallet'
-    }));
-    this.showEventModal.set(true);
-  }
-
-  closeModal(): void {
-    this.showEventModal.set(false);
-    setTimeout(() => this.selectedEvent.set(null), 300);
-  }
-
-  registerForEvent(): void {
-    const event = this.selectedEvent();
-    if (!event) return;
-
-    const eventId = this.getEventId(event);
-
-    if (this.currentUser().registeredEvents.includes(eventId)) {
-      alert('You are already registered for this event!');
-      return;
-    }
-
-    if (event.currentParticipants >= event.maxParticipants) {
-      alert('Registration is full for this event!');
-      return;
-    }
-
-    if (event.isPaid && event.registrationFee > 0) {
-      const paymentMethod = this.registrationData().paymentMethod;
-      if (paymentMethod === 'wallet') {
-        if (this.currentUser().walletBalance < event.registrationFee) {
-          alert('Insufficient wallet balance! Please add funds or use another payment method.');
-          return;
-        }
-        this.currentUser.update(user => ({
-          ...user,
-          walletBalance: user.walletBalance - event.registrationFee
-        }));
-      }
-    }
-
-    this.currentUser.update(user => ({
-      ...user,
-      registeredEvents: [...user.registeredEvents, eventId],
-      points: user.points + 50
-    }));
-
-    this.showConfetti.set(true);
-    setTimeout(() => this.showConfetti.set(false), 4000);
-
-    this.allEvents.update(events =>
-      events.map(e =>
-        this.getEventId(e) === eventId
-          ? { ...e, currentParticipants: e.currentParticipants + 1 }
-          : e
-      )
-    );
-
-    const newNotification: Notification = {
-      id: 'not' + Date.now(),
-      title: 'Registration Successful',
-      message: `You have successfully registered for ${event.title}`,
-      type: 'success',
-      read: false,
-      createdAt: new Date(),
-      eventId: eventId
-    };
-
-    this.notifications.update(n => [newNotification, ...n]);
-
-    if (event.isPaid && event.registrationFee > 0) {
-      const newPayment: Payment = {
-        id: 'pay' + Date.now(),
-        eventId: eventId,
-        eventName: event.title,
-        amount: event.registrationFee,
-        status: 'completed',
-        paymentMethod: this.registrationData().paymentMethod === 'wallet' ? 'Wallet' :
-          this.registrationData().paymentMethod === 'card' ? 'Credit Card' : 'UPI',
-        transactionId: 'TXN' + Math.random().toString(36).substring(2, 10).toUpperCase(),
-        paymentDate: new Date()
-      };
-      this.payments.update(p => [newPayment, ...p]);
-    }
-
-    alert(`Successfully registered for ${event.title}!`);
-    this.closeModal();
-    setTimeout(() => this.setView('registered'), 100);
-  }
-
-  cancelRegistration(eventId: string): void {
-    if (confirm('Are you sure you want to cancel this registration?')) {
-      this.currentUser.update(user => ({
-        ...user,
-        registeredEvents: user.registeredEvents.filter(id => id !== eventId)
-      }));
-
-      this.allEvents.update(events =>
-        events.map(e =>
-          this.getEventId(e) === eventId
-            ? { ...e, currentParticipants: e.currentParticipants - 1 }
-            : e
-        )
-      );
-
-      const event = this.allEvents().find(e => this.getEventId(e) === eventId);
-      if (event) {
-        const notification: Notification = {
-          id: 'not' + Date.now(),
-          title: 'Registration Cancelled',
-          message: `Your registration for ${event.title} has been cancelled`,
-          type: 'warning',
-          read: false,
-          createdAt: new Date(),
-          eventId: eventId
-        };
-        this.notifications.update(n => [notification, ...n]);
-      }
-
-      alert('Registration cancelled successfully!');
-    }
-  }
-
-  // ========== TEAM DETAILS ==========
-  onTeamNameInput(event: any): void {
-    const input = event.target as HTMLInputElement;
-    if (input) {
-      this.registrationData.update(data => ({
-        ...data,
-        teamName: input.value
-      }));
-    }
-  }
-
-  onTeamMembersInput(event: any): void {
-    const input = event.target as HTMLInputElement;
-    if (input) {
-      const members = input.value
-        .split(',')
-        .map(member => member.trim())
-        .filter(member => member.length > 0);
-
-      this.registrationData.update(data => ({
-        ...data,
-        teamMembers: members
-      }));
-    }
-  }
-
-  getTeamMembersString(): string {
-    return this.registrationData().teamMembers?.join(', ') || '';
-  }
-
-  // ========== PAYMENT ==========
-  onPaymentMethodChange(method: 'wallet' | 'card' | 'upi'): void {
-    this.registrationData.update(data => ({
-      ...data,
-      paymentMethod: method
-    }));
-  }
-
-  isRegisterButtonDisabled(): boolean {
-    const event = this.selectedEvent();
-    if (!event) return true;
-
-    if (event.isPaid && event.registrationFee > 0) {
-      if (this.registrationData().paymentMethod === 'wallet' &&
-        this.currentUser().walletBalance < event.registrationFee) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  addWalletBalance(amount: number): void {
-    if (amount <= 0) return;
-    this.currentUser.update(user => ({
-      ...user,
-      walletBalance: user.walletBalance + amount
-    }));
-    const notification: Notification = {
-      id: 'not' + Date.now(),
-      title: 'Wallet Recharged',
-      message: `₹${amount} has been added to your wallet`,
-      type: 'success',
-      read: false,
-      createdAt: new Date()
-    };
-    this.notifications.update(n => [notification, ...n]);
-    alert(`₹${amount} added to wallet successfully!`);
-  }
-
-  processPayment(paymentId: string): void {
-    const payment = this.payments().find(p => p.id === paymentId);
-    if (!payment) return;
-    this.payments.update(payments =>
-      payments.map(p =>
-        p.id === paymentId ? { ...p, status: 'completed' } : p
-      )
-    );
-    const notification: Notification = {
-      id: 'not' + Date.now(),
-      title: 'Payment Successful',
-      message: `Your payment of ₹${payment.amount} for ${payment.eventName} has been completed`,
-      type: 'success',
-      read: false,
-      createdAt: new Date()
-    };
-    this.notifications.update(n => [notification, ...n]);
-    alert('Payment processed successfully!');
-  }
-
-  // ========== NOTIFICATIONS ==========
-  markNotificationAsRead(notificationId: string): void {
-    this.notifications.update(notifications =>
-      notifications.map(n =>
-        n.id === notificationId ? { ...n, read: true } : n
-      )
-    );
-  }
-
-  markAllNotificationsAsRead(): void {
-    this.notifications.update(notifications =>
-      notifications.map(n => ({ ...n, read: true }))
-    );
-  }
-
-  clearAllNotifications(): void {
-    if (confirm('Clear all notifications?')) {
-      this.notifications.set([]);
-    }
-  }
-
-  // ========== PROFILE ==========
-  updateProfile(updatedData: Partial<User>): void {
-    this.currentUser.update(user => ({
-      ...user,
-      ...updatedData
-    }));
-    const notification: Notification = {
-      id: 'not' + Date.now(),
-      title: 'Profile Updated',
-      message: 'Your profile has been updated successfully',
-      type: 'success',
-      read: false,
-      createdAt: new Date()
-    };
-    this.notifications.update(n => [notification, ...n]);
-    alert('Profile updated successfully!');
-  }
-
-  // ========== HELPER FUNCTIONS ==========
-  formatDate(date: Date | undefined | null, format: string = 'medium'): string {
-    if (!date) return '';
-    const d = new Date(date);
-    if (format === 'MMM') {
-      return d.toLocaleString('default', { month: 'short' });
-    } else if (format === 'd') {
-      return d.getDate().toString();
-    } else if (format === 'h:mm a') {
-      return d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    } else if (format === 'fullDate') {
-      return d.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } else {
-      return d.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    }
-  }
-
-  getEventTypeIcon(type: string): string {
-    const icons: Record<string, string> = {
-      technical: '💻',
-      cultural: '🎭',
-      sports: '⚽',
-      workshop: '🔧',
-      seminar: '📚'
-    };
-    return icons[type] || '📅';
-  }
-
-  getStatusBadgeClass(status: string): string {
-    const classes: Record<string, string> = {
-      upcoming: 'badge-upcoming',
-      ongoing: 'badge-ongoing',
-      completed: 'badge-completed',
-      cancelled: 'badge-cancelled'
-    };
-    return classes[status] || '';
-  }
-
-  getPaymentStatusClass(status: string): string {
-    const classes: Record<string, string> = {
-      pending: 'text-warning',
-      completed: 'text-success',
-      failed: 'text-danger',
-      refunded: 'text-info'
-    };
-    return classes[status] || '';
-  }
-
-  getNotificationIcon(type: string): string {
-    const icons: Record<string, string> = {
-      success: '✅',
-      warning: '⚠️',
-      error: '❌',
-      info: 'ℹ️'
-    };
-    return icons[type] || '📢';
-  }
-
-  isEventRegistered(eventId: string): boolean {
-    return this.currentUser().registeredEvents.includes(eventId);
-  }
-
-  isRegistrationAvailable(event: DashboardEvent): boolean {
-    return event.status === 'upcoming' &&
-      event.currentParticipants < event.maxParticipants &&
-      new Date() < new Date(event.registrationDeadline);
-  }
-
-  // ========== FEEDBACK SYSTEM ==========
-  feedbackState: Record<string, { rating: number, comment: string, hover: number }> = {};
-
-  initFeedbackState(eventId: string) {
-    if (!this.feedbackState[eventId]) {
-      this.feedbackState[eventId] = { rating: 0, comment: '', hover: 0 };
-    }
-  }
-
-  hasSubmittedFeedback(eventId: string): boolean {
-    const event = this.allEvents().find(e => e._id === eventId);
-    return event?.feedback?.some((f: any) => f.userId === this.currentUser().id) || false;
-  }
-
-  setRating(eventId: string, rating: number) {
-    this.initFeedbackState(eventId);
-    this.feedbackState[eventId].rating = rating;
-  }
-
-  getRating(eventId: string): number {
-    return this.feedbackState[eventId]?.rating || 0;
-  }
-
-  hoverRating(eventId: string, rating: number) {
-    this.initFeedbackState(eventId);
-    this.feedbackState[eventId].hover = rating;
-  }
-
-  getDisplayRating(eventId: string): number {
-    this.initFeedbackState(eventId);
-    return this.feedbackState[eventId].hover || this.feedbackState[eventId].rating || 0;
-  }
-
-  setComment(eventId: string, event: any) {
-    this.initFeedbackState(eventId);
-    this.feedbackState[eventId].comment = event.target.value;
-  }
-
-  getComment(eventId: string): string {
-    return this.feedbackState[eventId]?.comment || '';
-  }
-
-  submitFeedback(event: DashboardEvent) {
-    const eventId = event._id!;
-    const state = this.feedbackState[eventId];
-
-    if (!state || state.rating === 0) {
-      alert('Please select a rating before submitting.');
-      return;
-    }
-
-    this.eventService.submitFeedback(eventId, {
-      rating: state.rating,
-      comment: state.comment
-    }).subscribe({
-      next: (res) => {
-        // Optimistically update the local event store so the UI updates to showing the checkmark
-        this.allEvents.update(events => events.map(e =>
-          e._id === eventId ? {
-            ...e,
-            feedback: [...(e.feedback || []), { userId: this.currentUser().id, rating: state.rating, comment: state.comment }]
-          } : e
-        ));
-
-        alert('Thank you! Your feedback has been submitted successfully.');
-      },
-      error: (err) => {
-        alert(err.error?.message || 'Error submitting feedback. Please try again.');
-      }
-    });
   }
 }
