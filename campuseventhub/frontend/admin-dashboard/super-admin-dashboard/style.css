@@ -1,4 +1,4 @@
-body {
+nbody {
     font-family: Arial;
     margin: 0;
     background: linear-gradient(to right, #667eea, #764ba2);
@@ -80,4 +80,5 @@ body {
     background: green;
     color: white;
 }
+
 
