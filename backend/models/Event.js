@@ -59,8 +59,11 @@ const eventSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  availableSlots: [{
-    type: String
+  slots: [{
+    name: { type: String, required: true },
+    startTime: { type: String, required: true },
+    endTime: { type: String, required: true },
+    capacity: { type: Number, required: true, default: 0 }
   }],
   status: {
     type: String,

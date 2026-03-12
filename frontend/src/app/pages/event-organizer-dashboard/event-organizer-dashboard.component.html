@@ -579,19 +579,46 @@
       <button class="modal-close" (click)="closeParticipants()">✕</button>
     </div>
     <div class="modal-body">
+      <div class="bulk-actions-bar" *ngIf="participants.length > 0">
+        <div class="selection-info">{{ selectedParticipantIds.size }} selected</div>
+        <div class="bulk-buttons">
+          <button class="btn-bulk approve" [disabled]="selectedParticipantIds.size === 0" (click)="bulkUpdateStatus('approved')">✅ Approve Selected</button>
+          <button class="btn-bulk reject" [disabled]="selectedParticipantIds.size === 0" (click)="bulkUpdateStatus('rejected')">❌ Reject Selected</button>
+        </div>
+      </div>
+
       @if (loadingParticipants) {
-        <div class="loading-spinner">Loading participants...</div>
+        <div class="loading-spinner">Loading...</div>
       } @else if (participants.length === 0) {
         <div class="empty-state"><p>No registrations yet.</p></div>
       } @else {
       <table class="data-table">
-        <thead><tr><th>Name</th><th>Email</th><th>College</th></tr></thead>
-        <tbody>
-          @for (p of participants; track p.email) {
+        <thead>
           <tr>
+            <th><input type="checkbox" [checked]="isAllSelected()" (change)="toggleSelectAll()"></th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Slot</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of participants; track p.registrationId) {
+          <tr [class.selected]="selectedParticipantIds.has(p.registrationId)">
+            <td><input type="checkbox" [checked]="selectedParticipantIds.has(p.registrationId)" (change)="toggleParticipantSelection(p.registrationId)"></td>
             <td>{{ p.fullName }}</td>
             <td>{{ p.email }}</td>
-            <td>{{ p.college }}</td>
+            <td><span class="slot-badge">{{ p.selectedSlot || '—' }}</span></td>
+            <td>
+              <span class="status-pill-mini" [class]="p.approvalStatus">
+                <span class="pill-icon" [ngSwitch]="p.approvalStatus">
+                  <i *ngSwitchCase="'approved'">✓</i>
+                  <i *ngSwitchCase="'rejected'">✕</i>
+                  <i *ngSwitchDefault>⏳</i>
+                </span>
+                {{ p.approvalStatus | titlecase }}
+              </span>
+            </td>
           </tr>
           }
         </tbody>

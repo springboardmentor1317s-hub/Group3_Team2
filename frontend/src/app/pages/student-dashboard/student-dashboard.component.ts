@@ -29,6 +29,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   leaderboard: any[]   = [];
 
   selectedEvent: any = null;
+  selectedSlot: string = ''; // New for slot booking
 
   showEventModal = false;
   registering    = false;
@@ -126,11 +127,13 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
     this.eventService.getAllEvents(filters).subscribe({
       next: (data: any) => {
+        console.log('📡 All Events API Response:', data);
         const list     = Array.isArray(data) ? data : data?.events || [];
         this.events    = list;
         this.filterEvents();
       },
-      error: () => {
+      error: (err: any) => {
+        console.error('❌ Failed to load events:', err);
         this.events        = [];
         this.filteredEvents = [];
       }
@@ -140,11 +143,14 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   loadMyRegistrations() {
     this.eventService.getMyRegistrations().subscribe({
       next: (data: any) => {
+        console.log('📡 My Registrations API Response:', data);
         const list              = Array.isArray(data) ? data : data?.events || [];
         this.registeredEvents   = list;
         this.registeredEventIds = new Set(list.map((ev: any) => String(ev?._id || ev?.id)));
+        console.log('✅ Registered Event IDs:', Array.from(this.registeredEventIds));
       },
-      error: () => {
+      error: (err: any) => {
+        console.error('❌ Failed to load registrations:', err);
         this.registeredEvents   = [];
         this.registeredEventIds = new Set();
       }
@@ -232,18 +238,32 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
   registerForEvent() {
     if (!this.selectedEvent) return;
+    
+    // Validate slot selection if slots exist
+    if (this.selectedEvent.slots?.length > 0 && !this.selectedSlot) {
+      this.errorMessage = 'Please select a time slot first.';
+      return;
+    }
+
     const id      = this.selectedEvent._id || this.selectedEvent.id;
     this.registering = true;
+    this.errorMessage = ''; // Clear previous error
 
-    this.eventService.registerForEvent(id).subscribe({
-      next: () => {
+    this.eventService.registerForEvent(id, this.selectedSlot).subscribe({
+      next: (res: any) => {
+        alert(res.message || 'Successfully registered!');
         this.registeredEventIds.add(String(id));
         this.registering = false;
+        this.selectedSlot = '';
         this.loadMyRegistrations();
         this.closeEventModal();
+        this.showConfetti = true; 
+        setTimeout(() => this.showConfetti = false, 3000);
       },
       error: (err: any) => {
+        console.error('Registration failed:', err);
         this.errorMessage = err?.error?.message || 'Registration failed.';
+        alert(this.errorMessage);
         this.registering  = false;
       }
     });
