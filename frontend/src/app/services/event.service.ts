@@ -22,23 +22,33 @@ export interface Event {
   createdBy?: string;
   registeredUsers?: string[];
   imageUrl?: string;
-  feedback?: { userId: string; rating: number; comment?: string; createdAt?: Date; }[];
+  feedback?: { userId: string; rating: number; comment?: string; createdAt?: Date }[];
 }
 
 @Injectable({ providedIn: 'root' })
 export class EventService {
+
   private apiUrl = 'http://localhost:5000/api/events';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   getAllEvents(filters?: {
-    startDate?: string; endDate?: string; status?: string;
-    type?: string; category?: string; organizer?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    type?: string;
+    category?: string;
+    organizer?: string;
   }): Observable<Event[]> {
+
     let params = new HttpParams();
+
     if (filters) {
-      Object.entries(filters).forEach(([k, v]) => { if (v) params = params.set(k, v); });
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v) params = params.set(k, v);
+      });
     }
+
     return this.http.get<Event[]>(this.apiUrl, { params });
   }
 
@@ -50,7 +60,6 @@ export class EventService {
     return this.http.get<Event>(`${this.apiUrl}/${id}`);
   }
 
-  // Pass FormData when uploading an image, plain object otherwise
   createEvent(data: FormData | any): Observable<any> {
     return this.http.post(this.apiUrl, data);
   }
@@ -64,11 +73,21 @@ export class EventService {
   }
 
   registerForEvent(eventId: string, selectedSlot?: string): Observable<any> {
-    return this.http.post(`http://localhost:5000/api/registrations/${eventId}/register`, { selectedSlot });
+    return this.http.post(
+      `http://localhost:5000/api/registrations/${eventId}/register`,
+      { selectedSlot }
+    );
   }
 
-  bulkUpdateRegistrationStatus(ids: string[], status: 'approved' | 'rejected' | 'pending'): Observable<any> {
-    return this.http.patch(`http://localhost:5000/api/registrations/bulk-status`, { ids, status });
+  bulkUpdateRegistrationStatus(
+    ids: string[],
+    status: 'approved' | 'rejected' | 'pending'
+  ): Observable<any> {
+
+    return this.http.patch(
+      `http://localhost:5000/api/registrations/bulk-status`,
+      { ids, status }
+    );
   }
 
   unregisterFromEvent(id: string): Observable<any> {
@@ -80,7 +99,9 @@ export class EventService {
   }
 
   getMyRegistrations(): Observable<any> {
-    return this.http.get(`http://localhost:5000/api/registrations/my/registrations`);
+    return this.http.get(
+      `http://localhost:5000/api/registrations/my/registrations`
+    );
   }
 
   submitFeedback(id: string, data: { rating: number; comment: string }): Observable<any> {
