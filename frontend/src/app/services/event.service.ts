@@ -63,12 +63,16 @@ export class EventService {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }
 
-  registerForEvent(id: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${id}/register`, {});
+  registerForEvent(eventId: string, selectedSlot?: string): Observable<any> {
+    return this.http.post(`http://localhost:5000/api/registrations/${eventId}/register`, { selectedSlot });
+  }
+
+  bulkUpdateRegistrationStatus(ids: string[], status: 'approved' | 'rejected' | 'pending'): Observable<any> {
+    return this.http.patch(`http://localhost:5000/api/registrations/bulk-status`, { ids, status });
   }
 
   unregisterFromEvent(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/${id}/unregister`);
+    return this.http.delete(`http://localhost:5000/api/registrations/${id}`);
   }
 
   getEventRegistrations(id: string): Observable<any> {
@@ -76,7 +80,7 @@ export class EventService {
   }
 
   getMyRegistrations(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/my/registrations`);
+    return this.http.get(`http://localhost:5000/api/registrations/my/registrations`);
   }
 
   submitFeedback(id: string, data: { rating: number; comment: string }): Observable<any> {

@@ -67,15 +67,7 @@ router.get('/', async (req, res) => {
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
-// ─── GET MY REGISTRATIONS ─────────────────────────────────────────────────────
-router.get('/my/registrations', authMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    const events = await Event.find({ _id: { $in: user.registeredEvents } });
-    res.json(events);
-  } catch (err) { res.status(500).json({ message: err.message }); }
-});
+// GET MY REGISTRATIONS moved to registrationRoutes.js
 
 // ─── GET SINGLE EVENT ─────────────────────────────────────────────────────────
 router.get('/:id', async (req, res) => {
@@ -175,39 +167,7 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
-// ─── REGISTER FOR EVENT ───────────────────────────────────────────────────────
-router.post('/:id/register', authMiddleware, async (req, res) => {
-  try {
-    const event = await Event.findById(req.params.id);
-    if (!event) return res.status(404).json({ message: 'Event not found' });
-    if (event.registeredUsers.map(String).includes(String(req.userId)))
-      return res.status(400).json({ message: 'Already registered' });
-    if (event.currentParticipants >= event.maxParticipants)
-      return res.status(400).json({ message: 'Event is full' });
-    if (new Date() > new Date(event.registrationDeadline))
-      return res.status(400).json({ message: 'Registration deadline passed' });
-    event.registeredUsers.push(req.userId);
-    event.currentParticipants += 1;
-    await event.save();
-    await User.findByIdAndUpdate(req.userId, { $addToSet: { registeredEvents: event._id.toString() } });
-    res.json({ message: `Registered for "${event.title}" successfully`, event });
-  } catch (err) { res.status(500).json({ message: err.message }); }
-});
-
-// ─── UNREGISTER FROM EVENT ────────────────────────────────────────────────────
-router.delete('/:id/unregister', authMiddleware, async (req, res) => {
-  try {
-    const event = await Event.findById(req.params.id);
-    if (!event) return res.status(404).json({ message: 'Event not found' });
-    const idx = event.registeredUsers.map(String).indexOf(String(req.userId));
-    if (idx === -1) return res.status(400).json({ message: 'Not registered' });
-    event.registeredUsers.splice(idx, 1);
-    event.currentParticipants = Math.max(0, event.currentParticipants - 1);
-    await event.save();
-    await User.findByIdAndUpdate(req.userId, { $pull: { registeredEvents: event._id.toString() } });
-    res.json({ message: `Unregistered from "${event.title}" successfully` });
-  } catch (err) { res.status(500).json({ message: err.message }); }
-});
+// REGISTER/UNREGISTER moved to registrationRoutes.js
 
 // ─── GET REGISTRATIONS FOR AN EVENT ──────────────────────────────────────────
 router.get('/:id/registrations', authMiddleware, adminMiddleware, async (req, res) => {
