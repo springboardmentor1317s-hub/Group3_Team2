@@ -1,5 +1,7 @@
 const dns = require('dns');
+// Set global DNS servers for the entire process early
 dns.setServers(['8.8.8.8', '1.1.1.1']);
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -10,7 +12,7 @@ const app = express();
 
 // ─── Middleware ─────────────────────────────────
 app.use(cors({
-  origin: 'http://localhost:4200', // Angular app
+  origin: '*', // Allow all during development or you can use a function to allow all localhost
   credentials: true
 }));
 
@@ -33,10 +35,26 @@ const connectDB = async () => {
   try {
 
     console.log('🔌 Connecting to MongoDB...');
+    console.log(`📏 URI Length: ${MONGODB_URI.length}`);
+    console.log(`🔑 URI Start: ${MONGODB_URI.substring(0, 20)}...`);
+
+    // Diagnostic: verify DNS resolution
+    try {
+      const host = new URL(MONGODB_URI.replace('mongodb+srv://', 'http://')).hostname;
+      console.log(`📡 Attempting to resolve host: ${host}`);
+      const resolved = await dns.promises.resolveSrv(`_mongodb._tcp.${host}`).catch(async (e) => {
+        console.warn(`📡 SRV DNS failed for ${host}: ${e.message}. Trying direct A record...`);
+        return await dns.promises.resolve(host).catch(() => 'DNS_FATAL');
+      });
+      console.log(`📡 DNS resolution result:`, JSON.stringify(resolved));
+    } catch (e) {
+      console.warn('⚠️ URI parsing for DNS check failed:', e.message);
+    }
 
     await mongoose.connect(MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+      family: 4
     });
 
     console.log('✅ MongoDB connected');
@@ -53,10 +71,12 @@ const connectDB = async () => {
 const authRoutes = require('./routes/authRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const registrationRoutes = require('./routes/registrationRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/registrations', registrationRoutes);
 
 // ─── Test Route ─────────────────────────────────
 app.get('/api/test', (req, res) => {

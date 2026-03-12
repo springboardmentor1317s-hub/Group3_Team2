@@ -117,14 +117,15 @@
             </div>
             <div class="schedule-list">
               @for (ev of getUpcomingSchedule().slice(0,4); track ev._id) {
-              <div class="schedule-item">
-                <div class="event-time">{{ formatDate(ev.startDate) }}</div>
-                <div class="event-info">
-                  <h4>{{ ev.title }}</h4>
-                  <p>{{ ev.venue }}</p>
+                <div class="schedule-item" [class]="ev.approvalStatus">
+                  <div class="event-time">{{ formatDate(ev.startDate) }}</div>
+                  <div class="event-info">
+                    <h4>{{ ev.title }}</h4>
+                    <p>{{ ev.venue }}</p>
+                  </div>
+                  <div class="status-indicator" [class]="ev.approvalStatus" [title]="ev.approvalStatus"></div>
+                  <span class="event-type-badge" [ngClass]="ev.type?.toLowerCase()">{{ ev.type || 'Event' }}</span>
                 </div>
-                <span class="event-type-badge" [ngClass]="ev.type?.toLowerCase()">{{ ev.type || 'Event' }}</span>
-              </div>
               } @empty {
               <div class="empty-state">📭 No upcoming events. Browse and register!</div>
               }
@@ -268,28 +269,42 @@
       @if (currentView() === 'schedule') {
       <div class="schedule-view">
         <h1>My Schedule 📅</h1>
-        <div class="schedule-timeline">
-          @for (ev of getUpcomingSchedule(); track ev._id) {
-          <div class="timeline-item">
-            <div class="date-badge">
-              <span class="month">{{ formatDate(ev.startDate).split(' ')[1] }}</span>
-              <span class="day">{{ formatDate(ev.startDate).split(' ')[0] }}</span>
+        <div class="premium-timeline">
+          @if (registeredEvents.length === 0) {
+            <div class="empty-state">
+              <div class="empty-icon">📅</div>
+              <p>Your schedule is clear. Time to find some events!</p>
+              <button class="btn-primary" (click)="setView('events')">Browse Events</button>
             </div>
-            <div class="timeline-content">
-              <h3>{{ ev.title }}</h3>
-              <div class="timeline-meta">
-                <span>📍 {{ ev.venue }}</span>
-                <span>⏰ {{ formatDateTime(ev.startDate).split(',')[1] }}</span>
-                <span>👥 {{ ev.maxParticipants }} max</span>
+          } @else {
+            @for (reg of registeredEvents; track reg._id) {
+              <div class="premium-timeline-item" [class]="reg.approvalStatus">
+                <div class="timeline-date">
+                  <span class="month">{{ reg.startDate | date:'MMM' }}</span>
+                  <span class="day">{{ reg.startDate | date:'dd' }}</span>
+                </div>
+                <div class="timeline-dot"></div>
+                <div class="timeline-card glassmorphism">
+                  <div class="card-header-status">
+                    <h3>{{ reg.title }}</h3>
+                    <span class="status-pill" [class]="reg.approvalStatus">
+                      <span class="status-icon" [ngSwitch]="reg.approvalStatus">
+                        <i *ngSwitchCase="'approved'">✓</i>
+                        <i *ngSwitchCase="'rejected'">✕</i>
+                        <i *ngSwitchDefault>⏳</i>
+                      </span>
+                      {{ reg.approvalStatus | titlecase }}
+                    </span>
+                  </div>
+                  <div class="card-body-meta">
+                    <span class="meta-item">📍 {{ reg.venue }}</span>
+                    <span class="meta-item">⏰ {{ formatDateTime(reg.startDate).split(',')[1] }}</span>
+                    <span *ngIf="reg.selectedSlot" class="slot-pill">🕐 {{ reg.selectedSlot }}</span>
+                  </div>
+                  <p class="event-brief">{{ (reg.description || '').substring(0, 100) }}...</p>
+                </div>
               </div>
-              <p>{{ ev.description }}</p>
-            </div>
-          </div>
-          } @empty {
-          <div style="text-align:center;padding:60px;color:var(--text-muted);">
-            <div style="font-size:50px;margin-bottom:12px;">📅</div>
-            <p>No upcoming events in schedule. Register for events to see them here.</p>
-          </div>
+            }
           }
         </div>
       </div>
@@ -507,19 +522,33 @@
         <span class="label">Registration Fee</span>
         <span class="value">{{ selectedEvent.registrationFee > 0 ? '₹' + selectedEvent.registrationFee : 'Free' }}</span>
       </div>
-      <div style="display:flex;gap:10px;">
-        @if (isRegistered(selectedEvent)) {
-        <button class="btn-rounded-success" disabled>✓ Registered</button>
-        <button class="btn-danger" style="border-radius:24px;padding:11px 20px;" (click)="cancelFromModal()">Cancel</button>
-        } @else if (isFull(selectedEvent)) {
-        <button class="btn-rounded-disabled" disabled>Event Full</button>
-        } @else if (selectedEvent.status === 'completed' || selectedEvent.status === 'cancelled') {
-        <button class="btn-rounded-disabled" disabled>Registration Closed</button>
-        } @else {
-        <button class="btn-rounded-primary" [disabled]="registering" (click)="registerForEvent()">
-          {{ registering ? 'Registering...' : '🎟️ Register Now' }}
-        </button>
+      <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
+        @if (selectedEvent.slots?.length > 0 && !isRegistered(selectedEvent)) {
+          <div class="slot-picker-container">
+            <label class="slot-label">🕐 Select Time Slot</label>
+            <select class="form-select slot-select" [(ngModel)]="selectedSlot">
+              <option value="">-- Choose a Slot --</option>
+              @for (slot of selectedEvent.slots; track slot.name) {
+                <option [value]="slot.name">{{ slot.name }} ({{ slot.startTime }} - {{ slot.endTime }})</option>
+              }
+            </select>
+          </div>
         }
+        
+        <div style="display:flex;gap:10px; justify-content: flex-end;">
+          @if (isRegistered(selectedEvent)) {
+          <button class="btn-rounded-success" disabled>✓ Registered</button>
+          <button class="btn-danger" style="border-radius:24px;padding:11px 20px;" (click)="cancelFromModal()">Cancel</button>
+          } @else if (isFull(selectedEvent)) {
+          <button class="btn-rounded-disabled" disabled>Event Full</button>
+          } @else if (selectedEvent.status === 'completed' || selectedEvent.status === 'cancelled') {
+          <button class="btn-rounded-disabled" disabled>Registration Closed</button>
+          } @else {
+          <button class="btn-rounded-primary" [disabled]="registering" (click)="registerForEvent()">
+            {{ registering ? 'Registering...' : '🎟️ Register Now' }}
+          </button>
+          }
+        </div>
       </div>
     </div>
   </div>

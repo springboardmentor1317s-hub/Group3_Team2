@@ -137,14 +137,19 @@ exports.registerUser = async (req, res) => {
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log(`🔐 Login attempt for: ${email}`);
+    console.log(`📏 Password received: ${password ? 'YES' : 'NO'}, length: ${password ? password.length : 0}`);
 
     const user = await User.findOne({ email });
     if (!user) {
+      console.log(`❌ User not found: ${email}`);
       return res.status(400).json({ message: 'You are not registered. Please sign up first.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
+    console.log(`🔍 Password match: ${isMatch}`);
     if (!isMatch) {
+      console.log(`❌ Invalid credentials for: ${email}`);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
@@ -157,6 +162,7 @@ exports.loginUser = async (req, res) => {
     res.json({
       message: 'Login successful',
       token,
+      userId: user._id,
       role: user.role,
       fullName: user.fullName,
       email: user.email
