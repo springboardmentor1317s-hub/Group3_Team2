@@ -30,7 +30,7 @@ export class EventService {
 
   private apiUrl = 'http://localhost:5000/api/events';
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient) {}
 
   getAllEvents(filters?: {
     startDate?: string;
