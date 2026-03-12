@@ -59,6 +59,9 @@ const eventSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  availableSlots: [{
+    type: String
+  }],
   status: {
     type: String,
     enum: ['upcoming', 'ongoing', 'completed', 'cancelled'],
