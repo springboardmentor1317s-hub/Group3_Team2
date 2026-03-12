@@ -246,6 +246,9 @@
               <p class="event-venue">📍 {{ ev.venue }}</p>
               <p class="event-organizer">🏛️ {{ ev.organizer }}</p>
               <p class="event-datetime">📅 {{ formatDateTime(ev.startDate) }}</p>
+              @if (ev.bookedSlot) {
+                <p class="event-slot" style="color: #4338ca; font-weight: 600; font-size: 13px; margin: 5px 0;">⏰ Slot: {{ ev.bookedSlot }}</p>
+              }
               <div class="event-actions">
                 <button class="btn-primary" (click)="openEventModal(ev)">View Details</button>
                 @if (ev.status === 'upcoming') {
@@ -267,28 +270,51 @@
       <!-- ══ SCHEDULE ══ -->
       @if (currentView() === 'schedule') {
       <div class="schedule-view">
-        <h1>My Schedule 📅</h1>
-        <div class="schedule-timeline">
-          @for (ev of getUpcomingSchedule(); track ev._id) {
-          <div class="timeline-item">
-            <div class="date-badge">
-              <span class="month">{{ formatDate(ev.startDate).split(' ')[1] }}</span>
-              <span class="day">{{ formatDate(ev.startDate).split(' ')[0] }}</span>
-            </div>
-            <div class="timeline-content">
-              <h3>{{ ev.title }}</h3>
-              <div class="timeline-meta">
-                <span>📍 {{ ev.venue }}</span>
-                <span>⏰ {{ formatDateTime(ev.startDate).split(',')[1] }}</span>
-                <span>👥 {{ ev.maxParticipants }} max</span>
-              </div>
-              <p>{{ ev.description }}</p>
-            </div>
-          </div>
-          } @empty {
+        <div class="view-header-custom" style="background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%); margin-bottom: 20px; border-radius: 12px; padding: 25px;">
+          <h1 style="color: white; margin: 0 0 5px 0;">My Schedule 📅</h1>
+          <p class="subtitle" style="color: rgba(255,255,255,0.8); margin: 0;">Your upcoming event timeline</p>
+        </div>
+        
+        <div style="padding: 0 10px;">
+          @if (getFullTimeline().length === 0) {
           <div style="text-align:center;padding:60px;color:var(--text-muted);">
-            <div style="font-size:50px;margin-bottom:12px;">📅</div>
-            <p>No upcoming events in schedule. Register for events to see them here.</p>
+             <div style="font-size:50px;margin-bottom:12px;">📭</div>
+             <p>Your schedule is empty!</p>
+             <button class="btn-primary" style="margin-top:10px" (click)="setView('events')">Find Events</button>
+          </div>
+          } @else {
+          <div class="timeline" style="position: relative; padding-left: 20px; border-left: 3px solid #e5e7eb; margin-left: 10px;">
+            @for (ev of getFullTimeline(); track ev._id) {
+            <div class="timeline-event" style="margin-bottom: 30px; position: relative;">
+              <!-- Timeline Dot -->
+              <div style="position: absolute; left: -29.5px; top: 0; width: 16px; height: 16px; border-radius: 50%; background: var(--primary); border: 3px solid white; box-shadow: 0 0 0 1px #e5e7eb;"></div>
+              
+              <div style="background: white; border-radius: 8px; border: 1px solid #e5e7eb; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="color: var(--primary); font-weight: 600; font-size: 14px; margin-bottom: 5px;">
+                  {{ formatDate(ev.startDate) }}
+                </div>
+                <h3 style="margin: 0 0 5px 0; font-size: 18px; color: #111827">{{ ev.title }}</h3>
+                <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">📍 {{ ev.venue }}</p>
+                
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                  @if (ev.bookedSlot) {
+                  <span style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 500;">
+                    ⏰ Slot: {{ ev.bookedSlot }}
+                  </span>
+                  }
+                  <span style="padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 500;"
+                        [style.background]="ev.registrationStatus === 'approved' ? '#dcfce7' : (ev.registrationStatus === 'rejected' ? '#fee2e2' : '#fef3c7')"
+                        [style.color]="ev.registrationStatus === 'approved' ? '#166534' : (ev.registrationStatus === 'rejected' ? '#991b1b' : '#92400e')">
+                    Status: {{ (ev.registrationStatus || 'Unknown') | titlecase }}
+                  </span>
+                </div>
+                
+                <div style="margin-top: 15px;">
+                  <button class="btn-secondary" style="font-size: 12px; padding: 6px 12px;" (click)="openEventModal(ev)">View Details</button>
+                </div>
+              </div>
+            </div>
+            }
           </div>
           }
         </div>
@@ -496,30 +522,46 @@
           } @else {
           <p style="color:var(--accent-emerald);font-weight:700;">✅ This event is FREE! No payment required.</p>
           }
-          @if (errorMessage) { <p class="error-text" style="margin-top:10px;">⚠️ {{ errorMessage }}</p> }
+
+          @if (errorMessage) { <p class="error-text" style="margin-top:10px;color:#dc2626;font-weight:600;">⚠️ {{ errorMessage }}</p> }
         </div>
       </div>
       }
     </div>
 
-    <div class="modal-sticky-footer">
-      <div class="footer-price">
-        <span class="label">Registration Fee</span>
-        <span class="value">{{ selectedEvent.registrationFee > 0 ? '₹' + selectedEvent.registrationFee : 'Free' }}</span>
+    <div class="modal-sticky-footer" style="flex-direction: column; align-items: stretch; gap: 15px;">
+      
+      @if (selectedEvent.availableSlots && selectedEvent.availableSlots.length > 0) {
+      <div style="background: var(--bg-card); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+        <label style="font-size:13px; font-weight:600; display:block; margin-bottom:5px;">Select Time Slot *</label>
+        <select style="width:100%; padding:10px; border-radius:6px; border:1px solid #ddd; background: #fff;" [(ngModel)]="selectedSlot">
+          <option value="" disabled selected>Choose a slot...</option>
+          @for (slot of selectedEvent.availableSlots; track slot) {
+            <option [value]="slot">{{ slot }}</option>
+          }
+        </select>
       </div>
-      <div style="display:flex;gap:10px;">
-        @if (isRegistered(selectedEvent)) {
-        <button class="btn-rounded-success" disabled>✓ Registered</button>
-        <button class="btn-danger" style="border-radius:24px;padding:11px 20px;" (click)="cancelFromModal()">Cancel</button>
-        } @else if (isFull(selectedEvent)) {
-        <button class="btn-rounded-disabled" disabled>Event Full</button>
-        } @else if (selectedEvent.status === 'completed' || selectedEvent.status === 'cancelled') {
-        <button class="btn-rounded-disabled" disabled>Registration Closed</button>
-        } @else {
-        <button class="btn-rounded-primary" [disabled]="registering" (click)="registerForEvent()">
-          {{ registering ? 'Registering...' : '🎟️ Register Now' }}
-        </button>
-        }
+      }
+
+      <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <div class="footer-price">
+          <span class="label">Registration Fee</span>
+          <span class="value">{{ selectedEvent.registrationFee > 0 ? '₹' + selectedEvent.registrationFee : 'Free' }}</span>
+        </div>
+        <div style="display:flex;gap:10px;">
+          @if (isRegistered(selectedEvent)) {
+          <button class="btn-rounded-success" disabled>✓ Registered</button>
+          <button class="btn-danger" style="border-radius:24px;padding:11px 20px;" (click)="cancelFromModal()">Cancel</button>
+          } @else if (isFull(selectedEvent)) {
+          <button class="btn-rounded-disabled" disabled>Event Full</button>
+          } @else if (selectedEvent.status === 'completed' || selectedEvent.status === 'cancelled') {
+          <button class="btn-rounded-disabled" disabled>Registration Closed</button>
+          } @else {
+          <button class="btn-rounded-primary" [disabled]="registering" (click)="registerForEvent()">
+            {{ registering ? 'Registering...' : '🎟️ Register Now' }}
+          </button>
+          }
+        </div>
       </div>
     </div>
   </div>

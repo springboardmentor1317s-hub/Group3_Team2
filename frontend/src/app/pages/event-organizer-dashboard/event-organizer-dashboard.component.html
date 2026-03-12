@@ -399,6 +399,11 @@
           </div>
         </div>
         <div class="form-group">
+          <label class="form-label">Available Slots (Optional)</label>
+          <input formControlName="availableSlots" class="form-control" placeholder="e.g. Morning, Afternoon, 10:00 AM - 11:00 AM">
+          <small class="form-hint" style="margin-top:4px;display:block;">Comma-separated list of time slots. If left blank, students will just register normally.</small>
+        </div>
+        <div class="form-group">
           <label class="form-label">Event Image <span style="color:var(--text-muted);font-weight:400">(optional — max 5 MB)</span></label>
           <div class="image-upload-wrap">
             @if (imagePreviewUrl) {
@@ -503,6 +508,10 @@
           </div>
         </div>
         <div class="form-group">
+          <label class="form-label">Available Slots</label>
+          <input formControlName="availableSlots" class="form-control" placeholder="Comma-separated list of time slots">
+        </div>
+        <div class="form-group">
           <label class="form-label">Event Image <span style="color:var(--text-muted);font-weight:400">(optional — upload to replace current)</span></label>
           <div class="image-upload-wrap">
             @if (imagePreviewUrl) {
@@ -579,23 +588,77 @@
       <button class="modal-close" (click)="closeParticipants()">✕</button>
     </div>
     <div class="modal-body">
+      @if (statusMessage) {
+        <div [class]="'alert ' + (statusMessage.type === 'success' ? 'alert-success' : 'alert-danger')" 
+             style="padding: 10px; border-radius: 4px; margin-bottom: 15px; font-weight: 500;"
+             [style.backgroundColor]="statusMessage.type === 'success' ? '#dcfce7' : '#fee2e2'"
+             [style.color]="statusMessage.type === 'success' ? '#166534' : '#991b1b'">
+          {{ statusMessage.text }}
+        </div>
+      }
+
       @if (loadingParticipants) {
         <div class="loading-spinner">Loading participants...</div>
       } @else if (participants.length === 0) {
         <div class="empty-state"><p>No registrations yet.</p></div>
       } @else {
       <table class="data-table">
-        <thead><tr><th>Name</th><th>Email</th><th>College</th></tr></thead>
+        <thead>
+          <tr>
+            <th style="width: 40px; text-align: center;">
+              <input type="checkbox" 
+                     [checked]="isAllSelected()" 
+                     (change)="toggleAllRegistrations($event)">
+            </th>
+            <th>Name</th><th>Email</th><th>College</th><th>Slot</th><th>Status</th><th>Actions</th>
+          </tr>
+        </thead>
         <tbody>
           @for (p of participants; track p.email) {
           <tr>
+            <td style="text-align: center;">
+              @if (p.status === 'pending') {
+                <input type="checkbox" 
+                       [checked]="selectedRegistrations.has(p._id)"
+                       (change)="toggleRegistrationSelection(p._id, $event)">
+              }
+            </td>
             <td>{{ p.fullName }}</td>
             <td>{{ p.email }}</td>
             <td>{{ p.college }}</td>
+            <td>{{ p.slot || 'N/A' }}</td>
+            <td>
+              <span class="badge" 
+                    [style.backgroundColor]="p.status === 'approved' ? '#dcfce7' : (p.status === 'rejected' ? '#fee2e2' : '#fff7ed')"
+                    [style.color]="p.status === 'approved' ? '#166534' : (p.status === 'rejected' ? '#991b1b' : '#9a3412')">
+                {{ p.status | titlecase }}
+              </span>
+            </td>
+            <td>
+              @if (p.status === 'pending') {
+                <button class="btn btn-sm btn-primary" style="margin-right: 5px; padding: 4px 8px; font-size: 0.8rem;"
+                        (click)="updateStatus(p._id, 'approved')">Approve</button>
+                <button class="btn btn-sm btn-secondary" style="padding: 4px 8px; font-size: 0.8rem; background-color: #ef4444; color: white; border: none;"
+                        (click)="updateStatus(p._id, 'rejected')">Reject</button>
+              } @else {
+                <span style="font-size: 0.85rem; color: #6b7280; font-style: italic;">Action Closed</span>
+              }
+            </td>
           </tr>
           }
         </tbody>
       </table>
+      
+      <!-- Bulk Actions Bar -->
+      @if (selectedRegistrations.size > 0) {
+      <div style="margin-top: 20px; padding: 15px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-weight: 500; font-size: 14px;">{{ selectedRegistrations.size }} registration(s) selected</span>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-primary" (click)="bulkUpdateStatus('approved')">✅ Approve Selected</button>
+          <button class="btn btn-secondary" style="background-color: #ef4444; color: white; border: none;" (click)="bulkUpdateStatus('rejected')">❌ Reject Selected</button>
+        </div>
+      </div>
+      }
       }
     </div>
     <div class="modal-footer">

@@ -39,6 +39,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   statusFilter   = 'all';
 
   errorMessage = '';
+  selectedSlot = '';
 
   user: any = null;
 
@@ -65,6 +66,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
       if (req === 'BROWSE_EVENTS')  { this.setView('events');      }
       if (req === 'LEADERBOARD')    { this.setView('leaderboard'); }
+      if (req === 'SCHEDULE')       { this.setView('schedule');    }
 
       // Clear the request so it won't fire again
       this.chatService.navRequest.set(null);
@@ -152,10 +154,8 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   }
 
   loadMockData() {
-    this.notifications = [
-      { id: 1, icon: '📅', title: 'Tech Fest Registration Open',  message: 'Slots filling fast',              time: '2h ago', read: false },
-      { id: 2, icon: '✅', title: 'Registration Confirmed',       message: 'You registered for Cultural Night', time: '1d ago', read: true  }
-    ];
+    // No backend endpoint for real notifications yet, start empty.
+    this.notifications = [];
   }
 
   // ─── FILTERING ──────────────────────────────────────────────────────────────
@@ -216,6 +216,12 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       .filter((e: any) => e.status === 'upcoming')
       .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
   }
+  
+  // Gets all booked events, approved/pending, chronologically
+  getFullTimeline() {
+    return this.registeredEvents
+      .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+  }
 
   // ─── DATE FORMATTERS ────────────────────────────────────────────────────────
 
@@ -232,10 +238,18 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
   registerForEvent() {
     if (!this.selectedEvent) return;
+    
+    // Require slot selection if the event has available slots
+    if (this.selectedEvent.availableSlots && this.selectedEvent.availableSlots.length > 0 && !this.selectedSlot) {
+       this.errorMessage = 'Please select an available time slot first.';
+       return;
+    }
+
     const id      = this.selectedEvent._id || this.selectedEvent.id;
     this.registering = true;
+    this.errorMessage = '';
 
-    this.eventService.registerForEvent(id).subscribe({
+    this.eventService.register(id, this.selectedSlot).subscribe({
       next: () => {
         this.registeredEventIds.add(String(id));
         this.registering = false;
@@ -269,7 +283,12 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     this.closeEventModal();
   }
 
-  openEventModal(event: any)  { this.selectedEvent = event; this.showEventModal = true;  }
+  openEventModal(event: any)  { 
+    this.selectedEvent = event; 
+    this.showEventModal = true;
+    this.selectedSlot = '';
+    this.errorMessage = '';
+  }
   closeEventModal()           { this.showEventModal = false; this.selectedEvent = null;  }
 
   // ─── PAYMENT STATUS ─────────────────────────────────────────────────────────

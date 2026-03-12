@@ -27,8 +27,9 @@ export interface Event {
 
 @Injectable({ providedIn: 'root' })
 export class EventService {
+  private apiUrl = 'http://localhost:5000/api/events';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   getAllEvents(filters?: {
     startDate?: string; endDate?: string; status?: string;
@@ -62,8 +63,9 @@ export class EventService {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }
 
-  registerForEvent(id: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${id}/register`, {});
+  register(eventId: string, slot?: string): Observable<any> {
+    const payload = slot ? { slot } : {};
+    return this.http.post(`${this.apiUrl}/${eventId}/register`, payload);
   }
 
   unregisterFromEvent(id: string): Observable<any> {
@@ -80,5 +82,15 @@ export class EventService {
 
   submitFeedback(id: string, data: { rating: number; comment: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/${id}/feedback`, data);
+  }
+
+  updateRegistrationStatus(registrationId: string, status: string): Observable<any> {
+    const url = `http://localhost:5000/api/registrations/${registrationId}`;
+    return this.http.put(url, { status });
+  }
+
+  // Admin: Bulk update the status of multiple registrations for their events
+  bulkUpdateRegistrationStatus(registrationIds: string[], status: string): Observable<any> {
+    return this.http.put(`${this.apiUrl}/registrations/bulk-status`, { registrationIds, status });
   }
 }

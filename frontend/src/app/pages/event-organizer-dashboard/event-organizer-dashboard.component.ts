@@ -12,9 +12,10 @@ interface ApiEvent {
   maxParticipants: number; currentParticipants: number; registrationFee: number;
   organizer: string; contactEmail: string; status: string; createdBy?: string;
   imageUrl?: string;
+  availableSlots?: string[];
   feedback?: { userId: any; rating: number; comment?: string; createdAt: Date; }[];
 }
-interface Participant { fullName: string; email: string; college: string; }
+interface Participant { _id: string; user_id: string; fullName: string; email: string; college: string; slot?: string; status: string; timestamp: string; }
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&q=80';
 
@@ -47,6 +48,8 @@ export class EventOrganizerDashboardComponent implements OnInit {
   selectedEvent: ApiEvent | null = null;
   selectedEventFeedback: any[] = []; selectedEventName = '';
   averageRating = 0; participants: Participant[] = []; loadingParticipants = false;
+  statusMessage: { text: string; type: 'success' | 'error' } | null = null;
+  selectedRegistrations = new Set<string>(); // Tracks checkboxes
 
   eventForm: FormGroup; isSubmitting = false; formError = '';
 
@@ -88,10 +91,11 @@ export class EventOrganizerDashboardComponent implements OnInit {
       startDate:            [data?.startDate ? this.toDatetimeLocal(new Date(data.startDate)) : '', Validators.required],
       endDate:              [data?.endDate ? this.toDatetimeLocal(new Date(data.endDate)) : '', Validators.required],
       registrationDeadline: [data?.registrationDeadline ? this.toDatetimeLocal(new Date(data.registrationDeadline)) : '', Validators.required],
-      maxParticipants:      [data?.maxParticipants || 100, [Validators.required, Validators.min(1)]],
+      maxParticipants:      [data?.maxParticipants || 50, [Validators.required, Validators.min(1)]],
       registrationFee:      [data?.registrationFee ?? 0, Validators.min(0)],
       organizer:            [data?.organizer || this.authService.getFullName() || '', Validators.required],
-      contactEmail:         [data?.contactEmail || this.authService.getEmail() || '', [Validators.required, Validators.email]]
+      contactEmail:         [data?.contactEmail || this.authService.getEmail() || '', [Validators.required, Validators.email]],
+      availableSlots:       [data?.availableSlots?.join(', ') || ''] // Added slot input support
     });
   }
   private toDatetimeLocal(d: Date): string { return d.toISOString().slice(0, 16); }
@@ -161,7 +165,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   private buildPayload(): FormData | any {
     const v = this.eventForm.value;
-    const fields: Record<string, string> = {
+    const fields: Record<string, string | string[]> = {
       title: v.title, description: v.description, type: v.type,
       category: v.category, venue: v.venue,
       startDate:            new Date(v.startDate).toISOString(),
@@ -172,9 +176,19 @@ export class EventOrganizerDashboardComponent implements OnInit {
       organizer:            v.organizer,
       contactEmail:         v.contactEmail
     };
+    if (v.availableSlots) {
+      fields['availableSlots'] = v.availableSlots.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+
     if (this.selectedImageFile) {
       const fd = new FormData();
-      Object.entries(fields).forEach(([k, val]) => fd.append(k, val));
+      Object.entries(fields).forEach(([k, val]) => {
+        if (Array.isArray(val)) {
+          val.forEach(item => fd.append(k, item));
+        } else {
+          fd.append(k, val);
+        }
+      });
       fd.append('image', this.selectedImageFile);
       return fd;
     }
@@ -197,10 +211,24 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   // ── EDIT ──────────────────────────────────────────────────────────────────
   openEdit(event: ApiEvent) {
-    this.selectedEvent = event; this.eventForm = this.buildForm(event); this.formError = '';
-    this.selectedImageFile = null; this.imagePreviewUrl = event.imageUrl || ''; this.showEditModal = true;
+    this.selectedEvent = event;
+    this.eventForm = this.buildForm(event);
+    this.formError = '';
+    this.selectedImageFile = null;
+    this.imagePreviewUrl = event.imageUrl || '';
+    this.showEditModal = true;
   }
-  closeEdit() { this.showEditModal = false; this.selectedEvent = null; this.clearImage(); }
+  closeEdit() {
+    this.showEditModal = false;
+    this.selectedEvent = null;
+    this.clearImage();
+    // Reset form to default values for next open
+    this.eventForm.reset({
+      title: '', description: '', venue: '', organizer: this.authService.getFullName() || '',
+      type: 'technical', category: 'college', maxParticipants: 50, registrationFee: 0,
+      contactEmail: this.authService.getEmail() || '', availableSlots: ''
+    });
+  }
 
   submitEdit() {
     if (!this.selectedEvent || this.eventForm.invalid) { this.eventForm.markAllAsTouched(); return; }
@@ -239,12 +267,81 @@ export class EventOrganizerDashboardComponent implements OnInit {
   openParticipants(event: ApiEvent) {
     this.selectedEventName = event.title; this.participants = []; this.loadingParticipants = true;
     this.showParticipantsModal = true;
+    this.statusMessage = null; // Reset message on open
+    this.selectedRegistrations.clear(); // Reset selections
     this.eventService.getEventRegistrations(event._id).subscribe({
       next:  (data: any) => { this.participants = data.registrations || []; this.loadingParticipants = false; },
       error: ()          => { this.participants = [];                        this.loadingParticipants = false; }
     });
   }
-  closeParticipants() { this.showParticipantsModal = false; }
+  closeParticipants() { this.showParticipantsModal = false; this.statusMessage = null; this.selectedRegistrations.clear(); }
+
+  updateStatus(registrationId: string, newStatus: string) {
+    this.eventService.updateRegistrationStatus(registrationId, newStatus).subscribe({
+      next: (response: any) => {
+        this.statusMessage = { text: `Registration ${newStatus} successfully`, type: 'success' };
+        
+        const index = this.participants.findIndex(r => r._id === registrationId);
+        if (index !== -1) {
+          this.participants[index].status = newStatus;
+        }
+
+        // Auto-hide the message after 3 seconds
+        setTimeout(() => { if (this.statusMessage?.type === 'success') this.statusMessage = null; }, 3000);
+      },
+      error: (err) => {
+        console.error('Error updating status', err);
+        this.statusMessage = { text: err.error?.message || 'Failed to update registration status.', type: 'error' };
+        setTimeout(() => { if (this.statusMessage?.type === 'error') this.statusMessage = null; }, 3000);
+      }
+    });
+  }
+
+  // ─── BULK ACTIONS ──────────────────────────────────────────────────────────
+  toggleRegistrationSelection(id: string, e: any) {
+    const isChecked = (e.target as HTMLInputElement).checked;
+    if (isChecked) this.selectedRegistrations.add(id);
+    else this.selectedRegistrations.delete(id);
+  }
+
+  toggleAllRegistrations(e: any) {
+    const isChecked = (e.target as HTMLInputElement).checked;
+    if (isChecked) {
+      // Only select pending registrations for bulk actions to make sense
+      this.participants.filter(p => p.status === 'pending').forEach(p => this.selectedRegistrations.add(p._id));
+    } else {
+      this.selectedRegistrations.clear();
+    }
+  }
+
+  isAllSelected(): boolean {
+    const pendingCount = this.participants.filter(p => p.status === 'pending').length;
+    return pendingCount > 0 && this.selectedRegistrations.size === pendingCount;
+  }
+
+  bulkUpdateStatus(newStatus: string) {
+    if (this.selectedRegistrations.size === 0) return;
+    
+    const ids = Array.from(this.selectedRegistrations);
+    this.eventService.bulkUpdateRegistrationStatus(ids, newStatus).subscribe({
+      next: (res: any) => {
+        this.statusMessage = { text: `Successfully ${newStatus} ${res.updatedCount} registrations.`, type: 'success' };
+        
+        // Update local table UI
+        ids.forEach(id => {
+          const index = this.participants.findIndex(p => p._id === id);
+          if (index !== -1) this.participants[index].status = newStatus;
+        });
+
+        this.selectedRegistrations.clear(); // remove checkboxes
+        setTimeout(() => { if (this.statusMessage?.type === 'success') this.statusMessage = null; }, 3000);
+      },
+      error: (err) => {
+        this.statusMessage = { text: err.error?.message || 'Failed to update registrations.', type: 'error' };
+        setTimeout(() => { if (this.statusMessage?.type === 'error') this.statusMessage = null; }, 3000);
+      }
+    });
+  }
 
   // ── CSV EXPORTS ───────────────────────────────────────────────────────────
   exportCSV() {

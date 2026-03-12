@@ -1,0 +1,58 @@
+{
+  "events": [
+    {
+      "_id": "69aad5d8fe5984bb32f8b7c3",
+      "title": "AI Agents",
+      "registeredUsers": [
+        "69adc1eda075a3724783a968",
+        "69af2d2644ff8c96f311e286"
+      ]
+    },
+    {
+      "_id": "69ae9b1bcdac02ecd94cff80",
+      "title": "LLM Workshop",
+      "registeredUsers": [
+        "69adc1eda075a3724783a968"
+      ]
+    },
+    {
+      "_id": "69b1308bf30f80f69efcfed8",
+      "title": "Harmony Cultural Fest",
+      "registeredUsers": [
+        "69af371758b4c0751b9dd1b3"
+      ]
+    }
+  ],
+  "regs": [
+    {
+      "_id": "69b136f7f775416330acd6c2",
+      "event_id": "69aad5d8fe5984bb32f8b7c3",
+      "user_id": "69adc1eda075a3724783a968",
+      "status": "pending"
+    },
+    {
+      "_id": "69b153c4c65928cfd081970b",
+      "event_id": "69aad5d8fe5984bb32f8b7c3",
+      "user_id": "69af2d2644ff8c96f311e286",
+      "status": "pending"
+    },
+    {
+      "_id": "69b153c4c65928cfd081970e",
+      "event_id": "69ae9b1bcdac02ecd94cff80",
+      "user_id": "69adc1eda075a3724783a968",
+      "status": "pending"
+    },
+    {
+      "_id": "69b159036af1527bba08e182",
+      "event_id": "69aad5d8fe5984bb32f8b7c3",
+      "user_id": "69af371758b4c0751b9dd1b3",
+      "status": "pending"
+    },
+    {
+      "_id": "69b17c3a6af1527bba08e1c0",
+      "event_id": "69b1308bf30f80f69efcfed8",
+      "user_id": "69af371758b4c0751b9dd1b3",
+      "status": "rejected"
+    }
+  ]
+}

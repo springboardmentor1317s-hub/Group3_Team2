@@ -2,8 +2,10 @@ const express  = require('express');
 const router   = express.Router();
 const Event    = require('../models/Event');
 const User     = require('../models/User');
+const Registration = require('../models/Registration');
 const jwt      = require('jsonwebtoken');
 const upload   = require('../middleware/upload');
+const { sendRegistrationConfirmation } = require('../services/emailService');
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&q=80';
 
@@ -70,10 +72,21 @@ router.get('/', async (req, res) => {
 // ─── GET MY REGISTRATIONS ─────────────────────────────────────────────────────
 router.get('/my/registrations', authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    const events = await Event.find({ _id: { $in: user.registeredEvents } });
-    res.json(events);
+    // Fetch registrations for this user and heavily populate the event details
+    const registrations = await Registration.find({ user_id: req.userId })
+                                            .populate('event_id');
+    
+    // Map them into the format the frontend expects, merging event data with registration data
+    const eventsWithSlots = registrations
+      .filter(reg => reg.event_id) // Avoid null events if an event was deleted
+      .map(reg => {
+        const eventObj = reg.event_id.toObject();
+        eventObj.bookedSlot = reg.slot; // Inject the user's specific booked slot
+        eventObj.registrationStatus = reg.status; // Inject admin approval status
+        return eventObj;
+      });
+      
+    res.json(eventsWithSlots);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
@@ -111,8 +124,19 @@ router.post(
         imageUrl = req.body.imageUrl.trim();
       }
 
+      // Parse available slots from strings
+      let parsedSlots = [];
+      if (req.body.availableSlots) {
+        if (Array.isArray(req.body.availableSlots)) {
+            parsedSlots = req.body.availableSlots;
+        } else if (typeof req.body.availableSlots === 'string') {
+            parsedSlots = req.body.availableSlots.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        }
+      }
+
       const event = new Event({
         ...req.body,
+        availableSlots: parsedSlots,
         imageUrl,
         createdBy:          req.userId,
         isPaid:             Number(req.body.registrationFee) > 0,
@@ -148,6 +172,14 @@ router.put(
       const updates = {};
       allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
       if (updates.registrationFee !== undefined) updates.isPaid = Number(updates.registrationFee) > 0;
+      
+      if (req.body.availableSlots !== undefined) {
+        if (Array.isArray(req.body.availableSlots)) {
+            updates.availableSlots = req.body.availableSlots;
+        } else if (typeof req.body.availableSlots === 'string') {
+            updates.availableSlots = req.body.availableSlots.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        }
+      }
 
       // Resolve image: new upload > sent URL > keep existing
       if (req.file) {
@@ -186,10 +218,36 @@ router.post('/:id/register', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Event is full' });
     if (new Date() > new Date(event.registrationDeadline))
       return res.status(400).json({ message: 'Registration deadline passed' });
+    const { slot } = req.body;
+    
+    // Validate slot if the event forces it
+    if (event.availableSlots && event.availableSlots.length > 0) {
+       if (!slot) return res.status(400).json({ message: 'Must select an available time slot' });
+       if (!event.availableSlots.includes(slot)) return res.status(400).json({ message: 'Invalid slot selected' });
+    }
+
     event.registeredUsers.push(req.userId);
     event.currentParticipants += 1;
     await event.save();
-    await User.findByIdAndUpdate(req.userId, { $addToSet: { registeredEvents: event._id.toString() } });
+    
+    // Fetch the user to get their email address
+    const user = await User.findById(req.userId);
+    if (user) {
+       await User.findByIdAndUpdate(req.userId, { $addToSet: { registeredEvents: event._id.toString() } });
+    }
+    
+    await Registration.create({
+      event_id: event._id,
+      user_id: req.userId,
+      slot: slot || null,
+      status: 'pending'
+    });
+
+    // Send confirmation email asynchronously (do not block the response)
+    if (user && user.email) {
+       sendRegistrationConfirmation(user.email, event, slot).catch(err => console.error(err));
+    }
+
     res.json({ message: `Registered for "${event.title}" successfully`, event });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
@@ -205,20 +263,73 @@ router.delete('/:id/unregister', authMiddleware, async (req, res) => {
     event.currentParticipants = Math.max(0, event.currentParticipants - 1);
     await event.save();
     await User.findByIdAndUpdate(req.userId, { $pull: { registeredEvents: event._id.toString() } });
+    
+    await Registration.findOneAndDelete({ event_id: event._id, user_id: req.userId });
+
     res.json({ message: `Unregistered from "${event.title}" successfully` });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+// ─── BULK REGISTRATION STATUS UPDATE ──────────────────────────────────────────
+router.put('/registrations/bulk-status', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { registrationIds, status } = req.body;
+    if (!Array.isArray(registrationIds) || registrationIds.length === 0) {
+      return res.status(400).json({ message: 'Must provide an array of registrationIds' });
+    }
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status provided' });
+    }
+
+    // Verify admin has access to the events these registrations belong to.
+    // If superadmin, skip event ownership check. If college-admin, verify.
+    if (req.userRole !== 'superadmin') {
+      const registrations = await Registration.find({ _id: { $in: registrationIds } });
+      const eventIds = [...new Set(registrations.map(r => String(r.event_id)))];
+      const adminEvents = await Event.find({ _id: { $in: eventIds }, createdBy: req.userId });
+      if (adminEvents.length !== eventIds.length) {
+        return res.status(403).json({ message: 'Not authorized for some of these registrations' });
+      }
+    }
+
+    const result = await Registration.updateMany(
+      { _id: { $in: registrationIds } },
+      { $set: { status } }
+    );
+
+    res.json({ message: `Successfully updated ${result.modifiedCount} registrations to ${status}`, updatedCount: result.modifiedCount });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
 // ─── GET REGISTRATIONS FOR AN EVENT ──────────────────────────────────────────
 router.get('/:id/registrations', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id).populate('registeredUsers', 'fullName email college');
+    const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ message: 'Event not found' });
     if (req.userRole !== 'superadmin' && String(event.createdBy) !== String(req.userId))
       return res.status(403).json({ message: 'Not authorized' });
+
+    const registrations = await Registration.find({ event_id: event._id }).populate('user_id', 'fullName email college');
+    
+    const formattedRegistrations = registrations.map(reg => {
+      if (reg.user_id) {
+        return {
+          _id: reg._id,
+          user_id: reg.user_id._id,
+          fullName: reg.user_id.fullName,
+          email: reg.user_id.email,
+          college: reg.user_id.college,
+          status: reg.status,
+          slot: reg.slot,
+          timestamp: reg.timestamp
+        };
+      }
+      return null;
+    }).filter(r => r !== null);
+
     res.json({
       event:         { title: event.title, status: event.status },
-      registrations: event.registeredUsers,
+      registrations: formattedRegistrations,
       total:         event.currentParticipants
     });
   } catch (err) { res.status(500).json({ message: err.message }); }
