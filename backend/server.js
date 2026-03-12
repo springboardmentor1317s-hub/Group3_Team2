@@ -53,10 +53,12 @@ const connectDB = async () => {
 const authRoutes = require('./routes/authRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const registrationRoutes = require('./routes/registrationRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/registrations', registrationRoutes);
 
 // ─── Test Route ─────────────────────────────────
 app.get('/api/test', (req, res) => {
