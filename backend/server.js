@@ -54,9 +54,13 @@ const authRoutes = require('./routes/authRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const registrationRoutes = require('./routes/registrationRoutes');
+<<<<<<< Updated upstream
 const userRoutes = require('./routes/userRoutes');
+=======
+>>>>>>> Stashed changes
 
 app.use('/api/auth', authRoutes);
+app.use('/api/events', registrationRoutes); // Intercepts specific registration routes
 app.use('/api/events', eventRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/registrations', registrationRoutes);
