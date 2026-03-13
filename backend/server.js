@@ -49,21 +49,67 @@ const connectDB = async () => {
   }
 };
 
-// ─── Routes ─────────────────────────────────────
-const authRoutes = require('./routes/authRoutes');
-const eventRoutes = require('./routes/eventRoutes');
-const chatRoutes = require('./routes/chatRoutes');
+// ─── Routes with Debugging ─────────────────────
+console.log('\n📂 Loading route modules...');
 
-app.use('/api/auth', authRoutes);
-app.use('/api/events', eventRoutes);
-app.use('/api/chat', chatRoutes);
+let authRoutes, eventRoutes, chatRoutes;
+
+try {
+  authRoutes = require('./routes/authRoutes');
+  console.log('   ✅ authRoutes loaded successfully');
+} catch (error) {
+  console.error('   ❌ Failed to load authRoutes:', error.message);
+}
+
+try {
+  eventRoutes = require('./routes/eventRoutes');
+  console.log('   ✅ eventRoutes loaded successfully');
+} catch (error) {
+  console.error('   ❌ Failed to load eventRoutes:', error.message);
+}
+
+try {
+  chatRoutes = require('./routes/chatRoutes');
+  console.log('   ✅ chatRoutes loaded successfully');
+} catch (error) {
+  console.error('   ❌ Failed to load chatRoutes:', error.message);
+}
+
+// Mount routes if they loaded successfully
+console.log('\n📌 Mounting routes...');
+
+if (authRoutes) {
+  app.use('/api/auth', authRoutes);
+  console.log('   ✅ Mounted /api/auth');
+} else {
+  console.log('   ❌ Skipped /api/auth (module not loaded)');
+}
+
+if (eventRoutes) {
+  app.use('/api/events', eventRoutes);
+  console.log('   ✅ Mounted /api/events');
+} else {
+  console.log('   ❌ Skipped /api/events (module not loaded)');
+}
+
+if (chatRoutes) {
+  app.use('/api/chat', chatRoutes);
+  console.log('   ✅ Mounted /api/chat');
+} else {
+  console.log('   ❌ Skipped /api/chat (module not loaded)');
+}
 
 // ─── Test Route ─────────────────────────────────
 app.get('/api/test', (req, res) => {
   res.json({
     message: 'Backend working!',
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    dbName: mongoose.connection.name
+    dbName: mongoose.connection.name,
+    routes: {
+      auth: !!authRoutes,
+      events: !!eventRoutes,
+      chat: !!chatRoutes
+    }
   });
 });
 
@@ -72,6 +118,8 @@ app.get('/', (req, res) => {
   res.send(`
     <h1>Campus Event Hub API Running</h1>
     <p>Test API: <a href="/api/test">/api/test</a></p>
+    <p>Auth API: <a href="/api/auth/test">/api/auth/test</a></p>
+    <p>Events API: <a href="/api/events">/api/events</a></p>
   `);
 });
 
@@ -79,7 +127,8 @@ app.get('/', (req, res) => {
 app.use((req, res) => {
   res.status(404).json({
     message: 'Route not found',
-    url: req.originalUrl
+    url: req.originalUrl,
+    note: 'Check server console for route loading status'
   });
 });
 
@@ -100,7 +149,10 @@ const startServer = async () => {
   const PORT = process.env.PORT || 5000;
 
   app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`\n🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📝 Test API: http://localhost:${PORT}/api/test`);
+    console.log(`🔑 Auth API: http://localhost:${PORT}/api/auth/test (if route exists)`);
+    console.log(`📅 Events API: http://localhost:${PORT}/api/events\n`);
   });
 
 };

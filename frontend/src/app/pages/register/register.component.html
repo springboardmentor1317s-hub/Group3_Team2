@@ -33,40 +33,6 @@
       </div>
     </div>
 
-    <!-- <div class="hero-boundary">
-
-  <div class="brand">
-    <div class="brand-logo">🎓</div>
-    <div class="brand-text">CampusEventHub</div>
-  </div>
-
-  <div class="hero-content">
-    <h1>Join CampusEventHub Today</h1>
-    <p>
-      Register to explore technical, cultural and sports events
-      happening across colleges in India.
-    </p>
-  </div>
-
-  <div class="hero-stats">
-    <div class="hero-stat">
-      <div class="num">50+</div>
-      <div class="lbl">Colleges</div>
-    </div>
-
-    <div class="hero-stat">
-      <div class="num">500+</div>
-      <div class="lbl">Events</div>
-    </div>
-
-    <div class="hero-stat">
-      <div class="num">10K+</div>
-      <div class="lbl">Students</div>
-    </div>
-  </div> -->
-
-<!-- </div> -->
-
     <!-- FLOATING TEXTS -->
     <div class="floating-cards">
       <div class="float-card c1">Discover Events</div>
@@ -78,8 +44,6 @@
     </div>
 
   </div>
-
-
 
   <!-- RIGHT PANEL -->
   <div class="auth-right">
@@ -104,7 +68,8 @@
           <span class="input-icon">👤</span>
           <input type="text" class="form-control"
             placeholder="Enter your full name"
-            [(ngModel)]="fullName">
+            [(ngModel)]="fullName"
+            name="fullName">
         </div>
       </div>
 
@@ -115,7 +80,8 @@
           <span class="input-icon">📧</span>
           <input type="email" class="form-control"
             placeholder="you@college.edu"
-            [(ngModel)]="email">
+            [(ngModel)]="email"
+            name="email">
         </div>
       </div>
 
@@ -126,7 +92,8 @@
           <span class="input-icon">🏫</span>
           <input type="text" class="form-control"
             placeholder="Your college name"
-            [(ngModel)]="college">
+            [(ngModel)]="college"
+            name="college">
         </div>
       </div>
 
@@ -137,12 +104,11 @@
           <span class="input-icon">🎭</span>
           <select class="form-control"
             style="padding-left:40px"
-            [(ngModel)]="role">
-
+            [(ngModel)]="role"
+            name="role">
             <option value="student">Student</option>
             <option value="college-admin">College Admin</option>
             <option value="superadmin">Super Admin</option>
-
           </select>
         </div>
       </div>
@@ -154,7 +120,8 @@
           <span class="input-icon">🔒</span>
           <input type="password" class="form-control"
             placeholder="Minimum 8 characters"
-            [(ngModel)]="password">
+            [(ngModel)]="password"
+            name="password">
         </div>
       </div>
 
@@ -165,23 +132,22 @@
           <span class="input-icon">🔒</span>
           <input type="password" class="form-control"
             placeholder="Repeat password"
-            [(ngModel)]="confirmPassword">
+            [(ngModel)]="confirmPassword"
+            name="confirmPassword">
         </div>
       </div>
 
       <button class="btn-auth"
         (click)="register()"
         [disabled]="isLoading">
-
         {{ isLoading ? 'Creating account...' : 'Create Account →' }}
-
       </button>
 
       <div class="divider"><span>OR</span></div>
 
       <p class="form-footer">
         Already have an account?
-        <a (click)="goToLogin()">Sign in</a>
+        <a href="javascript:void(0)" (click)="goToLogin()">Sign in</a>
       </p>
 
     </div>
