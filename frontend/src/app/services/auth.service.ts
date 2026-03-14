@@ -28,6 +28,9 @@ export class AuthService {
   saveUserData(token: string, role: string, fullName: string, email: string, userId?: string) {
     const user: UserData = { token, role, fullName, email, userId };
     localStorage.setItem('token', token);
+    localStorage.setItem('role', role);
+    localStorage.setItem('fullName', fullName);
+    localStorage.setItem('email', email);
     localStorage.setItem('user', JSON.stringify(user));
     this.loginEvent$.next();
   }
@@ -36,23 +39,35 @@ export class AuthService {
     return localStorage.getItem('token');
   }
 
-  public getUser(): UserData | null {
-    try { return JSON.parse(localStorage.getItem('user') || 'null'); }
-    catch { return null; }
+  getUser(): UserData | null {
+    try {
+      const userStr = localStorage.getItem('user');
+      return userStr ? JSON.parse(userStr) : null;
+    } catch {
+      return null;
+    }
   }
 
-  getRole(): string | null     { return this.getUser()?.role     || null; }
-  getFullName(): string | null { return this.getUser()?.fullName || null; }
-  getEmail(): string | null    { return this.getUser()?.email    || null; }
-  getUserId(): string | null   { return this.getUser()?.userId   || null; }
+  getRole(): string | null { 
+    return this.getUser()?.role || localStorage.getItem('role') || null; 
+  }
+  
+  getFullName(): string | null { 
+    return this.getUser()?.fullName || localStorage.getItem('fullName') || null; 
+  }
+  
+  getEmail(): string | null { 
+    return this.getUser()?.email || localStorage.getItem('email') || null; 
+  }
+  
+  getUserId(): string | null { 
+    return this.getUser()?.userId || null; 
+  }
 
-  isLoggedIn(): boolean { return !!this.getToken(); }
+  isLoggedIn(): boolean { 
+    return !!this.getToken(); 
+  }
 
-  /**
-   * Call this inside every protected dashboard's ngOnInit.
-   * Returns true if the current session matches the expected role.
-   * If not, it clears stale data so the next tab refresh won't bleed credentials.
-   */
   isAuthorized(expectedRole: string | string[]): boolean {
     const role = this.getRole();
     if (!role || !this.isLoggedIn()) return false;
@@ -62,7 +77,10 @@ export class AuthService {
 
   logout() {
     localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('fullName');
+    localStorage.removeItem('email');
     localStorage.removeItem('user');
-    this.loginEvent$.next();   // notify subscribers (e.g. chat) that session ended
+    this.loginEvent$.next();
   }
 }
