@@ -20,92 +20,68 @@ export interface Event {
   contactEmail: string;
   status?: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
   createdBy?: string;
-  registeredUsers?: string[];
   imageUrl?: string;
   feedback?: { userId: string; rating: number; comment?: string; createdAt?: Date }[];
 }
 
 @Injectable({ providedIn: 'root' })
 export class EventService {
-  private apiUrl = 'http://localhost:5000/api/events';
-
-  private apiUrl = 'http://localhost:5000/api/events';
+  private apiUrl  = 'http://localhost:5000/api/events';
+  private regUrl  = 'http://localhost:5000/api/registrations';
 
   constructor(private http: HttpClient) {}
 
-  getAllEvents(filters?: {
-    startDate?: string;
-    endDate?: string;
-    status?: string;
-    type?: string;
-    category?: string;
-    organizer?: string;
-  }): Observable<Event[]> {
-
+  getAllEvents(filters?: { startDate?: string; endDate?: string; status?: string; type?: string; category?: string; organizer?: string; }): Observable<Event[]> {
     let params = new HttpParams();
-
-    if (filters) {
-      Object.entries(filters).forEach(([k, v]) => {
-        if (v) params = params.set(k, v);
-      });
-    }
-
+    if (filters) Object.entries(filters).forEach(([k, v]) => { if (v) params = params.set(k, v); });
     return this.http.get<Event[]>(this.apiUrl, { params });
   }
 
-  getStats(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/stats`);
+  getStats(): Observable<any> { return this.http.get(`${this.apiUrl}/stats`); }
+  getEventById(id: string): Observable<Event> { return this.http.get<Event>(`${this.apiUrl}/${id}`); }
+
+  createEvent(data: FormData | any): Observable<any> { return this.http.post(this.apiUrl, data); }
+  updateEvent(id: string, data: FormData | any): Observable<any> { return this.http.put(`${this.apiUrl}/${id}`, data); }
+  deleteEvent(id: string): Observable<any> { return this.http.delete(`${this.apiUrl}/${id}`); }
+
+  registerForEvent(eventId: string, payload?: { selectedSlot?: string; paymentMethod?: string; paymentTxnId?: string; paymentAmount?: number }): Observable<any> {
+    return this.http.post(`${this.regUrl}/${eventId}/register`, payload || {});
   }
 
-  getEventById(id: string): Observable<Event> {
-    return this.http.get<Event>(`${this.apiUrl}/${id}`);
-  }
-
-  createEvent(data: FormData | any): Observable<any> {
-    return this.http.post(this.apiUrl, data);
-  }
-
-  updateEvent(id: string, data: FormData | any): Observable<any> {
-    return this.http.put(`${this.apiUrl}/${id}`, data);
-  }
-
-  deleteEvent(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/${id}`);
-  }
-
-  registerForEvent(eventId: string, selectedSlot?: string): Observable<any> {
-    return this.http.post(
-      `http://localhost:5000/api/registrations/${eventId}/register`,
-      { selectedSlot }
-    );
-  }
-
-  bulkUpdateRegistrationStatus(
-    ids: string[],
-    status: 'approved' | 'rejected' | 'pending'
-  ): Observable<any> {
-
-    return this.http.patch(
-      `http://localhost:5000/api/registrations/bulk-status`,
-      { ids, status }
-    );
-  }
-
-  unregisterFromEvent(id: string): Observable<any> {
-    return this.http.delete(`http://localhost:5000/api/registrations/${id}`);
+  getMyRegistrations(): Observable<any> {
+    return this.http.get(`${this.regUrl}/my/registrations`);
   }
 
   getEventRegistrations(id: string): Observable<any> {
     return this.http.get(`${this.apiUrl}/${id}/registrations`);
   }
 
-  getMyRegistrations(): Observable<any> {
-    return this.http.get(
-      `http://localhost:5000/api/registrations/my/registrations`
-    );
+  /** Update a single registration's status */
+  updateRegistrationStatus(id: string, status: 'approved' | 'rejected' | 'pending', rejectionReason?: string): Observable<any> {
+    return this.http.patch(`${this.regUrl}/${id}/status`, { status, rejectionReason: rejectionReason || '' });
+  }
+
+  /** Bulk update registration statuses */
+  bulkUpdateRegistrationStatus(ids: string[], status: 'approved' | 'rejected' | 'pending', rejectionReason?: string): Observable<any> {
+    return this.http.patch(`${this.regUrl}/bulk-status`, { ids, status, rejectionReason: rejectionReason || '' });
+  }
+
+  unregisterFromEvent(id: string): Observable<any> {
+    return this.http.delete(`${this.regUrl}/${id}`);
   }
 
   submitFeedback(id: string, data: { rating: number; comment: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/${id}/feedback`, data);
+  }
+
+  /** Compute event status client-side from dates */
+  computeStatus(event: any): string {
+    if (event.status === 'cancelled') return 'cancelled';
+    const now   = new Date();
+    const start = new Date(event.startDate);
+    const end   = new Date(event.endDate);
+    if (now < start)               return 'upcoming';
+    if (now >= start && now <= end) return 'ongoing';
+    return 'completed';
   }
 }
