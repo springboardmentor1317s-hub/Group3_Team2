@@ -1,366 +1,541 @@
-<div class="dashboard" [class.sidebar-collapsed]="sidebarCollapsed" [class.dark-theme]="false">
+<div class="sdash" [class.collapsed]="sidebarCollapsed">
 
-  <!-- ══ SIDEBAR ══ -->
+  <!-- ══ SIDEBAR ══════════════════════════════════════════════════════════ -->
   <aside class="sidebar" [class.mobile-open]="mobileSidebarOpen">
-    <div class="sidebar-header">
-      <div class="logo"><div class="logo-icon">🎓</div><span class="logo-text">CampusEventHub</span></div>
-      <button class="close-mobile" (click)="closeMobileSidebar()">✕</button>
+    <div class="sb-brand">
+      <div class="sb-logo">🎓</div>
+      <span class="sb-title">CampusHub</span>
+      <button class="sb-close" (click)="closeMobileSidebar()">✕</button>
     </div>
-    <div class="user-info">
-      <div class="avatar">{{ getInitial() }}</div>
-      <div class="user-details">
+
+    <div class="sb-user" (click)="openProfileModal()" title="View profile">
+      <div class="sb-avatar">{{ getInitial() }}</div>
+      <div class="sb-user-info">
         <h4>{{ getFullName() }}</h4>
-        <p>Student</p>
+        <p>{{ getCollege() }}</p>
       </div>
     </div>
-    <nav class="nav-menu">
-      <button class="nav-item" [class.active]="currentView()==='overview'" (click)="setView('overview');closeMobileSidebar()">
-        <span class="nav-icon">🏠</span><span class="nav-label">Overview</span>
+
+    <!-- Wallet chip in sidebar -->
+    <div class="sb-wallet" (click)="setView('payments'); closeMobileSidebar()">
+      <span class="wallet-icon">💰</span>
+      <div class="wallet-info">
+        <span class="wallet-label">Wallet</span>
+        <span class="wallet-amt">₹{{ walletBalance }}</span>
+      </div>
+      <span class="wallet-add" (click)="$event.stopPropagation(); openTopUp()">+</span>
+    </div>
+
+    <nav class="sb-nav">
+      <button class="sb-item" [class.active]="currentView()==='overview'" (click)="setView('overview'); closeMobileSidebar()">
+        <span class="sb-icon">🏠</span><span class="sb-label">Overview</span>
       </button>
-      <button class="nav-item" [class.active]="currentView()==='events'" (click)="setView('events');loadEvents();closeMobileSidebar()">
-        <span class="nav-icon">🔍</span><span class="nav-label">Browse Events</span>
-        <span class="badge">{{ events.length }}</span>
+      <button class="sb-item" [class.active]="currentView()==='events'" (click)="setView('events'); loadEvents(); closeMobileSidebar()">
+        <span class="sb-icon">🔍</span><span class="sb-label">Browse Events</span>
+        <span class="sb-badge">{{ events.length }}</span>
       </button>
-      <button class="nav-item" [class.active]="currentView()==='registered'" (click)="setView('registered');closeMobileSidebar()">
-        <span class="nav-icon">✅</span><span class="nav-label">My Events</span>
-        <span class="badge warning">{{ registeredEvents.length }}</span>
+      <button class="sb-item" [class.active]="currentView()==='registered'" (click)="setView('registered'); closeMobileSidebar()">
+        <span class="sb-icon">✅</span><span class="sb-label">My Events</span>
+        @if (registeredEvents.length > 0) { <span class="sb-badge accent">{{ registeredEvents.length }}</span> }
       </button>
-      <button class="nav-item" [class.active]="currentView()==='schedule'" (click)="setView('schedule');closeMobileSidebar()">
-        <span class="nav-icon">📅</span><span class="nav-label">Schedule</span>
+      <button class="sb-item" [class.active]="currentView()==='schedule'" (click)="setView('schedule'); closeMobileSidebar()">
+        <span class="sb-icon">📅</span><span class="sb-label">Schedule</span>
       </button>
-      <button class="nav-item" [class.active]="currentView()==='notifications'" (click)="setView('notifications');closeMobileSidebar()">
-        <span class="nav-icon">🔔</span><span class="nav-label">Notifications</span>
-        @if (unreadCount > 0) { <span class="badge">{{ unreadCount }}</span> }
+      <button class="sb-item" [class.active]="currentView()==='notifications'" (click)="setView('notifications'); closeMobileSidebar()">
+        <span class="sb-icon">🔔</span><span class="sb-label">Notifications</span>
+        @if (unreadCount > 0) { <span class="sb-badge red">{{ unreadCount }}</span> }
       </button>
-      <button class="nav-item" [class.active]="currentView()==='leaderboard'" (click)="setView('leaderboard');closeMobileSidebar()">
-        <span class="nav-icon">🏆</span><span class="nav-label">Leaderboard</span>
+      <button class="sb-item" [class.active]="currentView()==='leaderboard'" (click)="setView('leaderboard'); closeMobileSidebar()">
+        <span class="sb-icon">🏆</span><span class="sb-label">Leaderboard</span>
       </button>
-      <button class="nav-item" [class.active]="currentView()==='payments'" (click)="setView('payments');closeMobileSidebar()">
-        <span class="nav-icon">💳</span><span class="nav-label">Payments</span>
-      </button>
-      <button class="nav-item" [class.active]="currentView()==='profile'" (click)="setView('profile');closeMobileSidebar()">
-        <span class="nav-icon">👤</span><span class="nav-label">Profile</span>
+      <button class="sb-item" [class.active]="currentView()==='payments'" (click)="setView('payments'); loadMyRegistrations(); closeMobileSidebar()">
+        <span class="sb-icon">💳</span><span class="sb-label">Payments</span>
       </button>
     </nav>
-    <button class="sidebar-toggle" (click)="toggleSidebar()">⇄</button>
+
+    <button class="sb-logout" (click)="logout()">🚪 Logout</button>
   </aside>
 
-  <!-- ══ MAIN ══ -->
-  <div class="main-content">
-    <header class="header">
-      <button class="menu-toggle" (click)="toggleMobileSidebar()">☰</button>
-      <div class="header-actions">
-        <div class="wallet">💰 {{ totalPoints }} pts</div>
-        <div class="notification-icon" (click)="setView('notifications')">
-          🔔
-          @if (unreadCount > 0) { <span class="badge">{{ unreadCount }}</span> }
+  <!-- ══ MAIN ═════════════════════════════════════════════════════════════ -->
+  <div class="main">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <button class="hamburger" (click)="toggleMobileSidebar()">☰</button>
+      <div class="topbar-right">
+        <div class="wallet-chip" (click)="openTopUp()" title="Top up wallet">
+          💰 ₹{{ walletBalance }}
         </div>
-        <div class="avatar small">{{ getInitial() }}</div>
-        <button class="logout-btn" (click)="logout()">🚪 Logout</button>
+        <button class="notif-btn" (click)="setView('notifications')">
+          🔔
+          @if (unreadCount > 0) { <span class="notif-dot">{{ unreadCount }}</span> }
+        </button>
+        <div class="top-avatar" (click)="openProfileModal()">{{ getInitial() }}</div>
       </div>
     </header>
 
-    <div class="content">
+    <div class="page-content">
 
-      <!-- ══ OVERVIEW ══ -->
+      <!-- ══ OVERVIEW ════════════════════════════════════════════════════ -->
       @if (currentView() === 'overview') {
-      <div class="overview">
-        <h1>Welcome back, {{ getFullName().split(' ')[0] }}! 👋</h1>
-
-        <div class="stats-grid-compact">
-          <div class="stat-item-premium">
-            <div class="stat-icon-wrapper">📅</div>
-            <div class="stat-info"><h4>Registered</h4><p>{{ getDashboardStats().registered }}</p></div>
+      <div class="view-section">
+        <div class="welcome-banner">
+          <div class="welcome-text">
+            <h1>Welcome back, {{ getFullName().split(' ')[0] }} 👋</h1>
+            <p>You have {{ getDashboardStats().upcoming }} upcoming events · {{ unreadCount }} new notifications</p>
           </div>
-          <div class="stat-item-premium">
-            <div class="stat-icon-wrapper">⏰</div>
-            <div class="stat-info"><h4>Upcoming</h4><p>{{ getDashboardStats().upcoming }}</p></div>
-          </div>
-          <div class="stat-item-premium">
-            <div class="stat-icon-wrapper">🏆</div>
-            <div class="stat-info"><h4>My Points</h4><p>{{ totalPoints }}</p></div>
+          <div class="welcome-wallet">
+            <div class="wallet-card-mini">
+              <span class="wc-label">Wallet Balance</span>
+              <span class="wc-amount">₹{{ walletBalance }}</span>
+              <button class="wc-topup" (click)="openTopUp()">Top Up</button>
+            </div>
           </div>
         </div>
 
-        <div class="trending-section">
-          <div class="section-header-compact">
-            <h3>🔥 Trending Events</h3>
-            <p>Happening near you</p>
+        <!-- Stats -->
+        <div class="stats-row">
+          <div class="stat-card blue">
+            <div class="stat-icon">📅</div>
+            <div class="stat-body">
+              <h4>Registered</h4>
+              <p>{{ getDashboardStats().registered }}</p>
+            </div>
           </div>
-          <div class="trending-grid">
+          <div class="stat-card green">
+            <div class="stat-icon">✅</div>
+            <div class="stat-body">
+              <h4>Approved</h4>
+              <p>{{ getDashboardStats().approved }}</p>
+            </div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-icon">⏳</div>
+            <div class="stat-body">
+              <h4>Pending</h4>
+              <p>{{ getDashboardStats().pending }}</p>
+            </div>
+          </div>
+          <div class="stat-card violet">
+            <div class="stat-icon">🏆</div>
+            <div class="stat-body">
+              <h4>Points</h4>
+              <p>{{ totalPoints }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trending Events -->
+        <div class="section-block">
+          <div class="section-head">
+            <h2>🔥 Trending Events</h2>
+            <button class="link-btn" (click)="setView('events')">View All →</button>
+          </div>
+          <div class="event-cards-grid">
             @for (ev of getTrendingEvents(); track ev._id) {
-            <div class="trending-card-mini" (click)="openEventModal(ev)">
-              <div class="trending-img">
-                <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&q=70'" [alt]="ev.title">
-                <div class="capacity-tag" [class.urgent]="isSpotsUrgent(ev)">
-                  {{ getSpotsLeft(ev) }} left
-                </div>
+            <div class="ev-card" (click)="openEventModal(ev)">
+              <div class="ev-card-img">
+                <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="ev.title">
+                <span class="ev-badge" [ngClass]="ev.status">{{ ev.status }}</span>
+                @if ((ev.registrationFee||0) > 0) { <span class="ev-fee">₹{{ ev.registrationFee }}</span> }
+                @if (isRegistered(ev)) { <span class="ev-registered-chip">✓ Registered</span> }
               </div>
-              <div class="trending-info">
-                <h4>{{ ev.title }}</h4>
-                <p class="trending-meta">📅 {{ formatDate(ev.startDate) }}</p>
+              <div class="ev-card-body">
+                <h3>{{ ev.title }}</h3>
+                <p class="ev-meta"><span>📍 {{ ev.venue }}</span><span>{{ ev.type | titlecase }}</span></p>
+                <p class="ev-date">📅 {{ formatDate(ev.startDate) }}</p>
+                <div class="ev-footer">
+                  <span class="spots" [class.urgent]="isSpotsUrgent(ev)">{{ getSpotsLeft(ev) }} spots left</span>
+                  @if (isRegistered(ev)) {
+                    <span class="approval-mini" [ngClass]="getMyRegistration(ev._id)?.approvalStatus || 'pending'">
+                      {{ getMyRegistration(ev._id)?.approvalStatus || 'pending' }}
+                    </span>
+                  }
+                </div>
               </div>
             </div>
             } @empty {
-            <div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:20px">
-              No events yet. Admins need to create events first.
-            </div>
+            <p class="empty-text">No events available yet.</p>
             }
           </div>
         </div>
 
-        <div class="dashboard-grid">
-          <div class="dashboard-card">
-            <div class="card-header">
-              <h2>📋 My Schedule</h2>
-              <button class="view-all" (click)="setView('schedule')">View All →</button>
+        <!-- Two-column: Schedule + Notifications -->
+        <div class="two-col-grid">
+          <div class="info-card">
+            <div class="info-card-head">
+              <h3>📋 Upcoming Schedule</h3>
+              <button class="link-btn" (click)="setView('schedule')">See All →</button>
             </div>
             <div class="schedule-list">
-              @for (ev of getUpcomingSchedule().slice(0,4); track ev._id) {
-                <div class="schedule-item" [class]="ev.approvalStatus">
-                  <div class="event-time">{{ formatDate(ev.startDate) }}</div>
-                  <div class="event-info">
-                    <h4>{{ ev.title }}</h4>
-                    <p>{{ ev.venue }}</p>
-                  </div>
-                  <div class="status-indicator" [class]="ev.approvalStatus" [title]="ev.approvalStatus"></div>
-                  <span class="event-type-badge" [ngClass]="ev.type?.toLowerCase()">{{ ev.type || 'Event' }}</span>
+              @for (ev of getUpcomingSchedule().slice(0, 4); track ev._id) {
+              <div class="schedule-row" (click)="openEventModal(ev)">
+                <div class="sched-date">
+                  <div class="sdate-day">{{ formatDate(ev.startDate).split(' ')[0] }}</div>
+                  <div class="sdate-mon">{{ formatDate(ev.startDate).split(' ')[1] }}</div>
                 </div>
+                <div class="sched-info">
+                  <h4>{{ ev.title }}</h4>
+                  <p>📍 {{ ev.venue }}</p>
+                </div>
+                <span class="sched-status" [ngClass]="ev.approvalStatus">{{ ev.approvalStatus }}</span>
+              </div>
               } @empty {
-              <div class="empty-state">📭 No upcoming events. Browse and register!</div>
+              <p class="empty-text">No upcoming events in schedule.</p>
               }
             </div>
           </div>
 
-          <div class="dashboard-card">
-            <div class="card-header">
-              <h2>🔔 Notifications</h2>
-              <button class="view-all" (click)="setView('notifications')">View All →</button>
+          <div class="info-card">
+            <div class="info-card-head">
+              <h3>🔔 Recent Notifications</h3>
+              <button class="link-btn" (click)="setView('notifications')">See All →</button>
             </div>
-            <div class="notifications-list">
-              @for (n of notifications.slice(0,3); track n.id) {
-              <div class="notification-item" [class.unread]="!n.read" (click)="markNotificationRead(n)">
-                <div class="notification-icon">{{ n.icon }}</div>
-                <div class="notification-content">
-                  <h4>{{ n.title }}</h4>
+            <div class="notif-list-mini">
+              @for (n of notifications.slice(0, 5); track n._id) {
+              <div class="notif-row-mini" [class.unread]="!n.read" (click)="markNotificationRead(n); setView('notifications')">
+                <span class="notif-icon-mini">{{ getNotifIcon(n.type) }}</span>
+                <div class="notif-text-mini">
+                  <h5>{{ n.title }}</h5>
                   <p>{{ n.message }}</p>
-                  <small>{{ n.time }}</small>
                 </div>
               </div>
+              } @empty {
+              <p class="empty-text">No notifications yet.</p>
               }
             </div>
           </div>
         </div>
-      </div>
-      }
 
-      <!-- ══ BROWSE EVENTS ══ -->
-      @if (currentView() === 'events') {
-      <div class="events-view">
-        <div class="view-header-custom">
-          <h1>Browse Events 🔍</h1>
-          <p class="subtitle">Discover events from colleges across the nation</p>
-          <div class="local-search">
-            <span class="search-icon">🔍</span>
-            <input type="text" placeholder="Search events by name, topic..." [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()">
-          </div>
-          <div class="filters-row">
-            <div class="filter-group">
-              <label>Category</label>
-              <select [(ngModel)]="categoryFilter" (ngModelChange)="onFilterChange()">
-                <option value="all">All Categories</option>
-                <option value="technical">Technical</option>
-                <option value="cultural">Cultural</option>
-                <option value="sports">Sports</option>
-                <option value="workshop">Workshop</option>
-                <option value="seminar">Seminar</option>
-                <option value="academic">Academic</option>
-              </select>
-            </div>
-            <div class="filter-group">
-              <label>Status</label>
-              <select [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()">
-                <option value="all">All</option>
-                <option value="upcoming">Upcoming</option>
-                <option value="ongoing">Ongoing</option>
-                <option value="completed">Completed</option>
-              </select>
-            </div>
-            <div class="filter-group">
-              <label>Date From</label>
-              <input type="date" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg-card);color:var(--text-primary);" [(ngModel)]="dateFilter" (ngModelChange)="onFilterChange()">
-            </div>
-          </div>
-        </div>
-
-        <div class="events-grid">
-          @for (ev of filteredEvents; track ev._id) {
-          <div class="event-card-minimal">
-            <div class="event-image-minimal" (click)="openEventModal(ev)">
-              <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="ev.title">
-              <div class="badge-overlay">
-                <span class="type-badge">{{ ev.type || ev.category }}</span>
-                <span class="status-badge" [ngClass]="ev.status">{{ ev.status }}</span>
-              </div>
-            </div>
-            <div class="event-details-minimal">
-              <h3 (click)="openEventModal(ev)">{{ ev.title }}</h3>
-              <p class="event-desc">{{ ev.description }}</p>
-              <div class="event-footer-minimal">
+        <!-- Testimonials from all events -->
+        @if (getAllTestimonials().length > 0) {
+        <div class="section-block">
+          <div class="section-head"><h2>💬 Student Testimonials</h2></div>
+          <div class="testimonials-grid">
+            @for (t of getAllTestimonials(); track $index) {
+            <div class="testimonial-card">
+              <div class="t-stars">{{ getStars(t.rating) }}</div>
+              <p class="t-comment">"{{ t.comment || 'Great event!' }}"</p>
+              <div class="t-author">
+                <div class="t-avatar">{{ (t.fullName || 'S').charAt(0) }}</div>
                 <div>
-                  <div class="date-info">📅 {{ formatDate(ev.startDate) }}</div>
-                  <div class="date-info">📍 {{ ev.venue }}</div>
-                </div>
-                @if (isRegistered(ev)) {
-                <button class="btn-primary" style="font-size:11px;padding:5px 12px;" disabled>✓ Registered</button>
-                } @else if (isFull(ev)) {
-                <button class="btn-secondary" style="font-size:11px;padding:5px 12px;" disabled>Full</button>
-                } @else {
-                <button class="btn-primary" style="font-size:11px;padding:5px 12px;" (click)="openEventModal(ev)">Register</button>
-                }
-              </div>
-            </div>
-          </div>
-          } @empty {
-          <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted);">
-            <div style="font-size:50px;margin-bottom:12px;">🔍</div>
-            <p>No events match your search. Try different filters.</p>
-          </div>
-          }
-        </div>
-      </div>
-      }
-
-      <!-- ══ MY REGISTERED EVENTS ══ -->
-      @if (currentView() === 'registered') {
-      <div class="registered-view">
-        <h1>My Events ✅</h1>
-        <div class="events-grid">
-          @for (ev of registeredEvents; track ev._id) {
-          <div class="event-card registered">
-            <div class="event-status" [ngClass]="ev.status">{{ ev.status?.toUpperCase() }}</div>
-            <div class="event-image-minimal" style="height:130px" (click)="openEventModal(ev)">
-              <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="ev.title">
-            </div>
-            <div class="event-details">
-              <h3>{{ ev.title }}</h3>
-              <p class="event-venue">📍 {{ ev.venue }}</p>
-              <p class="event-organizer">🏛️ {{ ev.organizer }}</p>
-              <p class="event-datetime">📅 {{ formatDateTime(ev.startDate) }}</p>
-              <div class="event-actions">
-                <button class="btn-primary" (click)="openEventModal(ev)">View Details</button>
-                @if (ev.status === 'upcoming') {
-                <button class="btn-danger" (click)="cancelRegistration(ev)">Cancel</button>
-                }
-              </div>
-            </div>
-          </div>
-          } @empty {
-          <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted);">
-            <div style="font-size:50px;margin-bottom:12px;">📭</div>
-            <p>No registered events yet. <button class="view-all" (click)="setView('events')">Browse events →</button></p>
-          </div>
-          }
-        </div>
-      </div>
-      }
-
-      <!-- ══ SCHEDULE ══ -->
-      @if (currentView() === 'schedule') {
-      <div class="schedule-view">
-        <h1>My Schedule 📅</h1>
-        <div class="premium-timeline">
-          @if (registeredEvents.length === 0) {
-            <div class="empty-state">
-              <div class="empty-icon">📅</div>
-              <p>Your schedule is clear. Time to find some events!</p>
-              <button class="btn-primary" (click)="setView('events')">Browse Events</button>
-            </div>
-          } @else {
-            @for (reg of registeredEvents; track reg._id) {
-              <div class="premium-timeline-item" [class]="reg.approvalStatus">
-                <div class="timeline-date">
-                  <span class="month">{{ reg.startDate | date:'MMM' }}</span>
-                  <span class="day">{{ reg.startDate | date:'dd' }}</span>
-                </div>
-                <div class="timeline-dot"></div>
-                <div class="timeline-card glassmorphism">
-                  <div class="card-header-status">
-                    <h3>{{ reg.title }}</h3>
-                    <span class="status-pill" [class]="reg.approvalStatus">
-                      <span class="status-icon" [ngSwitch]="reg.approvalStatus">
-                        <i *ngSwitchCase="'approved'">✓</i>
-                        <i *ngSwitchCase="'rejected'">✕</i>
-                        <i *ngSwitchDefault>⏳</i>
-                      </span>
-                      {{ reg.approvalStatus | titlecase }}
-                    </span>
-                  </div>
-                  <div class="card-body-meta">
-                    <span class="meta-item">📍 {{ reg.venue }}</span>
-                    <span class="meta-item">⏰ {{ formatDateTime(reg.startDate).split(',')[1] }}</span>
-                    <span *ngIf="reg.selectedSlot" class="slot-pill">🕐 {{ reg.selectedSlot }}</span>
-                  </div>
-                  <p class="event-brief">{{ (reg.description || '').substring(0, 100) }}...</p>
+                  <span class="t-name">{{ t.fullName || 'Anonymous' }}</span>
+                  @if (t.college) { <span class="t-college">{{ t.college }}</span> }
+                  @if (t.eventTitle) { <span class="t-event">{{ t.eventTitle }}</span> }
                 </div>
               </div>
+            </div>
             }
-          }
-        </div>
-      </div>
-      }
-
-      <!-- ══ NOTIFICATIONS ══ -->
-      @if (currentView() === 'notifications') {
-      <div class="notifications-view">
-        <div class="view-header">
-          <h1>Notifications 🔔</h1>
-          <div class="notification-actions">
-            <button class="btn-secondary" (click)="markAllRead()">Mark All Read</button>
           </div>
-        </div>
-        @for (n of notifications; track n.id) {
-        <div class="notification-card" [class.unread]="!n.read">
-          <div style="font-size:24px;">{{ n.icon }}</div>
-          <div style="flex:1">
-            <h4>{{ n.title }}</h4>
-            <p>{{ n.message }}</p>
-            <small>{{ n.time }}</small>
-          </div>
-          @if (!n.read) { <button class="mark-read" (click)="markNotificationRead(n)">✓</button> }
         </div>
         }
       </div>
       }
 
-      <!-- ══ LEADERBOARD ══ -->
-      @if (currentView() === 'leaderboard') {
-      <div class="leaderboard-view">
-        <h1 style="margin-bottom:20px;">Leaderboard 🏆</h1>
-        <div class="dashboard-card leaderboard-card">
-          <div class="my-rank-banner">
-            <div class="rank-info">
-              <div class="rank-num">#{{ myRank }}</div>
-              <div class="rank-details">
-                <h3>Your Rank</h3>
-                <p>{{ totalPoints }} points · {{ getDashboardStats().registered }} events</p>
+      <!-- ══ BROWSE EVENTS ════════════════════════════════════════════════ -->
+      @if (currentView() === 'events') {
+      <div class="view-section">
+        <div class="page-header">
+          <h1>Browse Events 🔍</h1>
+          <p>{{ filteredEvents.length }} event{{ filteredEvents.length !== 1 ? 's' : '' }} found</p>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-panel">
+          <div class="filter-search">
+            <span class="search-icon-f">🔍</span>
+            <input type="text" placeholder="Search events, venues, keywords..." [(ngModel)]="searchQuery" (input)="onSearchChange()" class="search-input-f">
+          </div>
+          <div class="filter-chips">
+            <select [(ngModel)]="categoryFilter" (change)="onFilterChange()" class="filter-sel">
+              <option value="all">All Categories</option>
+              <option value="college">College</option>
+              <option value="inter-college">Inter-College</option>
+            </select>
+            <select [(ngModel)]="statusFilter" (change)="onFilterChange()" class="filter-sel">
+              <option value="all">All Status</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="completed">Completed</option>
+            </select>
+            @if (searchQuery || categoryFilter !== 'all' || statusFilter !== 'all') {
+            <button class="clear-btn" (click)="clearFilters()">✕ Clear</button>
+            }
+          </div>
+        </div>
+
+        <div class="event-cards-grid">
+          @for (ev of filteredEvents; track ev._id) {
+          <div class="ev-card" (click)="openEventModal(ev)">
+            <div class="ev-card-img">
+              <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="ev.title">
+              <span class="ev-badge" [ngClass]="ev.status">{{ ev.status }}</span>
+              @if ((ev.registrationFee||0) > 0) { <span class="ev-fee">₹{{ ev.registrationFee }}</span> }
+              @if (isRegistered(ev)) { <span class="ev-registered-chip">✓ Registered</span> }
+            </div>
+            <div class="ev-card-body">
+              <div class="ev-type-chip">{{ ev.type | titlecase }}</div>
+              <h3>{{ ev.title }}</h3>
+              <p class="ev-meta"><span>📍 {{ ev.venue }}</span></p>
+              <p class="ev-date">📅 {{ formatDate(ev.startDate) }}</p>
+              <div class="ev-footer">
+                <span class="spots" [class.urgent]="isSpotsUrgent(ev)">{{ getSpotsLeft(ev) }} spots</span>
+                @if (isRegistered(ev)) {
+                  <span class="approval-mini" [ngClass]="getMyRegistration(ev._id)?.approvalStatus || 'pending'">
+                    {{ getMyRegistration(ev._id)?.approvalStatus | titlecase }}
+                  </span>
+                } @else {
+                  <span class="register-chip">Register →</span>
+                }
               </div>
             </div>
-            <div class="my-badges"><span class="badge-icon">🥉</span></div>
           </div>
-          <div class="table-container">
-            <table class="custom-table">
-              <thead><tr><th>Rank</th><th>Student</th><th>College</th><th>Events</th><th>Points</th><th>Badges</th></tr></thead>
+          } @empty {
+          <div class="empty-state-full">
+            <div class="empty-icon">📭</div>
+            <h3>No events found</h3>
+            <p>Try adjusting your filters or search query</p>
+            <button class="btn-primary" (click)="clearFilters()">Clear Filters</button>
+          </div>
+          }
+        </div>
+      </div>
+      }
+
+      <!-- ══ MY EVENTS ════════════════════════════════════════════════════ -->
+      @if (currentView() === 'registered') {
+      <div class="view-section">
+        <div class="page-header">
+          <h1>My Events ✅</h1>
+          <p>{{ registeredEvents.length }} event{{ registeredEvents.length !== 1 ? 's' : '' }} registered</p>
+        </div>
+
+        @if (registeredEvents.length === 0) {
+        <div class="empty-state-full">
+          <div class="empty-icon">📭</div>
+          <h3>No registrations yet</h3>
+          <p>Browse and register for events to see them here.</p>
+          <button class="btn-primary" (click)="setView('events')">Browse Events</button>
+        </div>
+        }
+
+        <div class="my-events-list">
+          @for (reg of registeredEvents; track reg._id) {
+          <div class="my-ev-card" [ngClass]="'border-' + (reg.approvalStatus || 'pending')">
+            <div class="mev-img">
+              <img [src]="reg.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=200&q=70'" [alt]="reg.title">
+              <span class="mev-status-badge" [ngClass]="reg.status">{{ reg.status }}</span>
+            </div>
+            <div class="mev-body">
+              <div class="mev-title-row">
+                <h3>{{ reg.title }}</h3>
+                <span class="mev-approval" [ngClass]="reg.approvalStatus">
+                  @if (reg.approvalStatus === 'approved') { ✅ Approved }
+                  @else if (reg.approvalStatus === 'rejected') { ❌ Rejected }
+                  @else { ⏳ Pending }
+                </span>
+              </div>
+              <div class="mev-meta">
+                <span>📍 {{ reg.venue }}</span>
+                <span>📅 {{ formatDate(reg.startDate) }}</span>
+                <span>🏷 {{ reg.type | titlecase }}</span>
+                @if (reg.selectedSlot) { <span>🕐 {{ reg.selectedSlot }}</span> }
+              </div>
+              @if (reg.approvalStatus === 'rejected' && reg.rejectionReason) {
+              <div class="rejection-banner">
+                <span>❌ Rejected: {{ reg.rejectionReason }}</span>
+              </div>
+              }
+              @if ((reg.paymentAmount || 0) > 0) {
+              <div class="mev-payment">
+                <span class="pay-label">Payment:</span>
+                <span class="pay-status" [ngClass]="reg.paymentStatus">
+                  {{ reg.paymentStatus === 'paid' ? '💳 Paid ₹' + reg.paymentAmount + ' via ' + (reg.paymentMethod | titlecase) : reg.paymentStatus }}
+                </span>
+              </div>
+              }
+            </div>
+            <div class="mev-actions">
+              @if (reg.status === 'completed' && reg.approvalStatus === 'approved') {
+                @if (!reg.hasFeedback) {
+                <button class="btn-feedback" (click)="openFeedback(reg)">⭐ Give Feedback</button>
+                } @else {
+                <span class="feedback-done">✅ Reviewed</span>
+                }
+              }
+              @if (reg.status === 'upcoming' || reg.status === 'ongoing') {
+              <button class="btn-cancel-sm" (click)="cancelRegistration(reg)">Cancel</button>
+              }
+            </div>
+          </div>
+          }
+        </div>
+
+        <!-- Past Events Feedback Section -->
+        @if (getPastEventsWithFeedback().length > 0) {
+        <div class="section-block" style="margin-top: 32px;">
+          <div class="section-head">
+            <h2>📝 Share Your Experience</h2>
+            <p style="color:var(--text-muted); font-size:13px">Help others by reviewing events you attended</p>
+          </div>
+          <div class="feedback-events-grid">
+            @for (reg of getPastEventsWithFeedback(); track reg._id) {
+            <div class="feedback-ev-card">
+              <img [src]="reg.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=120&q=70'" [alt]="reg.title">
+              <div class="fev-info">
+                <h4>{{ reg.title }}</h4>
+                <p>{{ formatDate(reg.startDate) }}</p>
+                @if (reg.approvalStatus === 'approved') {
+                  @if (!reg.hasFeedback) {
+                    <button class="btn-review" (click)="openFeedback(reg)">⭐ Write Review</button>
+                  } @else {
+                    <span class="reviewed-badge">✅ Reviewed</span>
+                  }
+                } @else {
+                  <span class="not-eligible">Registration {{ reg.approvalStatus }}</span>
+                }
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+        }
+      </div>
+      }
+
+      <!-- ══ SCHEDULE ══════════════════════════════════════════════════════ -->
+      @if (currentView() === 'schedule') {
+      <div class="view-section">
+        <div class="page-header"><h1>My Schedule 📅</h1></div>
+        <div class="schedule-full-list">
+          @for (ev of getUpcomingSchedule(); track ev._id) {
+          <div class="schedule-full-row" (click)="openEventModal(ev)">
+            <div class="sched-date-box">
+              <div class="sdb-day">{{ formatDate(ev.startDate).split(' ')[0] }}</div>
+              <div class="sdb-mon">{{ formatDate(ev.startDate).split(' ')[1] }}</div>
+            </div>
+            <div class="sched-full-info">
+              <h3>{{ ev.title }}</h3>
+              <div class="sched-meta-row">
+                <span>📍 {{ ev.venue }}</span>
+                <span>⏰ {{ formatDateTime(ev.startDate) }}</span>
+                <span>🏷 {{ ev.type | titlecase }}</span>
+                @if (ev.selectedSlot) { <span class="slot-pill">🕐 {{ ev.selectedSlot }}</span> }
+              </div>
+              <p class="sched-desc">{{ (ev.description || '').substring(0, 100) }}{{ (ev.description || '').length > 100 ? '...' : '' }}</p>
+            </div>
+            <span class="sched-approval-chip" [ngClass]="ev.approvalStatus">{{ ev.approvalStatus }}</span>
+          </div>
+          } @empty {
+          <div class="empty-state-full">
+            <div class="empty-icon">📅</div>
+            <h3>No upcoming events</h3>
+            <p>Events you're approved for will appear here.</p>
+          </div>
+          }
+        </div>
+      </div>
+      }
+
+      <!-- ══ NOTIFICATIONS ═════════════════════════════════════════════════ -->
+      @if (currentView() === 'notifications') {
+      <div class="view-section">
+        <div class="page-header">
+          <h1>Notifications 🔔</h1>
+          <button class="btn-secondary-sm" (click)="markAllRead()">Mark All Read</button>
+        </div>
+        <div class="notif-full-list">
+          @for (n of notifications; track n._id) {
+          <div class="notif-full-row" [class.unread]="!n.read">
+            <div class="nfr-icon">{{ getNotifIcon(n.type) }}</div>
+            <div class="nfr-body">
+              <h4>{{ n.title }}</h4>
+              <p>{{ n.message }}</p>
+              <small>{{ formatDate(n.createdAt) }}</small>
+            </div>
+            <div class="nfr-actions">
+              @if (!n.read) { <button class="mark-read-btn" (click)="markNotificationRead(n)">✓ Read</button> }
+              <button class="del-notif-btn" (click)="deleteNotification(n)">🗑</button>
+            </div>
+          </div>
+          } @empty {
+          <div class="empty-state-full">
+            <div class="empty-icon">🔕</div>
+            <h3>All caught up!</h3>
+            <p>No notifications yet.</p>
+          </div>
+          }
+        </div>
+      </div>
+      }
+
+      <!-- ══ LEADERBOARD ═══════════════════════════════════════════════════ -->
+      @if (currentView() === 'leaderboard') {
+      <div class="view-section">
+        <div class="page-header"><h1>Leaderboard 🏆</h1></div>
+        <div class="my-rank-banner">
+          <div class="mrb-rank">#{{ myRank }}</div>
+          <div class="mrb-info">
+            <h3>Your Ranking</h3>
+            <p>{{ totalPoints }} points · {{ getDashboardStats().registered }} events joined</p>
+          </div>
+        </div>
+        <div class="table-card">
+          <table class="data-tbl">
+            <thead><tr><th>Rank</th><th>Student</th><th>College</th><th>Events</th><th>Points</th><th>Badges</th></tr></thead>
+            <tbody>
+              @for (s of leaderboard; track s.rank) {
+              <tr>
+                <td class="rank-cell">{{ s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : s.rank === 3 ? '🥉' : '#' + s.rank }}</td>
+                <td><strong>{{ s.name }}</strong></td>
+                <td>{{ s.college }}</td>
+                <td>{{ s.events }}</td>
+                <td class="points-cell">{{ s.points }}</td>
+                <td><span class="badge-list">@for (b of s.badges; track b) { <span>{{ b }}</span> }</span></td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+      }
+
+      <!-- ══ PAYMENTS ══════════════════════════════════════════════════════ -->
+      @if (currentView() === 'payments') {
+      <div class="view-section">
+        <div class="page-header"><h1>Payments & Wallet 💳</h1></div>
+
+        <!-- Wallet card -->
+        <div class="wallet-big-card">
+          <div class="wbc-left">
+            <div class="wbc-icon">💰</div>
+            <div>
+              <p class="wbc-label">Available Balance</p>
+              <h2 class="wbc-amount">₹{{ walletBalance }}</h2>
+              <p class="wbc-sub">Used for event registrations</p>
+            </div>
+          </div>
+          <button class="btn-topup-big" (click)="openTopUp()">+ Add Money</button>
+        </div>
+
+        <!-- Transaction History -->
+        <div class="section-block">
+          <div class="section-head"><h2>📋 Transaction History</h2></div>
+          <div class="table-card">
+            <table class="data-tbl">
+              <thead><tr><th>Transaction ID</th><th>Event</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th></tr></thead>
               <tbody>
-                @for (s of leaderboard; track s.rank) {
-                <tr [class.highlight]="s.rank === myRank">
-                  <td class="rank-cell">{{ s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : s.rank === 3 ? '🥉' : '#'+s.rank }}</td>
-                  <td><strong>{{ s.name }}</strong></td>
-                  <td>{{ s.college }}</td>
-                  <td>{{ s.events }}</td>
-                  <td class="points-text">{{ s.points }}</td>
-                  <td><div class="badge-list">@for (b of s.badges; track b) { <span>{{ b }}</span> }</div></td>
+                @for (p of payments; track p.id) {
+                <tr>
+                  <td class="txn-id">{{ p.id }}</td>
+                  <td><strong>{{ p.event }}</strong></td>
+                  <td>₹{{ p.amount }}</td>
+                  <td>{{ p.method }}</td>
+                  <td><span class="pay-pill" [ngClass]="getStatusClass(p.status)">{{ p.status }}</span></td>
+                  <td>{{ formatDate(p.date) }}</td>
                 </tr>
+                } @empty {
+                <tr><td colspan="6" class="empty-cell">No payment history yet</td></tr>
                 }
               </tbody>
             </table>
@@ -369,198 +544,286 @@
       </div>
       }
 
-      <!-- ══ PAYMENTS ══ -->
-      @if (currentView() === 'payments') {
-      <div class="payments-view">
-        <div class="view-header">
-          <h1>Payments 💳</h1>
-          <div class="wallet-info">💰 Wallet: <strong>₹0</strong></div>
-        </div>
-        <div class="payments-table section-card">
-          <table class="data-table">
-            <thead><tr><th>Transaction ID</th><th>Event</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-            <tbody>
-              @for (p of payments; track p.id) {
-              <tr>
-                <td class="transaction-id">{{ p.id }}</td>
-                <td>{{ p.event }}</td>
-                <td>₹{{ p.amount }}</td>
-                <td><span class="badge" [ngClass]="getStatusClass(p.status)">{{ p.status }}</span></td>
-                <td>{{ formatDate(p.date) }}</td>
-              </tr>
-              } @empty {
-              <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">No payment history</td></tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      </div>
-      }
-
-      <!-- ══ PROFILE ══ -->
-      @if (currentView() === 'profile') {
-      <div class="profile-view">
-        <h1>My Profile 👤</h1>
-        <div class="profile-card">
-          <div class="profile-header">
-            <div class="profile-avatar large">{{ getInitial() }}</div>
-            <div class="profile-title">
-              <h2>{{ getFullName() }}</h2>
-              <p>Student · CampusEventHub</p>
-            </div>
-          </div>
-          <div class="profile-details">
-            <div class="detail-row"><label>Full Name</label><span>{{ getFullName() }}</span></div>
-            <div class="detail-row"><label>Email</label><span>{{ getEmail() }}</span></div>
-            <div class="detail-row"><label>Role</label><span>Student</span></div>
-            <div class="detail-row"><label>Total Points</label><span class="wallet-amount">{{ totalPoints }} pts</span></div>
-            <div class="detail-row"><label>Global Rank</label><span>#{{ myRank }}</span></div>
-          </div>
-          <div class="profile-stats">
-            <div class="stat"><div class="stat-value">{{ getDashboardStats().registered }}</div><div class="stat-label">Events Joined</div></div>
-            <div class="stat"><div class="stat-value">{{ getDashboardStats().completed }}</div><div class="stat-label">Completed</div></div>
-            <div class="stat"><div class="stat-value">{{ totalPoints }}</div><div class="stat-label">Points Earned</div></div>
-          </div>
-        </div>
-      </div>
-      }
-
-    </div><!-- /content -->
+    </div><!-- /page-content -->
   </div><!-- /main -->
-</div><!-- /dashboard -->
+</div><!-- /sdash -->
 
-<!-- ══ EVENT DETAIL MODAL ══ (BUG FIX #3: Full event details, not just ID) -->
+
+<!-- ══ EVENT DETAIL MODAL ══════════════════════════════════════════════════ -->
 @if (showEventModal && selectedEvent) {
 <div class="modal-backdrop" (click)="closeEventModal()">
-  <div class="modal-content-lg" (click)="$event.stopPropagation()">
-    <div class="modal-hero">
+  <div class="ev-modal" (click)="$event.stopPropagation()">
+    <div class="evm-hero">
       <img [src]="selectedEvent.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80'" [alt]="selectedEvent.title">
-      <button class="modal-close" (click)="closeEventModal()">✕</button>
-      <div class="modal-hero-badges">
-        <span class="badge-pill type">{{ selectedEvent.type }}</span>
-        <span class="badge-pill status" [ngClass]="selectedEvent.status">{{ selectedEvent.status }}</span>
+      <button class="evm-close" (click)="closeEventModal()">✕</button>
+      <div class="evm-hero-badges">
+        <span class="hbadge type">{{ selectedEvent.type | titlecase }}</span>
+        <span class="hbadge" [ngClass]="selectedEvent.status">{{ selectedEvent.status }}</span>
       </div>
     </div>
-    <div class="modal-body-content">
-      <div class="modal-header-info">
-        <h2>{{ selectedEvent.title }}</h2>
-        <p class="college-subtitle">🏛️ {{ selectedEvent.organizer }} · 📍 {{ selectedEvent.venue }}</p>
-      </div>
-      <div class="modal-tabs">
-        <button class="tab" [class.active]="activeTab()==='details'" (click)="setTab('details')">Details</button>
-        <button class="tab" [class.active]="activeTab()==='description'" (click)="setTab('description')">Description</button>
-        <button class="tab" [class.active]="activeTab()==='payment'" (click)="setTab('payment')">Payment</button>
+    <div class="evm-body">
+      <h2>{{ selectedEvent.title }}</h2>
+      <p class="evm-org">🏛️ {{ selectedEvent.organizer }} · 📍 {{ selectedEvent.venue }}</p>
+
+      <div class="evm-tabs">
+        <button [class.active]="activeTab()==='details'" (click)="setTab('details')">Details</button>
+        <button [class.active]="activeTab()==='description'" (click)="setTab('description')">About</button>
+        @if ((selectedEvent.registrationFee||0) > 0) {
+        <button [class.active]="activeTab()==='payment'" (click)="setTab('payment')">💳 Payment</button>
+        }
       </div>
 
       @if (activeTab() === 'details') {
-      <div class="tab-pane">
-        <div class="details-grid">
-          <div class="detail-item"><span class="icon">📅</span><div class="detail-text"><label>Start Date</label><p>{{ formatDateTime(selectedEvent.startDate) }}</p></div></div>
-          <div class="detail-item"><span class="icon">🏁</span><div class="detail-text"><label>End Date</label><p>{{ formatDateTime(selectedEvent.endDate) }}</p></div></div>
-          <div class="detail-item"><span class="icon">📍</span><div class="detail-text"><label>Venue</label><p>{{ selectedEvent.venue }}</p></div></div>
-          <div class="detail-item"><span class="icon">🏷️</span><div class="detail-text"><label>Category</label><p>{{ selectedEvent.category }}</p></div></div>
-          <div class="detail-item"><span class="icon">👥</span><div class="detail-text"><label>Capacity</label><p>{{ selectedEvent.currentParticipants || 0 }} / {{ selectedEvent.maxParticipants }}</p></div></div>
-          <div class="detail-item"><span class="icon">💰</span><div class="detail-text"><label>Fee</label><p>{{ selectedEvent.registrationFee > 0 ? '₹' + selectedEvent.registrationFee : 'Free' }}</p></div></div>
+      <div class="evm-tab-pane">
+        <div class="ev-details-grid">
+          <div class="edg-item"><span class="edg-icon">📅</span><div><label>Start</label><p>{{ formatDateTime(selectedEvent.startDate) }}</p></div></div>
+          <div class="edg-item"><span class="edg-icon">🏁</span><div><label>End</label><p>{{ formatDateTime(selectedEvent.endDate) }}</p></div></div>
+          <div class="edg-item"><span class="edg-icon">📍</span><div><label>Venue</label><p>{{ selectedEvent.venue }}</p></div></div>
+          <div class="edg-item"><span class="edg-icon">🏷️</span><div><label>Category</label><p>{{ selectedEvent.category | titlecase }}</p></div></div>
+          <div class="edg-item"><span class="edg-icon">👥</span><div><label>Capacity</label><p>{{ selectedEvent.currentParticipants || 0 }} / {{ selectedEvent.maxParticipants }}</p></div></div>
+          <div class="edg-item"><span class="edg-icon">💰</span><div><label>Fee</label><p>{{ (selectedEvent.registrationFee||0) > 0 ? '₹' + selectedEvent.registrationFee : 'Free' }}</p></div></div>
         </div>
-        @if (selectedEvent.tags?.length) {
-        <div class="modal-section">
-          <div class="section-title">Tags</div>
-          <div class="tags-container">@for (t of selectedEvent.tags; track t) { <span class="tag">{{ t }}</span> }</div>
-        </div>
-        }
       </div>
       }
 
       @if (activeTab() === 'description') {
-      <div class="tab-pane">
-        <div class="modal-section">
-          <div class="section-title">About this Event</div>
-          <p class="section-desc">{{ selectedEvent.description || 'No description available.' }}</p>
-        </div>
-        @if (selectedEvent.eligibilityCriteria) {
-        <div class="modal-section mt-4">
-          <div class="section-title">Eligibility</div>
-          <p class="section-desc">{{ selectedEvent.eligibilityCriteria }}</p>
-        </div>
-        }
-        @if (selectedEvent.prizes) {
-        <div class="modal-section mt-4">
-          <div class="section-title">🏆 Prizes</div>
-          <p class="section-desc">{{ selectedEvent.prizes }}</p>
-        </div>
+      <div class="evm-tab-pane">
+        <p class="evm-desc">{{ selectedEvent.description || 'No description available.' }}</p>
+        @if (selectedEvent.contactEmail) {
+        <p class="evm-contact">📧 Contact: <a [href]="'mailto:' + selectedEvent.contactEmail">{{ selectedEvent.contactEmail }}</a></p>
         }
       </div>
       }
 
       @if (activeTab() === 'payment') {
-      <div class="tab-pane">
-        <div class="payment-section-compact">
-          @if (selectedEvent.registrationFee > 0) {
-          <p style="font-size:13px;margin-bottom:10px;">Select a payment method to complete registration:</p>
-          <div class="payment-methods-inline">
-            <label class="payment-method-pill" [class.active]="selectedPaymentMethod==='upi'" (click)="selectedPaymentMethod='upi'">
-              <input type="radio" name="pay" value="upi" style="display:none"> 📱 UPI
-            </label>
-            <label class="payment-method-pill" [class.active]="selectedPaymentMethod==='card'" (click)="selectedPaymentMethod='card'">
-              <input type="radio" name="pay" value="card" style="display:none"> 💳 Card
-            </label>
-            <label class="payment-method-pill" [class.active]="selectedPaymentMethod==='wallet'" (click)="selectedPaymentMethod='wallet'">
-              <input type="radio" name="pay" value="wallet" style="display:none"> 💰 Wallet
-            </label>
+      <div class="evm-tab-pane">
+        <div class="pay-info-box">
+          <div class="pib-amount"><span>₹</span>{{ selectedEvent.registrationFee }}</div>
+          <p>One-time registration fee</p>
+          <div class="pib-wallet-hint">
+            Your wallet: <strong>₹{{ walletBalance }}</strong>
+            @if (walletBalance >= (selectedEvent.registrationFee || 0)) {
+              <span class="wallet-ok">✅ Sufficient</span>
+            } @else {
+              <span class="wallet-low">⚠️ Insufficient — <button class="inline-topup" (click)="closeEventModal(); openTopUp()">Top Up</button></span>
+            }
           </div>
-          } @else {
-          <p style="color:var(--accent-emerald);font-weight:700;">✅ This event is FREE! No payment required.</p>
-          }
-          @if (errorMessage) { <p class="error-text" style="margin-top:10px;">⚠️ {{ errorMessage }}</p> }
         </div>
       </div>
       }
+
     </div>
 
-    <div class="modal-sticky-footer">
-      <div class="footer-price">
-        <span class="label">Registration Fee</span>
-        <span class="value">{{ selectedEvent.registrationFee > 0 ? '₹' + selectedEvent.registrationFee : 'Free' }}</span>
-      </div>
-      <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
-        @if (selectedEvent.slots?.length > 0 && !isRegistered(selectedEvent)) {
-          <div class="slot-picker-container">
-            <label class="slot-label">🕐 Select Time Slot</label>
-            <select class="form-select slot-select" [(ngModel)]="selectedSlot">
-              <option value="">-- Choose a Slot --</option>
-              @for (slot of selectedEvent.slots; track slot.name) {
-                <option [value]="slot.name">{{ slot.name }} ({{ slot.startTime }} - {{ slot.endTime }})</option>
-              }
-            </select>
-          </div>
-        }
-        
-        <div style="display:flex;gap:10px; justify-content: flex-end;">
-          @if (isRegistered(selectedEvent)) {
-          <button class="btn-rounded-success" disabled>✓ Registered</button>
-          <button class="btn-danger" style="border-radius:24px;padding:11px 20px;" (click)="cancelFromModal()">Cancel</button>
-          } @else if (isFull(selectedEvent)) {
-          <button class="btn-rounded-disabled" disabled>Event Full</button>
-          } @else if (selectedEvent.status === 'completed' || selectedEvent.status === 'cancelled') {
-          <button class="btn-rounded-disabled" disabled>Registration Closed</button>
-          } @else {
-          <button class="btn-rounded-primary" [disabled]="registering" (click)="registerForEvent()">
-            {{ registering ? 'Registering...' : '🎟️ Register Now' }}
-          </button>
+    <!-- Slot selector + actions footer -->
+    <div class="evm-footer">
+      @if (selectedEvent.slots?.length > 0 && !isRegistered(selectedEvent)) {
+      <div class="slot-row">
+        <label>🕐 Time Slot</label>
+        <select [(ngModel)]="selectedSlot" class="slot-sel">
+          <option value="">— Choose slot —</option>
+          @for (s of selectedEvent.slots; track s.name) {
+          <option [value]="s.name">{{ s.name }} ({{ s.startTime }}–{{ s.endTime }})</option>
           }
-        </div>
+        </select>
+      </div>
+      }
+      @if (errorMessage) { <p class="evm-error">⚠️ {{ errorMessage }}</p> }
+      <div class="evm-btn-row">
+        @if (isRegistered(selectedEvent)) {
+          <button class="btn-registered" disabled>✓ Registered ({{ getMyRegistration(selectedEvent._id)?.approvalStatus }})</button>
+          @if (getMyRegistration(selectedEvent._id)?.status === 'upcoming') {
+          <button class="btn-cancel-ev" (click)="cancelFromModal()">Cancel Registration</button>
+          }
+        } @else if (isFull(selectedEvent)) {
+          <button class="btn-disabled-ev" disabled>Event Full</button>
+        } @else if (selectedEvent.status === 'completed' || selectedEvent.status === 'cancelled') {
+          <button class="btn-disabled-ev" disabled>Registration Closed</button>
+        } @else {
+          <button class="btn-register-ev" [disabled]="registering" (click)="startRegistration()">
+            {{ registering ? 'Registering...' : (selectedEvent.registrationFee > 0 ? '💳 Pay ₹' + selectedEvent.registrationFee + ' & Register' : '🎟️ Register Now') }}
+          </button>
+        }
       </div>
     </div>
   </div>
 </div>
 }
 
+
+<!-- ══ PAYMENT MODAL ═══════════════════════════════════════════════════════ -->
+@if (showPaymentModal && pendingPaymentEvent) {
+<div class="modal-backdrop" (click)="!processingPayment && closePaymentModal()">
+  <div class="pay-modal" (click)="$event.stopPropagation()">
+    <div class="pay-modal-head">
+      <h3>💳 Complete Payment</h3>
+      @if (!processingPayment && !paymentSuccess) {
+        <button class="evm-close" (click)="closePaymentModal()">✕</button>
+      }
+    </div>
+    <div class="pay-modal-body">
+      @if (paymentSuccess) {
+      <div class="pay-success">
+        <div class="ps-icon">✅</div>
+        <h3>Payment Successful!</h3>
+        <p>₹{{ pendingPaymentEvent.registrationFee }} · {{ selectedPaymentMethod | uppercase }}</p>
+        <p class="ps-sub">Completing your registration...</p>
+      </div>
+      } @else if (processingPayment) {
+      <div class="pay-processing">
+        <div class="spinner"></div>
+        <h3>Processing...</h3>
+        <p>₹{{ pendingPaymentEvent.registrationFee }}</p>
+      </div>
+      } @else {
+        <!-- Event summary -->
+        <div class="pay-ev-summary">
+          <img [src]="pendingPaymentEvent.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=80&q=70'" alt="">
+          <div>
+            <h4>{{ pendingPaymentEvent.title }}</h4>
+            <p>📍 {{ pendingPaymentEvent.venue }}</p>
+          </div>
+        </div>
+        <div class="pay-total-row">
+          <span>Registration Fee</span>
+          <strong>₹{{ pendingPaymentEvent.registrationFee }}</strong>
+        </div>
+
+        <!-- Wallet option first -->
+        <div class="pay-methods">
+          <p class="pm-label">Payment Method</p>
+          <div class="pm-grid">
+            <label class="pm-card" [class.active]="selectedPaymentMethod==='wallet'" [class.disabled]="walletBalance < pendingPaymentEvent.registrationFee" (click)="selectedPaymentMethod='wallet'">
+              <span class="pm-icon">💰</span>
+              <div>
+                <span class="pm-name">Wallet</span>
+                <span class="pm-hint">Balance: ₹{{ walletBalance }}</span>
+                @if (walletBalance < pendingPaymentEvent.registrationFee) {
+                  <span class="pm-insufficient">Insufficient</span>
+                }
+              </div>
+            </label>
+            <label class="pm-card" [class.active]="selectedPaymentMethod==='upi'" (click)="selectedPaymentMethod='upi'">
+              <span class="pm-icon">📱</span><span class="pm-name">UPI</span>
+            </label>
+            <label class="pm-card" [class.active]="selectedPaymentMethod==='card'" (click)="selectedPaymentMethod='card'">
+              <span class="pm-icon">💳</span><span class="pm-name">Card</span>
+            </label>
+            <label class="pm-card" [class.active]="selectedPaymentMethod==='netbanking'" (click)="selectedPaymentMethod='netbanking'">
+              <span class="pm-icon">🏦</span><span class="pm-name">Net Banking</span>
+            </label>
+          </div>
+        </div>
+        <button class="btn-pay-now" (click)="processPayment()">
+          Pay ₹{{ pendingPaymentEvent.registrationFee }} via {{ selectedPaymentMethod | uppercase }}
+        </button>
+      }
+    </div>
+  </div>
+</div>
+}
+
+
+<!-- ══ TOP-UP WALLET MODAL ════════════════════════════════════════════════ -->
+@if (showTopUpModal) {
+<div class="modal-backdrop" (click)="closeTopUp()">
+  <div class="topup-modal" (click)="$event.stopPropagation()">
+    <div class="pay-modal-head">
+      <h3>💰 Add Money to Wallet</h3>
+      <button class="evm-close" (click)="closeTopUp()">✕</button>
+    </div>
+    <div class="pay-modal-body">
+      @if (topUpSuccess) {
+      <div class="pay-success">
+        <div class="ps-icon">✅</div>
+        <h3>Added ₹{{ topUpAmount }} successfully!</h3>
+        <p>New balance: ₹{{ walletBalance }}</p>
+      </div>
+      } @else {
+        <p class="topup-balance">Current balance: <strong>₹{{ walletBalance }}</strong></p>
+        <div class="topup-quick-btns">
+          @for (amt of [100, 200, 500, 1000]; track amt) {
+          <button class="quick-amt" [class.active]="topUpAmount === amt" (click)="topUpAmount = amt">₹{{ amt }}</button>
+          }
+        </div>
+        <div class="topup-custom">
+          <label>Custom Amount</label>
+          <input type="number" [(ngModel)]="topUpAmount" min="1" max="10000" placeholder="Enter amount" class="topup-input">
+        </div>
+        <button class="btn-pay-now" [disabled]="topUpLoading" (click)="submitTopUp()">
+          {{ topUpLoading ? 'Adding...' : 'Add ₹' + topUpAmount + ' to Wallet' }}
+        </button>
+        <p class="topup-note">This is a demo wallet for testing payments.</p>
+      }
+    </div>
+  </div>
+</div>
+}
+
+
+<!-- ══ FEEDBACK MODAL ════════════════════════════════════════════════════ -->
+@if (showFeedbackModal && feedbackEvent) {
+<div class="modal-backdrop" (click)="closeFeedback()">
+  <div class="feedback-modal" (click)="$event.stopPropagation()">
+    <div class="pay-modal-head">
+      <h3>⭐ Rate Your Experience</h3>
+      <button class="evm-close" (click)="closeFeedback()">✕</button>
+    </div>
+    <div class="pay-modal-body">
+      <div class="fb-event-name">{{ feedbackEvent.title }}</div>
+      <div class="star-selector">
+        <p>How would you rate this event?</p>
+        <div class="stars-row">
+          @for (i of [1,2,3,4,5]; track i) {
+          <button class="star-btn" [class.active]="feedbackRating >= i" (click)="setFeedbackRating(i)">★</button>
+          }
+        </div>
+        <p class="star-label">
+          @if (feedbackRating === 1) { 😞 Poor }
+          @else if (feedbackRating === 2) { 😐 Fair }
+          @else if (feedbackRating === 3) { 😊 Good }
+          @else if (feedbackRating === 4) { 😄 Great }
+          @else if (feedbackRating === 5) { 🤩 Excellent! }
+        </p>
+      </div>
+      <div class="fb-comment-box">
+        <label>Your Review (optional)</label>
+        <textarea [(ngModel)]="feedbackComment" placeholder="Tell others what you enjoyed about this event..." rows="4"></textarea>
+      </div>
+      @if (feedbackError) { <p class="evm-error">{{ feedbackError }}</p> }
+      <button class="btn-pay-now" [disabled]="feedbackSubmitting" (click)="submitFeedback()">
+        {{ feedbackSubmitting ? 'Submitting...' : '⭐ Submit Review' }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+
+<!-- ══ PROFILE MODAL ════════════════════════════════════════════════════ -->
+@if (showProfileModal) {
+<div class="modal-backdrop" (click)="closeProfileModal()">
+  <div class="profile-modal" (click)="$event.stopPropagation()">
+    <button class="evm-close" style="position:absolute;top:16px;right:16px;" (click)="closeProfileModal()">✕</button>
+    <div class="profile-avatar-lg">{{ getInitial() }}</div>
+    <h2>{{ getFullName() }}</h2>
+    <span class="role-chip">Student</span>
+    <div class="wallet-line">💰 Wallet: <strong>₹{{ walletBalance }}</strong></div>
+    <div class="profile-grid">
+      <div class="pg-item"><label>📧 Email</label><span>{{ getEmail() }}</span></div>
+      <div class="pg-item"><label>🏫 College</label><span>{{ getCollege() }}</span></div>
+      <div class="pg-item"><label>📅 Events Joined</label><span>{{ getDashboardStats().registered }}</span></div>
+      <div class="pg-item"><label>✅ Approved</label><span>{{ getDashboardStats().approved }}</span></div>
+      <div class="pg-item"><label>🏆 Points</label><span>{{ totalPoints }}</span></div>
+      <div class="pg-item"><label>💰 Wallet</label><span>₹{{ walletBalance }}</span></div>
+    </div>
+    <button class="btn-topup-big" (click)="closeProfileModal(); openTopUp()">+ Top Up Wallet</button>
+  </div>
+</div>
+}
+
 <!-- Confetti -->
 @if (showConfetti) {
-<div class="confetti-container">
-  <div class="confetti"></div><div class="confetti"></div><div class="confetti"></div>
-  <div class="confetti"></div><div class="confetti"></div><div class="confetti"></div>
-  <div class="confetti"></div><div class="confetti"></div><div class="confetti"></div>
-  <div class="confetti"></div>
+<div class="confetti-wrap">
+  @for (i of [1,2,3,4,5,6,7,8,9,10,11,12]; track i) { <div class="confetti-piece"></div> }
 </div>
 }
