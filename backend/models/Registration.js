@@ -1,32 +1,20 @@
 const mongoose = require('mongoose');
 
-const registrationSchema = new mongoose.Schema({
-  event: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Event',
-    required: true
-  },
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  selectedSlot: {
-    type: String,
-    required: false
-  },
-  approvalStatus: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
-  },
-  registeredAt: {
-    type: Date,
-    default: Date.now
-  }
-});
+const RegistrationSchema = new mongoose.Schema({
+  eventId:         { type: mongoose.Schema.Types.ObjectId, ref: 'Event', required: true },
+  userId:          { type: mongoose.Schema.Types.ObjectId, ref: 'User',  required: true },
+  approvalStatus:  { type: String, enum: ['pending','approved','rejected'], default: 'pending' },
+  rejectionReason: { type: String, default: '' },
+  selectedSlot:    { type: String, default: '' },
+  paymentStatus:   { type: String, enum: ['free','pending','paid','failed'], default: 'free' },
+  paymentMethod:   { type: String, default: '' },
+  paymentTxnId:    { type: String, default: '' },
+  paymentAmount:   { type: Number, default: 0 },
+  hasFeedback:     { type: Boolean, default: false },
+  registeredAt:    { type: Date, default: Date.now }
+}, { timestamps: true });
 
-// Ensure a user can only register once for an event
-registrationSchema.index({ event: 1, user: 1 }, { unique: true });
+// One registration per user per event
+RegistrationSchema.index({ eventId: 1, userId: 1 }, { unique: true });
 
-module.exports = mongoose.model('Registration', registrationSchema);
+module.exports = mongoose.model('Registration', RegistrationSchema);
