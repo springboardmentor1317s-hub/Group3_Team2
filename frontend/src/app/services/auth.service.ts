@@ -3,11 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
 
 export interface UserData {
-  token: string;
-  role: string;
-  fullName: string;
-  email: string;
-  userId?: string;
+  token: string; role: string; fullName: string;
+  email: string; userId?: string; college?: string; walletBalance?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -17,42 +14,34 @@ export class AuthService {
 
   constructor(private http: HttpClient) {}
 
-  register(data: any): Observable<any> {
-    return this.http.post(`${this.apiUrl}/register`, data);
-  }
+  register(data: any): Observable<any> { return this.http.post(`${this.apiUrl}/register`, data); }
+  login(data: any): Observable<any>    { return this.http.post(`${this.apiUrl}/login`, data); }
 
-  login(data: any): Observable<any> {
-    return this.http.post(`${this.apiUrl}/login`, data);
-  }
-
-  saveUserData(token: string, role: string, fullName: string, email: string, userId?: string) {
-    const user: UserData = { token, role, fullName, email, userId };
+  saveUserData(token: string, role: string, fullName: string, email: string, userId?: string, college?: string, walletBalance?: number) {
+    const user: UserData = { token, role, fullName, email, userId, college, walletBalance };
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     this.loginEvent$.next();
   }
 
-  getToken(): string | null {
-    return localStorage.getItem('token');
+  updateWalletBalance(balance: number) {
+    const user = this.getUser();
+    if (user) {
+      user.walletBalance = balance;
+      localStorage.setItem('user', JSON.stringify(user));
+    }
   }
 
-  public getUser(): UserData | null {
-    try { return JSON.parse(localStorage.getItem('user') || 'null'); }
-    catch { return null; }
-  }
+  getToken(): string | null   { return localStorage.getItem('token'); }
+  getUser(): UserData | null  { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } }
+  getRole(): string | null    { return this.getUser()?.role || null; }
+  getFullName(): string | null{ return this.getUser()?.fullName || null; }
+  getEmail(): string | null   { return this.getUser()?.email || null; }
+  getUserId(): string | null  { return this.getUser()?.userId || null; }
+  getCollege(): string | null { return this.getUser()?.college || null; }
+  getWallet(): number         { return this.getUser()?.walletBalance ?? 0; }
+  isLoggedIn(): boolean       { return !!this.getToken(); }
 
-  getRole(): string | null     { return this.getUser()?.role     || null; }
-  getFullName(): string | null { return this.getUser()?.fullName || null; }
-  getEmail(): string | null    { return this.getUser()?.email    || null; }
-  getUserId(): string | null   { return this.getUser()?.userId   || null; }
-
-  isLoggedIn(): boolean { return !!this.getToken(); }
-
-  /**
-   * Call this inside every protected dashboard's ngOnInit.
-   * Returns true if the current session matches the expected role.
-   * If not, it clears stale data so the next tab refresh won't bleed credentials.
-   */
   isAuthorized(expectedRole: string | string[]): boolean {
     const role = this.getRole();
     if (!role || !this.isLoggedIn()) return false;
@@ -60,9 +49,12 @@ export class AuthService {
     return allowed.includes(role);
   }
 
+  getWalletBalance(): Observable<any> { return this.http.get(`${this.apiUrl}/wallet`); }
+  topUpWallet(amount: number): Observable<any> { return this.http.post(`${this.apiUrl}/wallet/topup`, { amount }); }
+
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    this.loginEvent$.next();   // notify subscribers (e.g. chat) that session ended
+    this.loginEvent$.next();
   }
 }
