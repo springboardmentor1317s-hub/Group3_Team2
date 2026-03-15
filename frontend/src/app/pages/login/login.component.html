@@ -15,13 +15,11 @@
       <div class="hero-stat"><div class="num">10K+</div><div class="lbl">Students</div></div>
     </div>
     <div class="floating-cards">
-      <!-- <div class="float-card">What's SPECIAL here ?</div> -->
       <div class="float-card c1">Vibrant Fests</div>
       <div class="float-card c2">Team Collaboration</div>
-      <div class="float-card c3">Culturals & Networking</div>
+      <div class="float-card c3">Culturals &amp; Networking</div>
       <div class="float-card c4">Technical Events</div>
       <div class="float-card c5">Collaboration</div>
-
     </div>
   </div>
 
@@ -53,7 +51,8 @@
         <div class="input-wrap">
           <span class="input-icon">🔒</span>
           <input [type]="showPassword ? 'text' : 'password'" class="form-control" placeholder="Your password"
-            [(ngModel)]="password" [class.error]="passwordError" (ngModelChange)="passwordError = ''">
+            [(ngModel)]="password" [class.error]="passwordError" (ngModelChange)="passwordError = ''"
+            (keyup.enter)="login()">
         </div>
         @if (passwordError) { <p class="error-msg">{{ passwordError }}</p> }
       </div>
