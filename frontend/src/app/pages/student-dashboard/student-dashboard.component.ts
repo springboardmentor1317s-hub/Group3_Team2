@@ -21,7 +21,10 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   events: any[] = [];
   filteredEvents: any[] = [];
   registeredEventIds = new Set<string>();
+  pendingRegistrationIds = new Set<string>();
   registeredEvents: any[] = [];
+  pendingRegistrations: any[] = [];
+  approvedRegistrations: any[] = [];
 
   notifications: any[] = [];
   payments: any[] = [];
@@ -156,14 +159,38 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   loadMyRegistrations() {
     const sub = this.eventService.getMyRegistrations().subscribe({
       next: (data: any) => {
-        const list = Array.isArray(data) ? data : data?.events || [];
-        this.registeredEvents = list;
-        this.registeredEventIds = new Set(list.map((ev: any) => String(ev?._id || ev?.id)));
+        console.log('📥 Registrations response:', data);
+        
+        // Handle different response structures
+        const registrations = Array.isArray(data) ? data : data?.registrations || [];
+        
+        // Store all registrations
+        this.registeredEvents = registrations;
+        
+        // Separate by status
+        this.pendingRegistrations = registrations.filter((r: any) => r.status === 'pending');
+        this.approvedRegistrations = registrations.filter((r: any) => r.status === 'approved');
+        
+        // Track IDs for quick lookup
+        this.registeredEventIds = new Set(
+          this.approvedRegistrations.map((reg: any) => String(reg.event?._id || reg.eventId || reg._id))
+        );
+        
+        this.pendingRegistrationIds = new Set(
+          this.pendingRegistrations.map((reg: any) => String(reg.event?._id || reg.eventId || reg._id))
+        );
+        
+        console.log('✅ Loaded registrations:', registrations.length);
+        console.log('⏳ Pending:', this.pendingRegistrations.length);
+        console.log('✅ Approved:', this.approvedRegistrations.length);
       },
       error: (err) => {
-        console.error('Error loading registrations:', err);
+        console.error('❌ Error loading registrations:', err);
         this.registeredEvents = [];
         this.registeredEventIds = new Set();
+        this.pendingRegistrationIds = new Set();
+        this.pendingRegistrations = [];
+        this.approvedRegistrations = [];
       }
     });
     this.subscriptions.push(sub);
@@ -223,6 +250,10 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     return this.registeredEventIds.has(String(ev._id || ev.id));
   }
 
+  isPending(ev: any): boolean {
+    return this.pendingRegistrationIds.has(String(ev._id || ev.id));
+  }
+
   isFull(ev: any): boolean {
     if (!ev.maxParticipants) return false;
     return (ev.currentParticipants || 0) >= ev.maxParticipants;
@@ -240,17 +271,19 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
   getDashboardStats() {
     return {
-      registered: this.registeredEvents.length,
-      upcoming: this.registeredEvents.filter((e: any) => e.status === 'upcoming').length,
-      completed: this.registeredEvents.filter((e: any) => e.status === 'completed').length
+      registered: this.approvedRegistrations.length,
+      pending: this.pendingRegistrations.length,
+      upcoming: this.approvedRegistrations.filter((e: any) => e.event?.status === 'upcoming').length,
+      completed: this.approvedRegistrations.filter((e: any) => e.event?.status === 'completed').length
     };
   }
 
   getTrendingEvents() { return this.events.slice(0, 4); }
 
   getUpcomingSchedule() {
-    return this.registeredEvents
-      .filter((e: any) => e.status === 'upcoming')
+    return this.approvedRegistrations
+      .filter((reg: any) => reg.event?.status === 'upcoming')
+      .map((reg: any) => reg.event)
       .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
   }
 
@@ -273,13 +306,21 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     this.registering = true;
 
     const sub = this.eventService.registerForEvent(id).subscribe({
-      next: () => {
-        this.registeredEventIds.add(String(id));
+      next: (response: any) => {
+        console.log('✅ Registration response:', response);
         this.registering = false;
         this.loadMyRegistrations();
         this.closeEventModal();
+        
+        // Show appropriate message based on response
+        if (response.status === 'pending') {
+          alert('Registration submitted! Waiting for admin approval.');
+        } else {
+          alert('Successfully registered for event!');
+        }
       },
       error: (err: any) => {
+        console.error('❌ Registration error:', err);
         this.errorMessage = err?.error?.message || 'Registration failed.';
         this.registering = false;
       }
@@ -292,8 +333,11 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     const sub = this.eventService.unregisterFromEvent(id).subscribe({
       next: () => {
         this.registeredEventIds.delete(String(id));
+        this.pendingRegistrationIds.delete(String(id));
         this.registeredEvents = this.registeredEvents.filter(e => e !== ev);
         this.loadEvents();
+        this.loadMyRegistrations();
+        alert('Registration cancelled successfully');
       },
       error: (err: any) => {
         this.errorMessage = err?.error?.message || 'Could not cancel registration.';

@@ -28,6 +28,7 @@ export interface Event {
 @Injectable({ providedIn: 'root' })
 export class EventService {
   private apiUrl = 'http://localhost:5000/api/events';
+  private registrationUrl = 'http://localhost:5000/api/registrations';
 
   constructor(private http: HttpClient) {}
 
@@ -50,7 +51,6 @@ export class EventService {
     return this.http.get<Event>(`${this.apiUrl}/${id}`);
   }
 
-  // Pass FormData when uploading an image, plain object otherwise
   createEvent(data: FormData | any): Observable<any> {
     return this.http.post(this.apiUrl, data);
   }
@@ -63,20 +63,23 @@ export class EventService {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }
 
+  // ✅ FIXED: Use registrationUrl instead of apiUrl
   registerForEvent(id: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${id}/register`, {});
+    return this.http.post(`${this.registrationUrl}/${id}/register`, {});
   }
 
+  // ✅ FIXED: Use registrationUrl
   unregisterFromEvent(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/${id}/unregister`);
+    return this.http.delete(`${this.registrationUrl}/${id}`);
   }
 
   getEventRegistrations(id: string): Observable<any> {
     return this.http.get(`${this.apiUrl}/${id}/registrations`);
   }
 
+  // ✅ FIXED: Use registrationUrl
   getMyRegistrations(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/my/registrations`);
+    return this.http.get(`${this.registrationUrl}/my/registrations`);
   }
 
   submitFeedback(id: string, data: { rating: number; comment: string }): Observable<any> {

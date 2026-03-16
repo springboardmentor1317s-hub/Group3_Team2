@@ -23,7 +23,7 @@
       </button>
       <button class="nav-item" [class.active]="currentView()==='registered'" (click)="setView('registered');closeMobileSidebar()">
         <span class="nav-icon">✅</span><span class="nav-label">My Events</span>
-        <span class="badge warning">{{ registeredEvents.length }}</span>
+        <span class="badge warning">{{ approvedRegistrations.length + pendingRegistrations.length }}</span>
       </button>
       <button class="nav-item" [class.active]="currentView()==='schedule'" (click)="setView('schedule');closeMobileSidebar()">
         <span class="nav-icon">📅</span><span class="nav-label">Schedule</span>
@@ -212,6 +212,8 @@
                 </div>
                 @if (isRegistered(ev)) {
                 <button class="btn-primary" style="font-size:11px;padding:5px 12px;" disabled>✓ Registered</button>
+                } @else if (isPending(ev)) {
+                <button class="btn-warning" style="font-size:11px;padding:5px 12px;background:#f39c12;color:white;" disabled>⏳ Pending</button>
                 } @else if (isFull(ev)) {
                 <button class="btn-secondary" style="font-size:11px;padding:5px 12px;" disabled>Full</button>
                 } @else {
@@ -230,37 +232,93 @@
       </div>
       }
 
-      <!-- ══ MY REGISTERED EVENTS ══ -->
+      <!-- ══ MY REGISTERED EVENTS ══ (UPDATED WITH APPROVAL WORKFLOW) -->
       @if (currentView() === 'registered') {
       <div class="registered-view">
         <h1>My Events ✅</h1>
-        <div class="events-grid">
-          @for (ev of registeredEvents; track ev._id) {
-          <div class="event-card registered">
-            <div class="event-status" [ngClass]="ev.status">{{ ev.status?.toUpperCase() }}</div>
-            <div class="event-image-minimal" style="height:130px" (click)="openEventModal(ev)">
-              <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="ev.title">
-            </div>
-            <div class="event-details">
-              <h3>{{ ev.title }}</h3>
-              <p class="event-venue">📍 {{ ev.venue }}</p>
-              <p class="event-organizer">🏛️ {{ ev.organizer }}</p>
-              <p class="event-datetime">📅 {{ formatDateTime(ev.startDate) }}</p>
-              <div class="event-actions">
-                <button class="btn-primary" (click)="openEventModal(ev)">View Details</button>
-                @if (ev.status === 'upcoming') {
-                <button class="btn-danger" (click)="cancelRegistration(ev)">Cancel</button>
-                }
+        
+        <!-- Stats Cards -->
+        <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+          <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; flex: 1; text-align: center;">
+            <div style="font-size: 28px; font-weight: bold; color: #2e7d32;">{{ approvedRegistrations.length }}</div>
+            <div style="color: #2e7d32;">✅ Approved</div>
+          </div>
+          <div style="background: #fff3e0; padding: 15px; border-radius: 8px; flex: 1; text-align: center;">
+            <div style="font-size: 28px; font-weight: bold; color: #f57c00;">{{ pendingRegistrations.length }}</div>
+            <div style="color: #f57c00;">⏳ Pending</div>
+          </div>
+        </div>
+        
+        <!-- Pending Registrations Section -->
+        @if (pendingRegistrations.length > 0) {
+        <div style="margin-bottom: 30px;">
+          <h3 style="color: #f57c00; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+            <span>⏳</span> Pending Approval
+          </h3>
+          <div class="events-grid">
+            @for (reg of pendingRegistrations; track reg._id) {
+            <div class="event-card pending" style="border-left: 4px solid #f57c00;">
+              <div style="background: #fff3e0; color: #f57c00; padding: 4px 8px; font-size: 12px; font-weight: bold; text-align: center;">
+                ⏳ AWAITING APPROVAL
+              </div>
+              <div class="event-image-minimal" style="height:130px">
+                <img [src]="reg.event?.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="reg.event?.title">
+              </div>
+              <div class="event-details">
+                <h3>{{ reg.event?.title || 'Event' }}</h3>
+                <p class="event-venue">📍 {{ reg.event?.venue || 'TBA' }}</p>
+                <p class="event-organizer">🏛️ {{ reg.event?.organizer || 'Organizer' }}</p>
+                <p class="event-datetime">📅 {{ formatDateTime(reg.event?.startDate) }}</p>
+                <div class="event-actions">
+                  <button class="btn-secondary" style="background:#f39c12;color:white;" disabled>⏳ Pending Approval</button>
+                </div>
               </div>
             </div>
+            }
           </div>
-          } @empty {
-          <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted);">
-            <div style="font-size:50px;margin-bottom:12px;">📭</div>
-            <p>No registered events yet. <button class="view-all" (click)="setView('events')">Browse events →</button></p>
-          </div>
-          }
         </div>
+        }
+        
+        <!-- Approved Registrations Section -->
+        @if (approvedRegistrations.length > 0) {
+        <div>
+          <h3 style="color: #2e7d32; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+            <span>✅</span> Approved Events
+          </h3>
+          <div class="events-grid">
+            @for (reg of approvedRegistrations; track reg._id) {
+            <div class="event-card approved" style="border-left: 4px solid #2e7d32;">
+              <div style="background: #e8f5e9; color: #2e7d32; padding: 4px 8px; font-size: 12px; font-weight: bold; text-align: center;">
+                ✅ APPROVED
+              </div>
+              <div class="event-image-minimal" style="height:130px" (click)="openEventModal(reg.event)">
+                <img [src]="reg.event?.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="reg.event?.title">
+              </div>
+              <div class="event-details">
+                <h3>{{ reg.event?.title }}</h3>
+                <p class="event-venue">📍 {{ reg.event?.venue }}</p>
+                <p class="event-organizer">🏛️ {{ reg.event?.organizer }}</p>
+                <p class="event-datetime">📅 {{ formatDateTime(reg.event?.startDate) }}</p>
+                <div class="event-actions">
+                  <button class="btn-primary" (click)="openEventModal(reg.event)">View Details</button>
+                  @if (reg.event?.status === 'upcoming') {
+                  <button class="btn-danger" (click)="cancelRegistration(reg)">Cancel</button>
+                  }
+                </div>
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+        }
+        
+        <!-- Empty State -->
+        @if (registeredEvents.length === 0) {
+        <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted);">
+          <div style="font-size:50px;margin-bottom:12px;">📭</div>
+          <p>No registrations yet. <button class="view-all" (click)="setView('events')">Browse events →</button></p>
+        </div>
+        }
       </div>
       }
 
@@ -414,7 +472,7 @@
   </div><!-- /main -->
 </div><!-- /dashboard -->
 
-<!-- ══ EVENT DETAIL MODAL ══ (BUG FIX #3: Full event details, not just ID) -->
+<!-- ══ EVENT DETAIL MODAL ══ -->
 @if (showEventModal && selectedEvent) {
 <div class="modal-backdrop" (click)="closeEventModal()">
   <div class="modal-content-lg" (click)="$event.stopPropagation()">
@@ -511,6 +569,8 @@
         @if (isRegistered(selectedEvent)) {
         <button class="btn-rounded-success" disabled>✓ Registered</button>
         <button class="btn-danger" style="border-radius:24px;padding:11px 20px;" (click)="cancelFromModal()">Cancel</button>
+        } @else if (isPending(selectedEvent)) {
+        <button class="btn-rounded-warning" style="background:#f39c12;color:white;border-radius:24px;padding:11px 20px;" disabled>⏳ Pending Approval</button>
         } @else if (isFull(selectedEvent)) {
         <button class="btn-rounded-disabled" disabled>Event Full</button>
         } @else if (selectedEvent.status === 'completed' || selectedEvent.status === 'cancelled') {

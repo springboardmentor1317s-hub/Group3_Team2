@@ -1,265 +1,207 @@
-const express = require('express');
-const router = express.Router();
-const Event = require('../models/Event');
-const jwt = require('jsonwebtoken');
+const express  = require('express');
+const router   = express.Router();
+const Event    = require('../models/Event');
+const User     = require('../models/User');
+const jwt      = require('jsonwebtoken');
+const upload   = require('../middleware/upload');
 
-// Middleware to verify token
+const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&q=80';
+
+// ─── Auth Middleware ──────────────────────────────────────────────────────────
 const authMiddleware = (req, res, next) => {
   const token = req.header('Authorization')?.replace('Bearer ', '');
-  
-  if (!token) {
-    return res.status(401).json({ message: 'No token provided' });
-  }
-  
+  if (!token) return res.status(401).json({ message: 'No token provided' });
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'my-temporary-secret-key');
-    req.userId = decoded.id;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey123');
+    req.userId   = decoded.id;
     req.userRole = decoded.role;
     next();
-  } catch (error) {
+  } catch (err) {
     res.status(401).json({ message: 'Invalid token' });
   }
 };
 
-// ========== PUBLIC ROUTES ==========
+const adminMiddleware = (req, res, next) => {
+  if (req.userRole !== 'college-admin' && req.userRole !== 'superadmin')
+    return res.status(403).json({ message: 'Not authorized' });
+  next();
+};
 
-// GET all events (public)
-router.get('/', async (req, res) => {
+// ─── TEST ─────────────────────────────────────────────────────────────────────
+router.get('/test', (_req, res) => res.json({ message: 'Events API working!' }));
+
+// ─── STATS ────────────────────────────────────────────────────────────────────
+router.get('/stats', authMiddleware, async (req, res) => {
   try {
-    const events = await Event.find().sort({ startDate: 1 });
-    res.json(events);
-  } catch (error) {
-    console.error('Error fetching events:', error);
-    res.status(500).json({ message: 'Error fetching events' });
-  }
+    const [totalEvents, upcomingEvents, totalAdmins, totalStudents] = await Promise.all([
+      Event.countDocuments(),
+      Event.countDocuments({ status: 'upcoming' }),
+      User.countDocuments({ role: 'college-admin' }),
+      User.countDocuments({ role: 'student' })
+    ]);
+    res.json({ totalEvents, upcomingEvents, totalAdmins, totalStudents });
+  } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
-// GET single event
+// ─── GET ALL EVENTS ───────────────────────────────────────────────────────────
+router.get('/', async (req, res) => {
+  try {
+    const { startDate, endDate, status, type, category, organizer } = req.query;
+    let query = {};
+    if (status   && status   !== 'all') query.status   = status;
+    if (type     && type     !== 'all') query.type     = { $regex: '^' + type     + '$', $options: 'i' };
+    if (category && category !== 'all') query.category = { $regex: '^' + category + '$', $options: 'i' };
+    if (organizer) query.organizer = { $regex: organizer, $options: 'i' };
+    if (startDate || endDate) {
+      query.startDate = {};
+      if (startDate) query.startDate.$gte = new Date(startDate);
+      // endDate: go to end of that day (23:59:59)
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.startDate.$lte = end;
+      }
+    }
+    const events = await Event.find(query).sort({ startDate: 1 });
+    res.json(events);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+// GET MY REGISTRATIONS moved to registrationRoutes.js
+
+// ─── GET SINGLE EVENT ─────────────────────────────────────────────────────────
 router.get('/:id', async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
+    if (!event) return res.status(404).json({ message: 'Event not found' });
     res.json(event);
-  } catch (error) {
-    console.error('Error fetching event:', error);
-    res.status(500).json({ message: 'Error fetching event' });
-  }
+  } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
-// ========== PROTECTED ROUTES ==========
+// ─── CREATE EVENT (with optional image upload) ────────────────────────────────
+router.post(
+  '/',
+  authMiddleware,
+  adminMiddleware,
+  upload.single('image'),          // field name must be "image" in FormData
+  async (req, res) => {
+    try {
+      const required = [
+        'title', 'description', 'type', 'category', 'venue',
+        'startDate', 'endDate', 'registrationDeadline',
+        'maxParticipants', 'organizer', 'contactEmail'
+      ];
+      for (const f of required) {
+        if (!req.body[f]) return res.status(400).json({ message: `Missing field: ${f}` });
+      }
 
-// POST create event (admin only)
-router.post('/', authMiddleware, async (req, res) => {
-  try {
-    // Check if user is admin
-    if (req.userRole !== 'college-admin' && req.userRole !== 'superadmin') {
-      return res.status(403).json({ message: 'Not authorized to create events' });
-    }
-    
-    const eventData = {
-      ...req.body,
-      createdBy: req.userId,
-      isPaid: req.body.registrationFee > 0,
-      currentParticipants: 0,
-      registeredUsers: []
-    };
-    
-    const event = new Event(eventData);
-    await event.save();
-    
-    res.status(201).json({
-      message: 'Event created successfully',
-      event
-    });
-    
-  } catch (error) {
-    console.error('Error creating event:', error);
-    res.status(500).json({ message: 'Error creating event' });
+      // Resolve image URL: uploaded file → existing URL → default
+      let imageUrl = DEFAULT_IMAGE;
+      if (req.file) {
+        imageUrl = `/uploads/${req.file.filename}`;
+      } else if (req.body.imageUrl && req.body.imageUrl.trim()) {
+        imageUrl = req.body.imageUrl.trim();
+      }
+
+      const event = new Event({
+        ...req.body,
+        imageUrl,
+        createdBy:          req.userId,
+        isPaid:             Number(req.body.registrationFee) > 0,
+        currentParticipants: 0,
+        status:             'upcoming'
+      });
+      const saved = await event.save();
+      res.status(201).json({ message: 'Event created successfully', event: saved });
+    } catch (err) { res.status(500).json({ message: err.message }); }
   }
-});
+);
 
-// PUT update event (admin only)
-router.put('/:id', authMiddleware, async (req, res) => {
+// ─── UPDATE EVENT (with optional image upload) ────────────────────────────────
+router.put(
+  '/:id',
+  authMiddleware,
+  adminMiddleware,
+  upload.single('image'),
+  async (req, res) => {
+    try {
+      const event = await Event.findById(req.params.id);
+      if (!event) return res.status(404).json({ message: 'Event not found' });
+
+      if (String(event.createdBy) !== String(req.userId)) {
+        return res.status(403).json({ message: 'You can only edit your own events' });
+      }
+
+      const allowed = [
+        'title', 'description', 'type', 'category', 'venue', 'startDate', 'endDate',
+        'registrationDeadline', 'maxParticipants', 'registrationFee',
+        'organizer', 'contactEmail', 'status'
+      ];
+      const updates = {};
+      allowed.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+      if (updates.registrationFee !== undefined) updates.isPaid = Number(updates.registrationFee) > 0;
+
+      // Resolve image: new upload > sent URL > keep existing
+      if (req.file) {
+        updates.imageUrl = `/uploads/${req.file.filename}`;
+      } else if (req.body.imageUrl && req.body.imageUrl.trim()) {
+        updates.imageUrl = req.body.imageUrl.trim();
+      }
+
+      const updated = await Event.findByIdAndUpdate(req.params.id, updates, { new: true });
+      res.json({ message: 'Event updated successfully', event: updated });
+    } catch (err) { res.status(500).json({ message: err.message }); }
+  }
+);
+
+// ─── DELETE EVENT ─────────────────────────────────────────────────────────────
+router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
-    
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+    if (String(event.createdBy) !== String(req.userId)) {
+      return res.status(403).json({ message: 'You can only delete your own events' });
     }
-    
-    // Check if user created this event or is superadmin
-    if (event.createdBy.toString() !== req.userId && req.userRole !== 'superadmin') {
-      return res.status(403).json({ message: 'Not authorized to update this event' });
-    }
-    
-    const updatedEvent = await Event.findByIdAndUpdate(
-      req.params.id,
-      { ...req.body, isPaid: req.body.registrationFee > 0 },
-      { new: true }
-    );
-    
-    res.json({
-      message: 'Event updated successfully',
-      event: updatedEvent
-    });
-    
-  } catch (error) {
-    console.error('Error updating event:', error);
-    res.status(500).json({ message: 'Error updating event' });
-  }
-});
-
-// DELETE event (admin only)
-router.delete('/:id', authMiddleware, async (req, res) => {
-  try {
-    const event = await Event.findById(req.params.id);
-    
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-    
-    // Only creator or superadmin can delete
-    if (event.createdBy.toString() !== req.userId && req.userRole !== 'superadmin') {
-      return res.status(403).json({ message: 'Not authorized to delete this event' });
-    }
-    
     await Event.findByIdAndDelete(req.params.id);
-    
     res.json({ message: 'Event deleted successfully' });
-    
-  } catch (error) {
-    console.error('Error deleting event:', error);
-    res.status(500).json({ message: 'Error deleting event' });
-  }
+  } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
-// ========== REGISTRATION ROUTES ==========
+// REGISTER/UNREGISTER moved to registrationRoutes.js
 
-// POST register for event (students only)
-router.post('/:id/register', authMiddleware, async (req, res) => {
+// ─── GET REGISTRATIONS FOR AN EVENT ──────────────────────────────────────────
+router.get('/:id/registrations', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    console.log('📝 Register request for event:', req.params.id);
-    console.log('User:', req.userId, 'Role:', req.userRole);
-    
-    if (req.userRole !== 'student') {
-      return res.status(403).json({ message: 'Only students can register for events' });
-    }
-    
-    const event = await Event.findById(req.params.id);
-    
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-    
-    // Check if already registered
-    if (event.registeredUsers.includes(req.userId)) {
-      return res.status(400).json({ message: 'Already registered for this event' });
-    }
-    
-    // Check if event is full
-    if (event.currentParticipants >= event.maxParticipants) {
-      return res.status(400).json({ message: 'Event is full' });
-    }
-    
-    // Check if registration deadline passed
-    if (new Date() > new Date(event.registrationDeadline)) {
-      return res.status(400).json({ message: 'Registration deadline has passed' });
-    }
-    
-    // Add user to registered users
-    event.registeredUsers.push(req.userId);
-    event.currentParticipants += 1;
-    await event.save();
-    
-    console.log('✅ Registration successful for event:', event.title);
-    
-    res.json({ 
-      message: 'Successfully registered for event', 
-      event: {
-        _id: event._id,
-        title: event.title,
-        currentParticipants: event.currentParticipants
-      }
+    const event = await Event.findById(req.params.id).populate('registeredUsers', 'fullName email college');
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+    if (req.userRole !== 'superadmin' && String(event.createdBy) !== String(req.userId))
+      return res.status(403).json({ message: 'Not authorized' });
+    res.json({
+      event:         { title: event.title, status: event.status },
+      registrations: event.registeredUsers,
+      total:         event.currentParticipants
     });
-    
-  } catch (error) {
-    console.error('❌ Error registering for event:', error);
-    res.status(500).json({ message: error.message });
-  }
+  } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
-// POST unregister from event (students only)
-router.post('/:id/unregister', authMiddleware, async (req, res) => {
+// ─── SUBMIT FEEDBACK ──────────────────────────────────────────────────────────
+router.post('/:id/feedback', authMiddleware, async (req, res) => {
   try {
-    console.log('🗑️ Unregister request for event:', req.params.id);
-    console.log('User:', req.userId, 'Role:', req.userRole);
-    
-    if (req.userRole !== 'student') {
-      return res.status(403).json({ message: 'Only students can unregister from events' });
-    }
-    
+    const { rating, comment } = req.body;
+    if (!rating || rating < 1 || rating > 5)
+      return res.status(400).json({ message: 'Rating must be 1–5' });
     const event = await Event.findById(req.params.id);
-    
-    if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-    
-    // Check if user is registered
-    if (!event.registeredUsers.includes(req.userId)) {
-      return res.status(400).json({ message: 'You are not registered for this event' });
-    }
-    
-    // Check if event has already started
-    if (new Date() > new Date(event.startDate)) {
-      return res.status(400).json({ message: 'Cannot cancel registration after event has started' });
-    }
-    
-    // Remove user from registered users
-    event.registeredUsers = event.registeredUsers.filter(
-      id => id.toString() !== req.userId.toString()
-    );
-    
-    // Decrease participant count (ensure it doesn't go below 0)
-    event.currentParticipants = Math.max(0, event.currentParticipants - 1);
-    
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+    if (event.status !== 'completed')
+      return res.status(400).json({ message: 'Feedback only for completed events' });
+    if (!event.registeredUsers.map(String).includes(String(req.userId)))
+      return res.status(403).json({ message: 'Only registered users can submit feedback' });
+    if (event.feedback.find(f => String(f.userId) === String(req.userId)))
+      return res.status(400).json({ message: 'Feedback already submitted' });
+    event.feedback.push({ userId: req.userId, rating, comment });
     await event.save();
-    
-    console.log('✅ Unregistration successful for event:', event.title);
-    
-    res.json({ 
-      message: 'Successfully unregistered from event',
-      event: {
-        _id: event._id,
-        title: event.title,
-        currentParticipants: event.currentParticipants
-      }
-    });
-    
-  } catch (error) {
-    console.error('❌ Error unregistering from event:', error);
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// GET user's registered events (students only)
-router.get('/user/registrations', authMiddleware, async (req, res) => {
-  try {
-    if (req.userRole !== 'student') {
-      return res.status(403).json({ message: 'Only students can view their registrations' });
-    }
-    
-    const events = await Event.find({ 
-      registeredUsers: req.userId 
-    }).sort({ startDate: 1 });
-    
-    res.json(events);
-    
-  } catch (error) {
-    console.error('Error fetching user registrations:', error);
-    res.status(500).json({ message: error.message });
-  }
+    res.json({ message: 'Feedback submitted successfully' });
+  } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
 module.exports = router;
