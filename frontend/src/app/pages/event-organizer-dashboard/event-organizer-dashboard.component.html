@@ -1,486 +1,767 @@
-<div class="dashboard">
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="logo">
-      <h2>📋 Campus Event Hub</h2>
-      <p>College Admin</p>
+<div class="dash-layout">
+  <!-- ─── Sidebar ─────────────────────────────────────────────────────── -->
+  <aside class="dash-sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🎓</div>
+      <div class="brand-text">
+        <span class="brand-name">CampusEventHub</span>
+        <span class="brand-role">College Admin</span>
+      </div>
     </div>
-    <nav class="nav-menu">
-      <button class="nav-item" [class.active]="currentView() === 'overview'" (click)="setView('overview')">
-        <span class="icon">📊</span>
-        <span>Overview</span>
+
+    <div class="sidebar-user" (click)="openProfileModal()" style="cursor:pointer" title="View profile">
+      <div class="user-avatar">{{ (authService.getFullName() || 'A').charAt(0) }}</div>
+      <div class="user-info">
+        <div class="user-name">{{ authService.getFullName() || 'Admin' }}</div>
+        <div class="user-email">{{ authService.getEmail() }}</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item" [class.active]="currentView()==='overview'" (click)="setView('overview')">
+        <span class="nav-icon">📊</span><span class="nav-label">Overview</span>
       </button>
-      <button class="nav-item" [class.active]="currentView() === 'events'" (click)="setView('events')">
-        <span class="icon">📅</span>
-        <span>Events</span>
+      <button class="nav-item" [class.active]="currentView()==='events'" (click)="setView('events')">
+        <span class="nav-icon">📅</span><span class="nav-label">Events</span>
+        <span class="nav-count" >{{ totalEvents }}</span>
       </button>
-      <button class="nav-item" [class.active]="currentView() === 'registrations'" (click)="setView('registrations')">
-        <span class="icon">👥</span>
-        <span>Registrations</span>
-      </button>
-      <button class="nav-item" [class.active]="currentView() === 'payments'" (click)="setView('payments')">
-        <span class="icon">💰</span>
-        <span>Payments</span>
-      </button>
-      <button class="nav-item" [class.active]="currentView() === 'reports'" (click)="setView('reports')">
-        <span class="icon">📊</span>
-        <span>Reports</span>
-      </button>
-      <button class="nav-item" [class.active]="currentView() === 'settings'" (click)="setView('settings')">
-        <span class="icon">⚙️</span>
-        <span>Settings</span>
+      <button class="nav-item" [class.active]="currentView()==='reports'" (click)="setView('reports')">
+        <span class="nav-icon">📈</span><span class="nav-label">Reports</span>
       </button>
     </nav>
+
+    <button class="sidebar-logout" (click)="logout()">
+      <span>🚪</span> Logout
+    </button>
   </aside>
 
-  <!-- Main Content -->
-  <main class="main-content">
-    <!-- Header -->
-    <header class="header">
-      <div class="header-title">
-        <h1>College Admin Dashboard</h1>
-        <p>Manage your events and registrations</p>
+  <!-- ─── Main Content ──────────────────────────────────────────────────── -->
+  <main class="dash-main">
+
+    <!-- ─── Top Bar ────────────────────────────────────────────────────── -->
+    <header class="dash-topbar">
+      <div class="topbar-title">
+        @if (currentView() === 'overview') { <h1>Event Organizer Dashboard</h1><p>Manage your events and track performance</p> }
+        @if (currentView() === 'events')   { <h1>All Events</h1><p>Create, edit and manage your events</p> }
+        @if (currentView() === 'reports')  { <h1>Reports</h1><p>Export and analyse event data</p> }
       </div>
-      <div class="header-actions">
-        <div class="search-box">
-          <input type="text" placeholder="Search events..." #eventSearch (keyup)="onEventSearch($event)">
+      <div class="topbar-actions">
+        <div class="notif-bell-wrap">
+          <button class="notif-bell-btn" (click)="toggleNotifDropdown()">
+            🔔
+            @if (unreadNotifCount > 0) { <span class="notif-count-badge">{{ unreadNotifCount }}</span> }
+          </button>
+          @if (showNotifDropdown) {
+          <div class="notif-dropdown" (click)="$event.stopPropagation()">
+            <div class="notif-dropdown-header">
+              <span>Notifications</span>
+              <button class="btn-mark-all" (click)="markAllNotifsRead()">Mark all read</button>
+            </div>
+            @if (adminNotifications.length === 0) {
+              <div class="notif-empty">No notifications yet</div>
+            }
+            @for (n of adminNotifications.slice(0,8); track n._id) {
+            <div class="notif-item" [class.unread]="!n.read" (click)="markNotifRead(n); closeNotifDropdown()">
+              <span class="notif-item-icon">{{ getNotifIcon(n.type) }}</span>
+              <div class="notif-item-text">
+                <div class="notif-item-title">{{ n.title }}</div>
+                <div class="notif-item-msg">{{ n.message }}</div>
+              </div>
+              <button class="notif-del" (click)="$event.stopPropagation(); deleteNotif(n)">✕</button>
+            </div>
+            }
+          </div>
+          }
         </div>
-        <button class="btn-logout" (click)="logout()">Logout</button>
-        <div class="admin-profile">
-          <span class="avatar">👤</span>
-        </div>
+        <div class="admin-avatar-btn" (click)="openProfileModal()" title="View profile">{{ getInitial() }}</div>
+        <button class="btn btn-primary" (click)="openCreate()">+ Create Event</button>
       </div>
     </header>
 
-    <!-- Content Area based on current view -->
-    <div class="content-area">
-      <!-- Overview View -->
-      @if (currentView() === 'overview') {
-      <div class="overview-view">
-        <!-- Stats Cards -->
-        <div class="stats-grid cards">
-          <div class="stat-card events">
-            <div class="stat-icon">📅</div>
-            <div class="stat-details">
-              <h3>{{ totalEvents }}</h3>
-              <p>Total Events</p>
-            </div>
-          </div>
-          <div class="stat-card active-events">
-            <div class="stat-icon">⏳</div>
-            <div class="stat-details">
-              <h3>{{ activeEvents }}</h3>
-              <p>Active Events</p>
-            </div>
-          </div>
-          <div class="stat-card registrations">
-            <div class="stat-icon">👥</div>
-            <div class="stat-details">
-              <h3>{{ totalRegistrations }}</h3>
-              <p>Registrations</p>
-            </div>
-          </div>
-          <div class="stat-card avg-participants">
-            <div class="stat-icon">📊</div>
-            <div class="stat-details">
-              <h3>{{ averageParticipants }}</h3>
-              <p>Avg Participants</p>
-            </div>
-          </div>
-        </div>
+    <!-- ─── OVERVIEW ────────────────────────────────────────────────────── -->
+    @if (currentView() === 'overview') {
+    <div class="view-content animate-in">
 
-        <!-- Recent Events Table -->
-        <div class="events-section">
-          <div class="section-header">
-            <h2>Recent Events</h2>
-            <button class="btn-primary" (click)="openCreateEventModal()">+ Create Event</button>
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon-box icon-indigo">📅</div>
+          <div class="stat-number">{{ totalEvents }}</div>
+          <div class="stat-label">Total Events</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-box icon-teal">🟢</div>
+          <div class="stat-number">{{ activeEvents }}</div>
+          <div class="stat-label">Active Events</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-box icon-amber">👥</div>
+          <div class="stat-number">{{ totalRegistrations }}</div>
+          <div class="stat-label">Total Registrations</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-box icon-violet">📊</div>
+          <div class="stat-number">{{ avgParticipants }}</div>
+          <div class="stat-label">Avg Participants</div>
+        </div>
+      </div>
+
+      <!-- Recent Events Table -->
+      <div class="section-card">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">Upcoming Events</h2>
+            <p class="section-subtitle">Recent List of {{ filteredEvents.length > 5 ? 5 : filteredEvents.length }} events</p>
           </div>
-          <table class="events-table">
+          <button class="btn btn-secondary btn-sm" (click)="setView('events')">View All →</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
             <thead>
               <tr>
-                <th>Image</th>
-                <th>Event Name</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th>Registrations</th>
-                <th>Capacity</th>
-                <th>Actions</th>
+                <th>Event</th><th>Date</th><th>Venue</th>
+                <th>Participants</th><th>Status</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let event of filteredEvents | slice:0:5">
+              @for (ev of filteredEvents.slice(0,5); track ev._id) {
+              <tr>
                 <td>
-                  <img [src]="event.imageUrl || 'assets/default-event.jpg'" alt="Event"
-                    style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                  <div class="event-cell">
+                    <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=60&q=70'" class="event-thumb" alt="">
+                    <div>
+                      <div class="event-cell-title">{{ ev.title }}</div>
+                      <div class="event-cell-sub">{{ ev.type | titlecase }} · {{ ev.category }}</div>
+                    </div>
+                  </div>
                 </td>
-                <td>{{ event.name }}</td>
-                <td>{{ getFormattedDate(event.date) }}</td>
-                <td><span class="status-badge" [ngClass]="getStatusClass(event.status)">{{ event.status }}</span></td>
-                <td>{{ event.registrations }}/{{ event.capacity }}</td>
-                <td>{{ event.registrations }} / {{ event.capacity }}</td>
-                <td class="actions">
-                  <button class="btn-icon" (click)="viewEventDetails(event.id)" title="View">👁️</button>
-                  <button *ngIf="event.status === 'completed'" class="btn-icon" (click)="openFeedbackModal(event)"
-                    title="Feedback">⭐</button>
-                  <button class="btn-icon" (click)="duplicateEvent(event.id)" title="Duplicate">📋</button>
-                  <button class="btn-icon" (click)="cancelEvent(event.id)" title="Cancel">❌</button>
+                <td>{{ formatDate(ev.startDate) }}</td>
+                <td>{{ ev.venue }}</td>
+                <td>
+                  <div class="progress-wrap">
+                    <span>{{ ev.currentParticipants }}/{{ ev.maxParticipants }}</span>
+                    <div class="progress-bar"><div class="progress-fill" [style.width.%]="(ev.currentParticipants/ev.maxParticipants)*100"></div></div>
+                  </div>
+                </td>
+                <td><span class="badge" [ngClass]="getStatusClass(ev.status)">{{ ev.status }}</span></td>
+                <td class="actions-cell">
+                  <button class="icon-btn" title="Edit" (click)="openEdit(ev)">✏️</button>
+                  <button class="icon-btn" title="Participants" (click)="openParticipants(ev)">👥</button>
+                  @if (ev.status==='completed') {
+                  <button class="icon-btn" title="Feedback" (click)="openFeedback(ev)">⭐</button>
+                  }
+                  @if (ev.status!=='cancelled') {
+                  <button class="icon-btn danger" title="Cancel" (click)="cancelEvent(ev)">🚫</button>
+                  }
                 </td>
               </tr>
+              } @empty {
+              <tr><td colspan="6">
+                <div class="empty-state"><div class="empty-icon">📭</div><p>No events yet. Create your first event!</p>
+                <button class="btn btn-primary btn-sm" (click)="openCreate()">+ Create Event</button></div>
+              </td></tr>
+              }
             </tbody>
           </table>
         </div>
+      </div>
 
-        <!-- Quick Actions -->
-        <div class="quick-actions">
-          <div class="action-card" (click)="viewAllRegistrations()">
-            <span class="action-icon">👥</span>
-            <span class="action-label">View All Registrations</span>
-          </div>
-          <div class="action-card" (click)="openExportModal()">
-            <span class="action-icon">📤</span>
-            <span class="action-label">Export Data</span>
-          </div>
-          <div class="action-card" (click)="sendAnnouncements()">
-            <span class="action-icon">📢</span>
-            <span class="action-label">Send Announcements</span>
-          </div>
-          <div class="action-card" (click)="manageTickets()">
-            <span class="action-icon">🎟️</span>
-            <span class="action-label">Manage Tickets</span>
-          </div>
-          <div class="action-card" (click)="teamSettings()">
-            <span class="action-icon">⚙️</span>
-            <span class="action-label">Team Settings</span>
-          </div>
+      <!-- Quick Actions -->
+      <div class="quick-actions-grid">
+        <div class="quick-action-card" (click)="setView('events')">
+          <span class="qa-icon">📅</span>
+          <span class="qa-label">Manage Events</span>
+        </div>
+        <div class="quick-action-card" (click)="exportCSV()">
+          <span class="qa-icon">📤</span>
+          <span class="qa-label">Export CSV</span>
+        </div>
+        <div class="quick-action-card" (click)="setView('reports')">
+          <span class="qa-icon">📈</span>
+          <span class="qa-label">View Reports</span>
+        </div>
+        <div class="quick-action-card" (click)="openCreate()">
+          <span class="qa-icon">➕</span>
+          <span class="qa-label">Create New Event</span>
         </div>
       </div>
-      }
+    </div>
+    }
 
-      <!-- Events View -->
-      @if (currentView() === 'events') {
-      <div class="events-view">
-        <div class="section-header">
-          <h2>All Events</h2>
-          <div class="filters">
-            <div class="filter-group" style="display: flex; gap: 10px; align-items: center;">
-              <input type="date" [(ngModel)]="startDateFilter" (change)="onFilterChange()"
-                style="padding: 5px; border-radius: 4px;">
-              <span style="color: white;">to</span>
-              <input type="date" [(ngModel)]="endDateFilter" (change)="onFilterChange()"
-                style="padding: 5px; border-radius: 4px;">
-            </div>
-            <select (change)="onStatusFilterChange($event)">
-              <option *ngFor="let option of statusOptions" [value]="option">{{ option | titlecase }}</option>
-            </select>
-            <button class="btn-primary" (click)="openCreateEventModal()">+ Create Event</button>
-          </div>
+    <!-- ─── EVENTS VIEW ──────────────────────────────────────────────────── -->
+    @if (currentView() === 'events') {
+    <div class="view-content animate-in">
+
+      <!-- Filters Bar -->
+      <div class="filters-bar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search by title, venue, organizer..." [(ngModel)]="eventSearchTerm" (input)="onSearch()">
         </div>
-        <table class="events-table">
+        <select class="form-control filter-select" [(ngModel)]="eventStatusFilter" (change)="onFilterChange()">
+          <option value="all">All Status</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="ongoing">Ongoing</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <select class="form-control filter-select" [(ngModel)]="eventTypeFilter" (change)="onFilterChange()">
+          <option value="all">All Types</option>
+          <option value="technical">Technical</option>
+          <option value="cultural">Cultural</option>
+          <option value="sports">Sports</option>
+          <option value="workshop">Workshop</option>
+          <option value="seminar">Seminar</option>
+        </select>
+        <select class="form-control filter-select" [(ngModel)]="eventCategoryFilter" (change)="onFilterChange()">
+          <option value="all">All Categories</option>
+          <option value="college">College</option>
+          <option value="inter-college">Inter-College</option>
+        </select>
+        <input type="date" class="form-control date-filter" [(ngModel)]="startDateFilter" (change)="onFilterChange()">
+        <span class="filter-sep">to</span>
+        <input type="date" class="form-control date-filter" [(ngModel)]="endDateFilter" (change)="onFilterChange()">
+        <button class="btn btn-secondary btn-sm" (click)="clearFilters()" title="Clear all filters">✕ Clear</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
           <thead>
             <tr>
-              <th>Image</th>
-              <th>Event Name</th>
-              <th>Date</th>
-              <th>Status</th>
-              <th>Registrations</th>
-              <th>Capacity</th>
-              <th>Actions</th>
+              <th>Event</th><th>Date</th><th>Venue</th>
+              <th>Participants</th><th>Fee</th><th>Status</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let event of filteredEvents">
+            @for (ev of filteredEvents; track ev._id) {
+            <tr>
               <td>
-                <img [src]="event.imageUrl || 'assets/default-event.jpg'" alt="Event"
-                  style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                <div class="event-cell">
+                  <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=60&q=70'" class="event-thumb" alt="">
+                  <div>
+                    <div class="event-cell-title">{{ ev.title }}</div>
+                    <div class="event-cell-sub">{{ ev.type | titlecase }} · {{ ev.category }}</div>
+                  </div>
+                </div>
               </td>
-              <td>{{ event.name }}</td>
-              <td>{{ getFormattedDate(event.date) }}</td>
-              <td><span class="status-badge" [ngClass]="getStatusClass(event.status)">{{ event.status }}</span></td>
-              <td>{{ event.registrations }}/{{ event.capacity }}</td>
-              <td>{{ event.registrations }} / {{ event.capacity }}</td>
-              <td class="actions">
-                <button class="btn-icon" (click)="viewEventDetails(event.id)" title="View">👁️</button>
-                <button *ngIf="event.status === 'completed'" class="btn-icon" (click)="openFeedbackModal(event)"
-                  title="Feedback">⭐</button>
-                <button class="btn-icon" (click)="duplicateEvent(event.id)" title="Duplicate">📋</button>
-                <button class="btn-icon" (click)="cancelEvent(event.id)" title="Cancel">❌</button>
+              <td>{{ formatDate(ev.startDate) }}</td>
+              <td>{{ ev.venue }}</td>
+              <td>
+                <div class="progress-wrap">
+                  <span>{{ ev.currentParticipants }}/{{ ev.maxParticipants }}</span>
+                  <div class="progress-bar"><div class="progress-fill" [style.width.%]="(ev.currentParticipants/ev.maxParticipants)*100"></div></div>
+                </div>
+              </td>
+              <td>{{ ev.registrationFee > 0 ? '₹' + ev.registrationFee : 'Free' }}</td>
+              <td><span class="badge" [ngClass]="getStatusClass(ev.status)">{{ ev.status }}</span></td>
+              <td class="actions-cell">
+                <button class="icon-btn" title="Edit Event" (click)="openEdit(ev)">✏️</button>
+                <button class="icon-btn" title="View Participants" (click)="openParticipants(ev)">👥</button>
+                @if (ev.status==='completed') {
+                <button class="icon-btn" title="View Feedback" (click)="openFeedback(ev)">⭐</button>
+                }
+                @if (ev.status!=='cancelled') {
+                <button class="icon-btn danger" title="Cancel Event" (click)="cancelEvent(ev)">🚫</button>
+                }
+                <button class="icon-btn danger" title="Delete Event" (click)="deleteEvent(ev)">🗑️</button>
               </td>
             </tr>
+            } @empty {
+            <tr><td colspan="7">
+              <div class="empty-state"><div class="empty-icon">📭</div><p>No events match your filters</p></div>
+            </td></tr>
+            }
           </tbody>
         </table>
       </div>
-      }
-
-      <!-- Registrations View -->
-      @if (currentView() === 'registrations') {
-      <div class="registrations-view">
-        <h2>All Registrations</h2>
-        <div class="filters">
-          <input type="text" placeholder="Search by name, email, event..." #registrationSearch
-            (keyup)="filterRegistrations(registrationSearch.value)">
-          <select #statusFilter (change)="filterRegistrationsByStatus(statusFilter.value)">
-            <option value="all">All Status</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="pending">Pending</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
-        <table class="registrations-table">
-          <thead>
-            <tr>
-              <th>Event</th>
-              <th>Attendee</th>
-              <th>Email</th>
-              <th>Date</th>
-              <th>Ticket Type</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let registration of filteredRegistrations">
-              <td>{{ registration.eventName }}</td>
-              <td>{{ registration.attendeeName }}</td>
-              <td>{{ registration.email }}</td>
-              <td>{{ getFormattedDate(registration.registrationDate) }}</td>
-              <td>{{ registration.ticketType }}</td>
-              <td><span class="status-badge" [ngClass]="getRegistrationStatusClass(registration.status)">{{
-                  registration.status }}</span></td>
-              <td class="actions">
-                <button class="btn-icon" (click)="updateRegistrationStatus(registration.id, 'confirmed')"
-                  title="Confirm">✅</button>
-                <button class="btn-icon" (click)="updateRegistrationStatus(registration.id, 'cancelled')"
-                  title="Cancel">❌</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      }
-
-      <!-- Payments View (placeholder) -->
-      @if (currentView() === 'payments') {
-      <div class="payments-view">
-        <h2>Payments</h2>
-        <p>Payment history and management will appear here.</p>
-      </div>
-      }
-
-      <!-- Reports View (placeholder) -->
-      @if (currentView() === 'reports') {
-      <div class="reports-view">
-        <h2>Reports</h2>
-        <p>Generate and view reports here.</p>
-      </div>
-      }
-
-      <!-- Settings View (placeholder) -->
-      @if (currentView() === 'settings') {
-      <div class="settings-view">
-        <h2>Settings</h2>
-        <p>Configure your dashboard settings here.</p>
-      </div>
-      }
     </div>
+    }
 
-    <!-- Modals (always present) -->
-    <!-- Create Event Modal -->
-    <div class="modal" *ngIf="showCreateEventModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>Create New Event</h2>
-          <button class="close" (click)="closeCreateEventModal()">&times;</button>
+    <!-- ─── REPORTS VIEW ─────────────────────────────────────────────────── -->
+    @if (currentView() === 'reports') {
+    <div class="view-content animate-in">
+      <!-- Summary stats row -->
+      <div class="stats-grid" style="margin-bottom:24px;">
+        <div class="stat-card">
+          <div class="stat-icon-box icon-indigo">📅</div>
+          <div class="stat-number">{{ totalEvents }}</div>
+          <div class="stat-label">Total Events</div>
         </div>
-        <div class="modal-body">
-          <form [formGroup]="createEventForm" (ngSubmit)="createEvent()">
-            <div class="form-group">
-              <label>Event Name</label>
-              <input type="text" formControlName="name" placeholder="Enter event name">
-              <div class="error-message"
-                *ngIf="createEventForm.get('name')?.invalid && createEventForm.get('name')?.touched">
-                Name is required (min 3 characters)
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>End Date & Time</label>
-                <input type="datetime-local" formControlName="endDate">
-              </div>
-              <div class="form-group">
-                <label>Registration Deadline</label>
-                <input type="date" formControlName="registrationDeadline">
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Location</label>
-              <input type="text" formControlName="location" placeholder="Enter venue">
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Event Type</label>
-                <select formControlName="type">
-                  <option *ngFor="let type of typeOptions" [value]="type">{{ type | titlecase }}</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Category</label>
-                <select formControlName="category">
-                  <option *ngFor="let cat of categoryOptions" [value]="cat">{{ cat | titlecase }}</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Capacity</label>
-              <input type="number" formControlName="capacity" min="1">
-            </div>
-            <div class="form-group">
-              <label>Description</label>
-              <textarea formControlName="description" rows="3" placeholder="Event description"></textarea>
-            </div>
-            <div class="form-group">
-              <label>Event Image URL</label>
-              <input type="text" formControlName="imageUrl" placeholder="Paste image link here (Unsplash, etc.)">
-            </div>
-            <div class="form-group">
-              <label>College / Organizer</label>
-              <input type="text" formControlName="organizer" placeholder="Enter college or organizer name">
-            </div>
-            <div class="form-group">
-              <label>Ticket Types (Optional)</label>
-              <div class="ticket-types" formGroupName="ticketTypes">
-                <input type="number" formControlName="regular" placeholder="Regular price">
-                <input type="number" formControlName="vip" placeholder="VIP price">
-                <input type="number" formControlName="earlyBird" placeholder="Early bird price">
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn-secondary" (click)="closeCreateEventModal()">Cancel</button>
-              <button type="submit" class="btn-primary" [disabled]="createEventForm.invalid">Create Event</button>
-            </div>
-          </form>
+        <div class="stat-card">
+          <div class="stat-icon-box icon-teal">👥</div>
+          <div class="stat-number">{{ totalRegistrations }}</div>
+          <div class="stat-label">Total Registrations</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-box icon-amber">🟢</div>
+          <div class="stat-number">{{ activeEvents }}</div>
+          <div class="stat-label">Active Events</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon-box icon-violet">📊</div>
+          <div class="stat-number">{{ avgParticipants }}</div>
+          <div class="stat-label">Avg Participants</div>
         </div>
       </div>
-    </div>
 
-    <!-- Feedback Modal -->
-    <div class="modal" *ngIf="showFeedbackModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>Feedback: {{ selectedEventName }}</h2>
-          <button class="close" (click)="closeFeedbackModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="feedback-stats" style="margin-bottom: 20px; text-align: center;">
-            <div style="font-size: 32px; font-weight: bold; color: #f1c40f;">
-              {{ averageRating | number:'1.1-1' }} ⭐
-            </div>
-            <div style="color: #666;">
-              Based on {{ selectedEventFeedback.length }} review(s)
-            </div>
+      <div class="reports-grid">
+        <!-- Export Events CSV -->
+        <div class="report-card">
+          <div class="report-icon">📋</div>
+          <div class="report-body">
+            <h3>Events Data Export</h3>
+            <p>Download all {{ totalEvents }} events with full details as CSV</p>
           </div>
-
-          <div class="feedback-list" style="max-height: 400px; overflow-y: auto;">
-            <div *ngIf="selectedEventFeedback.length === 0" style="text-align: center; color: #999; padding: 20px;">
-              No feedback has been submitted for this event yet.
-            </div>
-
-            <div *ngFor="let feedback of selectedEventFeedback"
-              style="padding: 15px; border-bottom: 1px solid #eee; margin-bottom: 15px; background: #f9f9f9; border-radius: 8px;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <div style="color: #f1c40f; font-size: 16px;">
-                  <span *ngFor="let star of [1,2,3,4,5]">
-                    {{ star <= feedback.rating ? '★' : '☆' }} </span>
-                </div>
-                <div style="font-size: 12px; color: #999;">
-                  {{ feedback.createdAt | date:'shortDate' }}
-                </div>
-              </div>
-              <p style="margin: 0; font-size: 14px; color: #333; white-space: pre-wrap;">
-                {{ feedback.comment || 'No comment provided.' }}
-              </p>
-            </div>
-          </div>
+          <button class="btn btn-primary btn-sm" (click)="exportCSV()">⬇ Download CSV</button>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn-secondary" (click)="closeFeedbackModal()">Close</button>
+
+        <!-- Export Registrations CSV -->
+        <div class="report-card">
+          <div class="report-icon">👥</div>
+          <div class="report-body">
+            <h3>Registration Summary</h3>
+            <p>Fill rates and registration counts per event</p>
+          </div>
+          <button class="btn btn-primary btn-sm" (click)="exportRegistrationsCSV()">⬇ Download CSV</button>
+        </div>
+
+        <!-- Live stat cards -->
+        <div class="report-card">
+          <div class="report-icon">📈</div>
+          <div class="report-body">
+            <h3>Avg Participants per Event</h3>
+            <p>Average fill rate across all your events</p>
+          </div>
+          <div class="report-stat">{{ avgParticipants }}</div>
+        </div>
+
+        <div class="report-card">
+          <div class="report-icon">✅</div>
+          <div class="report-body">
+            <h3>Active Events</h3>
+            <p>Events currently upcoming or ongoing</p>
+          </div>
+          <div class="report-stat">{{ activeEvents }}</div>
         </div>
       </div>
     </div>
+    }
 
-    <!-- Registrations Modal -->
-    <div class="modal" *ngIf="showRegistrationsModal">
-      <div class="modal-content large">
-        <div class="modal-header">
-          <h2>All Registrations</h2>
-          <button class="close" (click)="closeRegistrationsModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="filters">
-            <input type="text" placeholder="Search by name, email, event..." #modalRegistrationSearch
-              (keyup)="filterRegistrations(modalRegistrationSearch.value)">
-            <select #modalStatusFilter (change)="filterRegistrationsByStatus(modalStatusFilter.value)">
-              <option value="all">All Status</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="pending">Pending</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-          <table class="registrations-table">
-            <thead>
-              <tr>
-                <th>Event</th>
-                <th>Attendee</th>
-                <th>Email</th>
-                <th>Date</th>
-                <th>Ticket Type</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let registration of filteredRegistrations">
-                <td>{{ registration.eventName }}</td>
-                <td>{{ registration.attendeeName }}</td>
-                <td>{{ registration.email }}</td>
-                <td>{{ getFormattedDate(registration.registrationDate) }}</td>
-                <td>{{ registration.ticketType }}</td>
-                <td><span class="status-badge" [ngClass]="getRegistrationStatusClass(registration.status)">{{
-                    registration.status }}</span></td>
-                <td class="actions">
-                  <button class="btn-icon" (click)="updateRegistrationStatus(registration.id, 'confirmed')"
-                    title="Confirm">✅</button>
-                  <button class="btn-icon" (click)="updateRegistrationStatus(registration.id, 'cancelled')"
-                    title="Cancel">❌</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Export Modal -->
-    <div class="modal" *ngIf="showExportModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>Export Event Data</h2>
-          <button class="close" (click)="closeExportModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-          <p>Choose export format:</p>
-          <div class="export-options">
-            <label *ngFor="let format of exportFormatOptions">
-              <input type="radio" name="exportFormat" [value]="format" (change)="onExportFormatChange(format)"
-                [checked]="selectedExportFormat === format">
-              {{ format | uppercase }}
-            </label>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-secondary" (click)="closeExportModal()">Cancel</button>
-          <button class="btn-primary" (click)="exportEventData()">Export</button>
-        </div>
-      </div>
-    </div>
   </main>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CREATE EVENT MODAL
+═══════════════════════════════════════════════════════════ -->
+@if (showCreateModal) {
+<div class="modal-overlay" (click)="closeCreate()">
+  <div class="modal-box wide" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Create New Event</h3>
+      <button class="modal-close" (click)="closeCreate()">✕</button>
+    </div>
+    <div class="modal-body">
+      <form [formGroup]="eventForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Event Title *</label>
+            <input formControlName="title" class="form-control" placeholder="e.g. Inter-College Hackathon 2025">
+            @if (hasErr("title","required")) { <div class="form-error">Title is required</div> }
+            @if (hasErr("title","minlength")) { <div class="form-error">Min 3 characters</div> }
+          </div>
+          <div class="form-group">
+            <label class="form-label">Organizer / College *</label>
+            <input formControlName="organizer" class="form-control" placeholder="Organizer name">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description *</label>
+          <textarea formControlName="description" class="form-control" rows="3" placeholder="Describe the event..."></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Event Type *</label>
+            <select formControlName="type" class="form-control">
+              @for (t of typeOptions; track t) { <option [value]="t">{{ t | titlecase }}</option> }
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category *</label>
+            <select formControlName="category" class="form-control">
+              @for (c of categoryOptions; track c) { <option [value]="c">{{ c | titlecase }}</option> }
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Venue *</label>
+          <input formControlName="venue" class="form-control" placeholder="Event location">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Start Date & Time *</label>
+            <input type="datetime-local" formControlName="startDate" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Date & Time *</label>
+            <input type="datetime-local" formControlName="endDate" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Registration Deadline *</label>
+            <input type="datetime-local" formControlName="registrationDeadline" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Participants *</label>
+            <input type="number" formControlName="maxParticipants" class="form-control" min="1">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Registration Fee (₹)</label>
+            <input type="number" formControlName="registrationFee" class="form-control" min="0" placeholder="0 for free">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contact Email *</label>
+            <input type="email" formControlName="contactEmail" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Event Image <span style="color:var(--text-muted);font-weight:400">(optional — max 5 MB)</span></label>
+          <div class="image-upload-wrap">
+            @if (imagePreviewUrl) {
+              <div class="image-preview-wrap">
+                <img [src]="imagePreviewUrl" class="image-preview" alt="Preview">
+                <button type="button" class="btn btn-secondary btn-sm" style="margin-top:8px" (click)="clearImage()">✕ Remove Image</button>
+              </div>
+            }
+            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp"
+                   class="form-control" (change)="onImageSelected($event)"
+                   [style.display]="imagePreviewUrl ? 'none' : 'block'">
+            @if (!imagePreviewUrl) {
+              <small class="form-hint">If no image is uploaded, a default image will be used.</small>
+            }
+          </div>
+        </div>
+        @if (formError) { <div class="form-error">{{ formError }}</div> }
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeCreate()">Cancel</button>
+      <button class="btn btn-primary" [disabled]="isSubmitting" (click)="submitCreate()">
+        {{ isSubmitting ? 'Creating...' : 'Create Event' }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ═══════════════════════════════════════════════════════════
+     EDIT EVENT MODAL  (BUG FIX #4 - implemented edit flow)
+═══════════════════════════════════════════════════════════ -->
+@if (showEditModal && selectedEvent) {
+<div class="modal-overlay" (click)="closeEdit()">
+  <div class="modal-box wide" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Edit Event</h3>
+      <button class="modal-close" (click)="closeEdit()">✕</button>
+    </div>
+    <div class="modal-body">
+      <form [formGroup]="eventForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Event Title *</label>
+            <input formControlName="title" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Organizer *</label>
+            <input formControlName="organizer" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description *</label>
+          <textarea formControlName="description" class="form-control" rows="3"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Type *</label>
+            <select formControlName="type" class="form-control">
+              @for (t of typeOptions; track t) { <option [value]="t">{{ t | titlecase }}</option> }
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category *</label>
+            <select formControlName="category" class="form-control">
+              @for (c of categoryOptions; track c) { <option [value]="c">{{ c | titlecase }}</option> }
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Venue *</label>
+          <input formControlName="venue" class="form-control">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Start Date & Time *</label>
+            <input type="datetime-local" formControlName="startDate" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Date & Time *</label>
+            <input type="datetime-local" formControlName="endDate" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Registration Deadline *</label>
+            <input type="datetime-local" formControlName="registrationDeadline" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Participants *</label>
+            <input type="number" formControlName="maxParticipants" class="form-control" min="1">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Registration Fee (₹)</label>
+            <input type="number" formControlName="registrationFee" class="form-control" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contact Email *</label>
+            <input type="email" formControlName="contactEmail" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Event Image <span style="color:var(--text-muted);font-weight:400">(optional — upload to replace current)</span></label>
+          <div class="image-upload-wrap">
+            @if (imagePreviewUrl) {
+              <div class="image-preview-wrap">
+                <img [src]="imagePreviewUrl" class="image-preview" alt="Preview">
+                <button type="button" class="btn btn-secondary btn-sm" style="margin-top:8px" (click)="clearImage()">✕ Remove / Change</button>
+              </div>
+            }
+            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp"
+                   class="form-control" (change)="onImageSelected($event)"
+                   [style.display]="imagePreviewUrl ? 'none' : 'block'">
+            @if (!imagePreviewUrl) {
+              <small class="form-hint">Leave blank to keep the existing image.</small>
+            }
+          </div>
+        </div>
+        @if (formError) { <div class="form-error">{{ formError }}</div> }
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeEdit()">Cancel</button>
+      <button class="btn btn-primary" [disabled]="isSubmitting" (click)="submitEdit()">
+        {{ isSubmitting ? 'Saving...' : 'Save Changes' }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ═══════════════════════════════════════════════════════════
+     FEEDBACK MODAL (BUG FIX #2 - shows real data, not alert)
+═══════════════════════════════════════════════════════════ -->
+@if (showFeedbackModal) {
+<div class="modal-overlay" (click)="closeFeedback()">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Feedback — {{ selectedEventName }}</h3>
+      <button class="modal-close" (click)="closeFeedback()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="feedback-summary">
+        <div class="feedback-avg">
+          <span class="avg-number">{{ averageRating | number:'1.1-1' }}</span>
+          <span class="avg-stars">{{ getStars(averageRating) }}</span>
+          <span class="avg-label">{{ selectedEventFeedback.length }} review(s)</span>
+        </div>
+      </div>
+      @if (selectedEventFeedback.length === 0) {
+        <div class="empty-state"><p>No feedback yet for this event.</p></div>
+      }
+      @for (fb of selectedEventFeedback; track $index) {
+      <div class="feedback-item">
+        <div class="feedback-author">
+          <div class="fb-avatar">{{ (fb.fullName || 'S').charAt(0) }}</div>
+          <div>
+            <div class="fb-name">{{ fb.fullName || 'Anonymous' }}</div>
+            @if(fb.college){<div class="fb-college">{{ fb.college }}</div>}
+          </div>
+        </div>
+        <div class="feedback-stars">{{ getStars(fb.rating) }}</div>
+        <p class="feedback-comment">"{{ fb.comment || 'Great event!' }}"</p>
+        <small class="feedback-date">{{ formatDate(fb.createdAt) }}</small>
+      </div>
+      }
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeFeedback()">Close</button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ═══════════════════════════════════════════════════════════
+     PARTICIPANTS MODAL
+═══════════════════════════════════════════════════════════ -->
+@if (showParticipantsModal) {
+<div class="modal-overlay" (click)="closeParticipants()">
+  <div class="modal-box wide" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Participants — {{ selectedEventName }}</h3>
+      <button class="modal-close" (click)="closeParticipants()">✕</button>
+    </div>
+    <div class="modal-body">
+      @if (participants.length > 0) {
+      <div class="bulk-actions-bar">
+        <div class="selection-info">{{ selectedParticipantIds.size }} selected</div>
+        <div class="bulk-buttons">
+          <button class="btn-bulk approve" [disabled]="selectedParticipantIds.size === 0" (click)="bulkApprove()">✅ Approve Selected</button>
+          <button class="btn-bulk reject"  [disabled]="selectedParticipantIds.size === 0" (click)="openBulkRejectModal()">❌ Reject Selected</button>
+        </div>
+      </div>
+      }
+
+      @if (bulkActionStatus === 'success') {
+        <div class="alert-success-bar">✅ {{ bulkActionMessage }}</div>
+      }
+      @if (bulkActionStatus === 'error') {
+        <div class="alert-error-bar">❌ {{ bulkActionMessage }}</div>
+      }
+
+      @if (loadingParticipants) {
+        <div class="loading-spinner">Loading...</div>
+      } @else if (participants.length === 0) {
+        <div class="empty-state"><p>No registrations yet.</p></div>
+      } @else {
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" [checked]="isAllSelected()" (change)="toggleSelectAll()"></th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>College</th>
+            <th>Payment</th>
+            <th>Approval</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of participants; track $index) {
+          <tr [class.selected]="selectedParticipantIds.has(p.registrationId)">
+            <td><input type="checkbox" [checked]="selectedParticipantIds.has(p.registrationId)" (change)="toggleParticipantSelection(p.registrationId)"></td>
+            <td>
+              <div><strong>{{ p.fullName }}</strong></div>
+              @if (p.selectedSlot) { <small style="color:#64748b">🕐 {{ p.selectedSlot }}</small> }
+            </td>
+            <td>{{ p.email }}</td>
+            <td>{{ p.college || '—' }}</td>
+            <td>
+              @if ((p.paymentAmount || 0) > 0) {
+                <div class="pay-cell">
+                  <span class="pay-cell-amt">₹{{ p.paymentAmount }}</span>
+                  <span class="pay-cell-method">{{ p.paymentMethod || 'pending' }}</span>
+                </div>
+              } @else { <span style="color:#94a3b8;font-size:12px">Free</span> }
+            </td>
+            <td>
+              <span class="status-pill-mini" [ngClass]="p.approvalStatus">
+                @if (p.approvalStatus === 'approved') { ✅ Approved }
+                @else if (p.approvalStatus === 'rejected') { ❌ Rejected }
+                @else { ⏳ Pending }
+              </span>
+              @if (p.approvalStatus === 'rejected' && p.rejectionReason) {
+                <div class="rejection-note">{{ p.rejectionReason }}</div>
+              }
+            </td>
+            <td class="actions-cell">
+              @if (p.approvalStatus !== 'approved') {
+              <button class="btn-action approve-btn" (click)="approveRegistration(p.registrationId)" title="Approve">✅</button>
+              }
+              @if (p.approvalStatus !== 'rejected') {
+              <button class="btn-action reject-btn" (click)="openRejectModal(p.registrationId)" title="Reject">❌</button>
+              }
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+      }
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeParticipants()">Close</button>
+    </div>
+  </div>
+
+
+<!-- ══ REJECT REASON MODAL ══ -->
+@if (showRejectModal) {
+<div class="modal-overlay" (click)="closeRejectModal()">
+  <div class="modal-box small" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>❌ Reject Registration</h3>
+      <button class="modal-close" (click)="closeRejectModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:12px;color:#666;">Provide a reason for rejection (optional but recommended):</p>
+      <textarea class="reject-textarea" [(ngModel)]="rejectReason" placeholder="e.g. Capacity full, eligibility criteria not met..." rows="4"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeRejectModal()">Cancel</button>
+      <button class="btn btn-danger" (click)="confirmReject()">Confirm Reject</button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ══ BULK REJECT MODAL ══ -->
+@if (showBulkRejectModal) {
+<div class="modal-overlay" (click)="closeBulkRejectModal()">
+  <div class="modal-box small" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>❌ Bulk Reject ({{ selectedParticipantIds.size }} selected)</h3>
+      <button class="modal-close" (click)="closeBulkRejectModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:12px;color:#666;">Rejection reason (optional):</p>
+      <textarea class="reject-textarea" [(ngModel)]="bulkRejectReason" placeholder="Reason for rejection..." rows="3"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeBulkRejectModal()">Cancel</button>
+      <button class="btn btn-danger" (click)="confirmBulkReject()">Reject All Selected</button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ══ ADMIN PROFILE MODAL ══ -->
+@if (showProfileModal) {
+<div class="modal-overlay" (click)="closeProfileModal()">
+  <div class="modal-box small" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>👤 Admin Profile</h3>
+      <button class="modal-close" (click)="closeProfileModal()">✕</button>
+    </div>
+    <div class="modal-body profile-modal-content">
+      <div class="admin-profile-avatar">{{ getInitial() }}</div>
+      <h2>{{ getFullName() }}</h2>
+      <span class="admin-role-chip">{{ getRole() | titlecase }}</span>
+      <div class="admin-profile-details">
+        <div class="admin-detail-row"><label>📧 Email</label><span>{{ getEmail() }}</span></div>
+        <div class="admin-detail-row"><label>🏫 College</label><span>{{ getCollege() }}</span></div>
+        <div class="admin-detail-row"><label>🎭 Role</label><span>{{ getRole() }}</span></div>
+        <div class="admin-detail-row"><label>📅 Total Events</label><span>{{ totalEvents }}</span></div>
+        <div class="admin-detail-row"><label>👥 Total Registrations</label><span>{{ totalRegistrations }}</span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeProfileModal()">Close</button>
+    </div>
+  </div>
+</div>
+}
+
+</div>
+}

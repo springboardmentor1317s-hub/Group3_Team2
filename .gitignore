@@ -6,10 +6,18 @@
 /out-tsc
 /bazel-out
 
+# Backend
+api/node_modules/
+backend/node_modules/
+api/.env.example
+
 # Node
 /node_modules
 npm-debug.log
 yarn-error.log
+
+# Environment files
+.env
 
 # IDEs and editors
 .idea/

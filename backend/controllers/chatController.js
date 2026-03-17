@@ -1,8 +1,10 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 
 // Default key or placeholder
 const apiKey = process.env.GEMINI_API_KEY || 'AIzaSy_YOUR_API_KEY_HERE';
-const genAI = new GoogleGenerativeAI(apiKey);
+
+// Standard initialization for the new SDK
+const ai = new GoogleGenAI({ apiKey: apiKey });
 
 exports.askGemini = async (req, res) => {
     try {
@@ -16,17 +18,20 @@ exports.askGemini = async (req, res) => {
     You help students and college administrators manage, discover, and organize college events.
     Keep your answers short (under 3 sentences) and formatted cleanly for a chat window. 
     Do not use complex markdown, but bolding and emojis are encouraged.
+    If the user asks about logging in or registering (especially if they are a 'guest'), provide clear, step-by-step instructions. For example:
+    Register: 1. Click 'Sign Up' 2. Fill in your details (Role, College, etc.) 3. Click 'Create Account'.
+    Login: 1. Click 'Login' 2. Enter your email and password 3. Click 'Login'.
     The user asking this question is logged in as a: ${role || 'guest'}.`;
 
-        const model = genAI.getGenerativeModel({
-            model: 'gemini-1.5-flash',
-            systemInstruction: systemInstruction
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: message,
+            config: {
+                systemInstruction: systemInstruction,
+            }
         });
 
-        const result = await model.generateContent(message);
-        const responseText = result.response.text();
-
-        res.status(200).json({ reply: responseText });
+        res.status(200).json({ reply: response.text });
     } catch (error) {
         console.error('Gemini API Error:', error);
         res.status(500).json({ message: 'Failed to generate response', error: error.message });

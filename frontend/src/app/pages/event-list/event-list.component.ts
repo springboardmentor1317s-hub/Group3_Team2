@@ -152,6 +152,19 @@ export class EventListComponent implements OnInit {
 
   ngOnInit() {
     this.loadEvents();
+    this.loadMyRegistrations();
+  }
+
+  loadMyRegistrations() {
+    if (this.authService.getRole() === 'student') {
+      this.eventService.getMyRegistrations().subscribe({
+        next: (data: any) => {
+          const list = Array.isArray(data) ? data : (data.events || []);
+          this.registeredEventIds = new Set(list.map((ev: any) => ev._id || ev.id));
+        },
+        error: () => {}
+      });
+    }
   }
 
   loadEvents() {

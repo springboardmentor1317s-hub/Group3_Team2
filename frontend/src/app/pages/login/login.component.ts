@@ -2,94 +2,88 @@ import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { MatCardModule } from '@angular/material/card';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { RouterLink, RouterModule } from '@angular/router';
+import { RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    RouterLink,
-    MatCardModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatIconModule,
-    RouterModule
-  ],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
 export class LoginComponent {
-
-  email: string = '';
-  password: string = '';
-  errorMessage: string = '';
+  email         = '';
+  password      = '';
+  errorMessage  = '';
+  successMessage = '';
+  emailError    = '';
+  passwordError = '';
+  isLoading     = false;
+  rememberMe    = false;
+  showPassword  = false;
 
   constructor(private router: Router, private authService: AuthService) {}
 
-  login() {
-    this.errorMessage = '';
-    const trimmedEmail = this.email.trim();
-
-    if (!trimmedEmail || !this.password) {
-      this.errorMessage = 'Email and password are required.';
-      return;
+  validate(): boolean {
+    this.emailError    = '';
+    this.passwordError = '';
+    if (!this.email.trim()) {
+      this.emailError = 'Email is required.';
+      return false;
     }
-
-    const loginData = {
-      email: trimmedEmail,
-      password: this.password
-    };
-
-    this.authService.login(loginData).subscribe({
-      next: (res: any) => {
-  if (!res?.token) {
-    this.errorMessage = 'Invalid server response.';
-    return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email)) {
+      this.emailError = 'Enter a valid email address.';
+      return false;
+    }
+    if (!this.password) {
+      this.passwordError = 'Password is required.';
+      return false;
+    }
+    return true;
   }
 
-  // Save token and user data (including email)
-  this.authService.saveUserData(
-    res.token,
-    res.role,
-    res.fullName,
-    res.email  // Pass email here
-  );
+  login() {
+    this.errorMessage = '';
+    if (!this.validate()) return;
+    this.isLoading = true;
 
-  // Redirect based on role
-  this.redirectBasedOnRole(res.role);
-},
-      error: (err) => {
-        this.errorMessage =
-          err?.error?.message ||
-          'Login failed. Please check your credentials.';
+    this.authService.login({ email: this.email.trim(), password: this.password }).subscribe({
+      next: (res: any) => {
+        this.isLoading = false;
+        if (!res?.token) {
+          this.errorMessage = 'Invalid server response.';
+          return;
+        }
+        // ✅ FIX: also save userId (_id) from the response so guards and chat work correctly
+        this.authService.saveUserData(
+          res.token,
+          res.role,
+          res.fullName,
+          this.email.trim(),
+          res._id || res.userId || undefined
+        );
+        this.redirectBasedOnRole(res.role);
+      },
+      error: (err: any) => {
+        this.isLoading = false;
+        this.errorMessage = err?.error?.message || 'Login failed. Please check your credentials.';
       }
     });
   }
 
-  // Helper method for role-based redirection
-  private redirectBasedOnRole(role: string): void {
-    switch(role) {
-      case 'student':
-        this.router.navigate(['/student-dashboard']);
-        break;
-      case 'college-admin':
-        this.router.navigate(['/admin-dashboard']);
-        break;
-      case 'superadmin':
-        this.router.navigate(['/super-admin-dashboard']);
-        break;
-      default:
-        this.errorMessage = 'Unknown role.';
-        this.router.navigate(['/login']);
+  private redirectBasedOnRole(role: string) {
+    const routes: Record<string, string> = {
+      'student':       '/student-dashboard',
+      'college-admin': '/admin-dashboard',
+      'superadmin':    '/super-admin-dashboard'
+    };
+    if (routes[role]) {
+      this.router.navigate([routes[role]]);
+    } else {
+      this.errorMessage = 'Unknown role. Contact support.';
     }
   }
+
+  goToRegister() { this.router.navigate(['/register']); }
 }
