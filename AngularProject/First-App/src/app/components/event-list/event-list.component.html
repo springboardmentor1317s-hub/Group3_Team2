@@ -1,0 +1,41 @@
+<p>event-list works!</p>
+<div class="container">
+    <h2>Event Listing</h2>
+
+    <div *ngIf="isLoading">Loading events...</div>
+
+    <table *ngIf="!isLoading && events.length > 0" border="1" width="100%">
+        <thead>
+            <tr>
+                <th>Image</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Start Date</th>
+                <th>Location</th>
+                <th>Max Participants</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr *ngFor="let event of events">
+                <td>
+                    <img [src]="event.imageUrl" width="80" height="60" />
+                </td>
+                <td>{{ event.title }}</td>
+                 <td>{{ event.category }}</td>
+                  <td>{{ event.startDate }}</td>
+                   <td>{{ event.location }}</td>
+                    <td>{{ event.maxParticipants }}</td>
+                    <td>
+                        <button (click)="deleteEvent(event._id)">Delete</button>
+                    </td>
+            </tr>
+        </tbody>
+
+    </table>
+
+    <div *ngIf="!isLoading && events.length === 0">
+        No events found.
+    </div>
+</div>
