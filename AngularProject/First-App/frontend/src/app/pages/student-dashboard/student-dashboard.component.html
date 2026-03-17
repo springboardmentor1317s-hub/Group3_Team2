@@ -1,0 +1,537 @@
+<div class="dashboard" [class.sidebar-collapsed]="sidebarCollapsed" [class.dark-theme]="false">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar" [class.mobile-open]="mobileSidebarOpen">
+    <div class="sidebar-header">
+      <div class="logo"><div class="logo-icon">🎓</div><span class="logo-text">CampusEventHub</span></div>
+      <button class="close-mobile" (click)="closeMobileSidebar()">✕</button>
+    </div>
+    <div class="user-info">
+      <div class="avatar">{{ getInitial() }}</div>
+      <div class="user-details">
+        <h4>{{ getFullName() }}</h4>
+        <p>Student</p>
+      </div>
+    </div>
+    <nav class="nav-menu">
+      <button class="nav-item" [class.active]="currentView()==='overview'" (click)="setView('overview');closeMobileSidebar()">
+        <span class="nav-icon">🏠</span><span class="nav-label">Overview</span>
+      </button>
+      <button class="nav-item" [class.active]="currentView()==='events'" (click)="setView('events');loadEvents();closeMobileSidebar()">
+        <span class="nav-icon">🔍</span><span class="nav-label">Browse Events</span>
+        <span class="badge">{{ events.length }}</span>
+      </button>
+      <button class="nav-item" [class.active]="currentView()==='registered'" (click)="setView('registered');closeMobileSidebar()">
+        <span class="nav-icon">✅</span><span class="nav-label">My Events</span>
+        <span class="badge warning">{{ registeredEvents.length }}</span>
+      </button>
+      <button class="nav-item" [class.active]="currentView()==='schedule'" (click)="setView('schedule');closeMobileSidebar()">
+        <span class="nav-icon">📅</span><span class="nav-label">Schedule</span>
+      </button>
+      <button class="nav-item" [class.active]="currentView()==='notifications'" (click)="setView('notifications');closeMobileSidebar()">
+        <span class="nav-icon">🔔</span><span class="nav-label">Notifications</span>
+        @if (unreadCount > 0) { <span class="badge">{{ unreadCount }}</span> }
+      </button>
+      <button class="nav-item" [class.active]="currentView()==='leaderboard'" (click)="setView('leaderboard');closeMobileSidebar()">
+        <span class="nav-icon">🏆</span><span class="nav-label">Leaderboard</span>
+      </button>
+      <button class="nav-item" [class.active]="currentView()==='payments'" (click)="setView('payments');closeMobileSidebar()">
+        <span class="nav-icon">💳</span><span class="nav-label">Payments</span>
+      </button>
+      <button class="nav-item" [class.active]="currentView()==='profile'" (click)="setView('profile');closeMobileSidebar()">
+        <span class="nav-icon">👤</span><span class="nav-label">Profile</span>
+      </button>
+    </nav>
+    <button class="sidebar-toggle" (click)="toggleSidebar()">⇄</button>
+  </aside>
+
+  <!-- ══ MAIN ══ -->
+  <div class="main-content">
+    <header class="header">
+      <button class="menu-toggle" (click)="toggleMobileSidebar()">☰</button>
+      <div class="header-actions">
+        <div class="wallet">💰 {{ totalPoints }} pts</div>
+        <div class="notification-icon" (click)="setView('notifications')">
+          🔔
+          @if (unreadCount > 0) { <span class="badge">{{ unreadCount }}</span> }
+        </div>
+        <div class="avatar small">{{ getInitial() }}</div>
+        <button class="logout-btn" (click)="logout()">🚪 Logout</button>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ══ OVERVIEW ══ -->
+      @if (currentView() === 'overview') {
+      <div class="overview">
+        <h1>Welcome back, {{ getFullName().split(' ')[0] }}! 👋</h1>
+
+        <div class="stats-grid-compact">
+          <div class="stat-item-premium">
+            <div class="stat-icon-wrapper">📅</div>
+            <div class="stat-info"><h4>Registered</h4><p>{{ getDashboardStats().registered }}</p></div>
+          </div>
+          <div class="stat-item-premium">
+            <div class="stat-icon-wrapper">⏰</div>
+            <div class="stat-info"><h4>Upcoming</h4><p>{{ getDashboardStats().upcoming }}</p></div>
+          </div>
+          <div class="stat-item-premium">
+            <div class="stat-icon-wrapper">🏆</div>
+            <div class="stat-info"><h4>My Points</h4><p>{{ totalPoints }}</p></div>
+          </div>
+        </div>
+
+        <div class="trending-section">
+          <div class="section-header-compact">
+            <h3>🔥 Trending Events</h3>
+            <p>Happening near you</p>
+          </div>
+          <div class="trending-grid">
+            @for (ev of getTrendingEvents(); track ev._id) {
+            <div class="trending-card-mini" (click)="openEventModal(ev)">
+              <div class="trending-img">
+                <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&q=70'" [alt]="ev.title">
+                <div class="capacity-tag" [class.urgent]="isSpotsUrgent(ev)">
+                  {{ getSpotsLeft(ev) }} left
+                </div>
+              </div>
+              <div class="trending-info">
+                <h4>{{ ev.title }}</h4>
+                <p class="trending-meta">📅 {{ formatDate(ev.startDate) }}</p>
+              </div>
+            </div>
+            } @empty {
+            <div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:20px">
+              No events yet. Admins need to create events first.
+            </div>
+            }
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="dashboard-card">
+            <div class="card-header">
+              <h2>📋 My Schedule</h2>
+              <button class="view-all" (click)="setView('schedule')">View All →</button>
+            </div>
+            <div class="schedule-list">
+              @for (ev of getUpcomingSchedule().slice(0,4); track ev._id) {
+              <div class="schedule-item">
+                <div class="event-time">{{ formatDate(ev.startDate) }}</div>
+                <div class="event-info">
+                  <h4>{{ ev.title }}</h4>
+                  <p>{{ ev.venue }}</p>
+                </div>
+                <span class="event-type-badge" [ngClass]="ev.type?.toLowerCase()">{{ ev.type || 'Event' }}</span>
+              </div>
+              } @empty {
+              <div class="empty-state">📭 No upcoming events. Browse and register!</div>
+              }
+            </div>
+          </div>
+
+          <div class="dashboard-card">
+            <div class="card-header">
+              <h2>🔔 Notifications</h2>
+              <button class="view-all" (click)="setView('notifications')">View All →</button>
+            </div>
+            <div class="notifications-list">
+              @for (n of notifications.slice(0,3); track n.id) {
+              <div class="notification-item" [class.unread]="!n.read" (click)="markNotificationRead(n)">
+                <div class="notification-icon">{{ n.icon }}</div>
+                <div class="notification-content">
+                  <h4>{{ n.title }}</h4>
+                  <p>{{ n.message }}</p>
+                  <small>{{ n.time }}</small>
+                </div>
+              </div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+      }
+
+      <!-- ══ BROWSE EVENTS ══ -->
+      @if (currentView() === 'events') {
+      <div class="events-view">
+        <div class="view-header-custom">
+          <h1>Browse Events 🔍</h1>
+          <p class="subtitle">Discover events from colleges across the nation</p>
+          <div class="local-search">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search events by name, topic..." [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()">
+          </div>
+          <div class="filters-row">
+            <div class="filter-group">
+              <label>Category</label>
+              <select [(ngModel)]="categoryFilter" (ngModelChange)="onFilterChange()">
+                <option value="all">All Categories</option>
+                <option value="technical">Technical</option>
+                <option value="cultural">Cultural</option>
+                <option value="sports">Sports</option>
+                <option value="workshop">Workshop</option>
+                <option value="seminar">Seminar</option>
+                <option value="academic">Academic</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Status</label>
+              <select [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()">
+                <option value="all">All</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="ongoing">Ongoing</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Date From</label>
+              <input type="date" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg-card);color:var(--text-primary);" [(ngModel)]="dateFilter" (ngModelChange)="onFilterChange()">
+            </div>
+          </div>
+        </div>
+
+        <div class="events-grid">
+          @for (ev of filteredEvents; track ev._id) {
+          <div class="event-card-minimal">
+            <div class="event-image-minimal" (click)="openEventModal(ev)">
+              <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="ev.title">
+              <div class="badge-overlay">
+                <span class="type-badge">{{ ev.type || ev.category }}</span>
+                <span class="status-badge" [ngClass]="ev.status">{{ ev.status }}</span>
+              </div>
+            </div>
+            <div class="event-details-minimal">
+              <h3 (click)="openEventModal(ev)">{{ ev.title }}</h3>
+              <p class="event-desc">{{ ev.description }}</p>
+              <div class="event-footer-minimal">
+                <div>
+                  <div class="date-info">📅 {{ formatDate(ev.startDate) }}</div>
+                  <div class="date-info">📍 {{ ev.venue }}</div>
+                </div>
+                @if (isRegistered(ev)) {
+                <button class="btn-primary" style="font-size:11px;padding:5px 12px;" disabled>✓ Registered</button>
+                } @else if (isFull(ev)) {
+                <button class="btn-secondary" style="font-size:11px;padding:5px 12px;" disabled>Full</button>
+                } @else {
+                <button class="btn-primary" style="font-size:11px;padding:5px 12px;" (click)="openEventModal(ev)">Register</button>
+                }
+              </div>
+            </div>
+          </div>
+          } @empty {
+          <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted);">
+            <div style="font-size:50px;margin-bottom:12px;">🔍</div>
+            <p>No events match your search. Try different filters.</p>
+          </div>
+          }
+        </div>
+      </div>
+      }
+
+      <!-- ══ MY REGISTERED EVENTS ══ -->
+      @if (currentView() === 'registered') {
+      <div class="registered-view">
+        <h1>My Events ✅</h1>
+        <div class="events-grid">
+          @for (ev of registeredEvents; track ev._id) {
+          <div class="event-card registered">
+            <div class="event-status" [ngClass]="ev.status">{{ ev.status?.toUpperCase() }}</div>
+            <div class="event-image-minimal" style="height:130px" (click)="openEventModal(ev)">
+              <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="ev.title">
+            </div>
+            <div class="event-details">
+              <h3>{{ ev.title }}</h3>
+              <p class="event-venue">📍 {{ ev.venue }}</p>
+              <p class="event-organizer">🏛️ {{ ev.organizer }}</p>
+              <p class="event-datetime">📅 {{ formatDateTime(ev.startDate) }}</p>
+              <div class="event-actions">
+                <button class="btn-primary" (click)="openEventModal(ev)">View Details</button>
+                @if (ev.status === 'upcoming') {
+                <button class="btn-danger" (click)="cancelRegistration(ev)">Cancel</button>
+                }
+              </div>
+            </div>
+          </div>
+          } @empty {
+          <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted);">
+            <div style="font-size:50px;margin-bottom:12px;">📭</div>
+            <p>No registered events yet. <button class="view-all" (click)="setView('events')">Browse events →</button></p>
+          </div>
+          }
+        </div>
+      </div>
+      }
+
+      <!-- ══ SCHEDULE ══ -->
+      @if (currentView() === 'schedule') {
+      <div class="schedule-view">
+        <h1>My Schedule 📅</h1>
+        <div class="schedule-timeline">
+          @for (ev of getUpcomingSchedule(); track ev._id) {
+          <div class="timeline-item">
+            <div class="date-badge">
+              <span class="month">{{ formatDate(ev.startDate).split(' ')[1] }}</span>
+              <span class="day">{{ formatDate(ev.startDate).split(' ')[0] }}</span>
+            </div>
+            <div class="timeline-content">
+              <h3>{{ ev.title }}</h3>
+              <div class="timeline-meta">
+                <span>📍 {{ ev.venue }}</span>
+                <span>⏰ {{ formatDateTime(ev.startDate).split(',')[1] }}</span>
+                <span>👥 {{ ev.maxParticipants }} max</span>
+              </div>
+              <p>{{ ev.description }}</p>
+            </div>
+          </div>
+          } @empty {
+          <div style="text-align:center;padding:60px;color:var(--text-muted);">
+            <div style="font-size:50px;margin-bottom:12px;">📅</div>
+            <p>No upcoming events in schedule. Register for events to see them here.</p>
+          </div>
+          }
+        </div>
+      </div>
+      }
+
+      <!-- ══ NOTIFICATIONS ══ -->
+      @if (currentView() === 'notifications') {
+      <div class="notifications-view">
+        <div class="view-header">
+          <h1>Notifications 🔔</h1>
+          <div class="notification-actions">
+            <button class="btn-secondary" (click)="markAllRead()">Mark All Read</button>
+          </div>
+        </div>
+        @for (n of notifications; track n.id) {
+        <div class="notification-card" [class.unread]="!n.read">
+          <div style="font-size:24px;">{{ n.icon }}</div>
+          <div style="flex:1">
+            <h4>{{ n.title }}</h4>
+            <p>{{ n.message }}</p>
+            <small>{{ n.time }}</small>
+          </div>
+          @if (!n.read) { <button class="mark-read" (click)="markNotificationRead(n)">✓</button> }
+        </div>
+        }
+      </div>
+      }
+
+      <!-- ══ LEADERBOARD ══ -->
+      @if (currentView() === 'leaderboard') {
+      <div class="leaderboard-view">
+        <h1 style="margin-bottom:20px;">Leaderboard 🏆</h1>
+        <div class="dashboard-card leaderboard-card">
+          <div class="my-rank-banner">
+            <div class="rank-info">
+              <div class="rank-num">#{{ myRank }}</div>
+              <div class="rank-details">
+                <h3>Your Rank</h3>
+                <p>{{ totalPoints }} points · {{ getDashboardStats().registered }} events</p>
+              </div>
+            </div>
+            <div class="my-badges"><span class="badge-icon">🥉</span></div>
+          </div>
+          <div class="table-container">
+            <table class="custom-table">
+              <thead><tr><th>Rank</th><th>Student</th><th>College</th><th>Events</th><th>Points</th><th>Badges</th></tr></thead>
+              <tbody>
+                @for (s of leaderboard; track s.rank) {
+                <tr [class.highlight]="s.rank === myRank">
+                  <td class="rank-cell">{{ s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : s.rank === 3 ? '🥉' : '#'+s.rank }}</td>
+                  <td><strong>{{ s.name }}</strong></td>
+                  <td>{{ s.college }}</td>
+                  <td>{{ s.events }}</td>
+                  <td class="points-text">{{ s.points }}</td>
+                  <td><div class="badge-list">@for (b of s.badges; track b) { <span>{{ b }}</span> }</div></td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      }
+
+      <!-- ══ PAYMENTS ══ -->
+      @if (currentView() === 'payments') {
+      <div class="payments-view">
+        <div class="view-header">
+          <h1>Payments 💳</h1>
+          <div class="wallet-info">💰 Wallet: <strong>₹0</strong></div>
+        </div>
+        <div class="payments-table section-card">
+          <table class="data-table">
+            <thead><tr><th>Transaction ID</th><th>Event</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>
+              @for (p of payments; track p.id) {
+              <tr>
+                <td class="transaction-id">{{ p.id }}</td>
+                <td>{{ p.event }}</td>
+                <td>₹{{ p.amount }}</td>
+                <td><span class="badge" [ngClass]="getStatusClass(p.status)">{{ p.status }}</span></td>
+                <td>{{ formatDate(p.date) }}</td>
+              </tr>
+              } @empty {
+              <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">No payment history</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+      }
+
+      <!-- ══ PROFILE ══ -->
+      @if (currentView() === 'profile') {
+      <div class="profile-view">
+        <h1>My Profile 👤</h1>
+        <div class="profile-card">
+          <div class="profile-header">
+            <div class="profile-avatar large">{{ getInitial() }}</div>
+            <div class="profile-title">
+              <h2>{{ getFullName() }}</h2>
+              <p>Student · CampusEventHub</p>
+            </div>
+          </div>
+          <div class="profile-details">
+            <div class="detail-row"><label>Full Name</label><span>{{ getFullName() }}</span></div>
+            <div class="detail-row"><label>Email</label><span>{{ getEmail() }}</span></div>
+            <div class="detail-row"><label>Role</label><span>Student</span></div>
+            <div class="detail-row"><label>Total Points</label><span class="wallet-amount">{{ totalPoints }} pts</span></div>
+            <div class="detail-row"><label>Global Rank</label><span>#{{ myRank }}</span></div>
+          </div>
+          <div class="profile-stats">
+            <div class="stat"><div class="stat-value">{{ getDashboardStats().registered }}</div><div class="stat-label">Events Joined</div></div>
+            <div class="stat"><div class="stat-value">{{ getDashboardStats().completed }}</div><div class="stat-label">Completed</div></div>
+            <div class="stat"><div class="stat-value">{{ totalPoints }}</div><div class="stat-label">Points Earned</div></div>
+          </div>
+        </div>
+      </div>
+      }
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /dashboard -->
+
+<!-- ══ EVENT DETAIL MODAL ══ (BUG FIX #3: Full event details, not just ID) -->
+@if (showEventModal && selectedEvent) {
+<div class="modal-backdrop" (click)="closeEventModal()">
+  <div class="modal-content-lg" (click)="$event.stopPropagation()">
+    <div class="modal-hero">
+      <img [src]="selectedEvent.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80'" [alt]="selectedEvent.title">
+      <button class="modal-close" (click)="closeEventModal()">✕</button>
+      <div class="modal-hero-badges">
+        <span class="badge-pill type">{{ selectedEvent.type }}</span>
+        <span class="badge-pill status" [ngClass]="selectedEvent.status">{{ selectedEvent.status }}</span>
+      </div>
+    </div>
+    <div class="modal-body-content">
+      <div class="modal-header-info">
+        <h2>{{ selectedEvent.title }}</h2>
+        <p class="college-subtitle">🏛️ {{ selectedEvent.organizer }} · 📍 {{ selectedEvent.venue }}</p>
+      </div>
+      <div class="modal-tabs">
+        <button class="tab" [class.active]="activeTab()==='details'" (click)="setTab('details')">Details</button>
+        <button class="tab" [class.active]="activeTab()==='description'" (click)="setTab('description')">Description</button>
+        <button class="tab" [class.active]="activeTab()==='payment'" (click)="setTab('payment')">Payment</button>
+      </div>
+
+      @if (activeTab() === 'details') {
+      <div class="tab-pane">
+        <div class="details-grid">
+          <div class="detail-item"><span class="icon">📅</span><div class="detail-text"><label>Start Date</label><p>{{ formatDateTime(selectedEvent.startDate) }}</p></div></div>
+          <div class="detail-item"><span class="icon">🏁</span><div class="detail-text"><label>End Date</label><p>{{ formatDateTime(selectedEvent.endDate) }}</p></div></div>
+          <div class="detail-item"><span class="icon">📍</span><div class="detail-text"><label>Venue</label><p>{{ selectedEvent.venue }}</p></div></div>
+          <div class="detail-item"><span class="icon">🏷️</span><div class="detail-text"><label>Category</label><p>{{ selectedEvent.category }}</p></div></div>
+          <div class="detail-item"><span class="icon">👥</span><div class="detail-text"><label>Capacity</label><p>{{ selectedEvent.currentParticipants || 0 }} / {{ selectedEvent.maxParticipants }}</p></div></div>
+          <div class="detail-item"><span class="icon">💰</span><div class="detail-text"><label>Fee</label><p>{{ selectedEvent.registrationFee > 0 ? '₹' + selectedEvent.registrationFee : 'Free' }}</p></div></div>
+        </div>
+        @if (selectedEvent.tags?.length) {
+        <div class="modal-section">
+          <div class="section-title">Tags</div>
+          <div class="tags-container">@for (t of selectedEvent.tags; track t) { <span class="tag">{{ t }}</span> }</div>
+        </div>
+        }
+      </div>
+      }
+
+      @if (activeTab() === 'description') {
+      <div class="tab-pane">
+        <div class="modal-section">
+          <div class="section-title">About this Event</div>
+          <p class="section-desc">{{ selectedEvent.description || 'No description available.' }}</p>
+        </div>
+        @if (selectedEvent.eligibilityCriteria) {
+        <div class="modal-section mt-4">
+          <div class="section-title">Eligibility</div>
+          <p class="section-desc">{{ selectedEvent.eligibilityCriteria }}</p>
+        </div>
+        }
+        @if (selectedEvent.prizes) {
+        <div class="modal-section mt-4">
+          <div class="section-title">🏆 Prizes</div>
+          <p class="section-desc">{{ selectedEvent.prizes }}</p>
+        </div>
+        }
+      </div>
+      }
+
+      @if (activeTab() === 'payment') {
+      <div class="tab-pane">
+        <div class="payment-section-compact">
+          @if (selectedEvent.registrationFee > 0) {
+          <p style="font-size:13px;margin-bottom:10px;">Select a payment method to complete registration:</p>
+          <div class="payment-methods-inline">
+            <label class="payment-method-pill" [class.active]="selectedPaymentMethod==='upi'" (click)="selectedPaymentMethod='upi'">
+              <input type="radio" name="pay" value="upi" style="display:none"> 📱 UPI
+            </label>
+            <label class="payment-method-pill" [class.active]="selectedPaymentMethod==='card'" (click)="selectedPaymentMethod='card'">
+              <input type="radio" name="pay" value="card" style="display:none"> 💳 Card
+            </label>
+            <label class="payment-method-pill" [class.active]="selectedPaymentMethod==='wallet'" (click)="selectedPaymentMethod='wallet'">
+              <input type="radio" name="pay" value="wallet" style="display:none"> 💰 Wallet
+            </label>
+          </div>
+          } @else {
+          <p style="color:var(--accent-emerald);font-weight:700;">✅ This event is FREE! No payment required.</p>
+          }
+          @if (errorMessage) { <p class="error-text" style="margin-top:10px;">⚠️ {{ errorMessage }}</p> }
+        </div>
+      </div>
+      }
+    </div>
+
+    <div class="modal-sticky-footer">
+      <div class="footer-price">
+        <span class="label">Registration Fee</span>
+        <span class="value">{{ selectedEvent.registrationFee > 0 ? '₹' + selectedEvent.registrationFee : 'Free' }}</span>
+      </div>
+      <div style="display:flex;gap:10px;">
+        @if (isRegistered(selectedEvent)) {
+        <button class="btn-rounded-success" disabled>✓ Registered</button>
+        <button class="btn-danger" style="border-radius:24px;padding:11px 20px;" (click)="cancelFromModal()">Cancel</button>
+        } @else if (isFull(selectedEvent)) {
+        <button class="btn-rounded-disabled" disabled>Event Full</button>
+        } @else if (selectedEvent.status === 'completed' || selectedEvent.status === 'cancelled') {
+        <button class="btn-rounded-disabled" disabled>Registration Closed</button>
+        } @else {
+        <button class="btn-rounded-primary" [disabled]="registering" (click)="registerForEvent()">
+          {{ registering ? 'Registering...' : '🎟️ Register Now' }}
+        </button>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+}
+
+<!-- Confetti -->
+@if (showConfetti) {
+<div class="confetti-container">
+  <div class="confetti"></div><div class="confetti"></div><div class="confetti"></div>
+  <div class="confetti"></div><div class="confetti"></div><div class="confetti"></div>
+  <div class="confetti"></div><div class="confetti"></div><div class="confetti"></div>
+  <div class="confetti"></div>
+</div>
+}
