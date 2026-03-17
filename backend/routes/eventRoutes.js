@@ -7,6 +7,7 @@ const upload   = require('../middleware/upload');
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&q=80';
 
+<<<<<<< Updated upstream
 // ─── Auth Middleware ──────────────────────────────────────────────────────────
 const authMiddleware = (req, res, next) => {
   const token = req.header('Authorization')?.replace('Bearer ', '');
@@ -20,12 +21,12 @@ const authMiddleware = (req, res, next) => {
     res.status(401).json({ message: 'Invalid token' });
   }
 };
+=======
+const { verifyToken, requireRole } = require('../middleware/auth.middleware');
+>>>>>>> Stashed changes
 
-const adminMiddleware = (req, res, next) => {
-  if (req.userRole !== 'college-admin' && req.userRole !== 'superadmin')
-    return res.status(403).json({ message: 'Not authorized' });
-  next();
-};
+const adminMiddleware = requireRole('college-admin', 'superadmin');
+const authMiddleware  = verifyToken;
 
 // ─── TEST ─────────────────────────────────────────────────────────────────────
 router.get('/test', (_req, res) => res.json({ message: 'Events API working!' }));
