@@ -14,7 +14,6 @@ const RegistrationSchema = new mongoose.Schema({
   registeredAt:    { type: Date, default: Date.now }
 }, { timestamps: true });
 
-// One registration per user per event
 RegistrationSchema.index({ eventId: 1, userId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Registration', RegistrationSchema);
