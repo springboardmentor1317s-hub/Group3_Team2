@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
@@ -23,7 +23,13 @@ export class LoginComponent {
   rememberMe    = false;
   showPassword  = false;
 
-  constructor(private router: Router, private authService: AuthService) {}
+  constructor(private router: Router, private route: ActivatedRoute, private authService: AuthService) {
+    this.route.queryParams.subscribe(params => {
+      if (params['expired']) {
+        this.errorMessage = 'Your session has expired. Please log in again.';
+      }
+    });
+  }
 
   validate(): boolean {
     this.emailError    = '';

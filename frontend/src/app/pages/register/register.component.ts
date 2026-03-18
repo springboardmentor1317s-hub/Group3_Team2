@@ -13,6 +13,7 @@ import { AuthService } from '../../services/auth.service';
 })
 export class RegisterComponent {
 
+  // Form fields
   fullName = '';
   email = '';
   college = '';
@@ -20,16 +21,22 @@ export class RegisterComponent {
   password = '';
   confirmPassword = '';
 
+  // UI state
   errorMessage = '';
   successMessage = '';
   isLoading = false;
 
+  // ✅ Add these missing properties for the new HTML design
+  showPassword = false;
+  showConfirmPassword = false;
+  acceptTerms = false;
+
   constructor(private router: Router, private authService: AuthService) {}
 
   register() {
-     console.log('🔴🔴🔴 REGISTER BUTTON CLICKED! 🔴🔴🔴');
-  alert('Register button clicked!'); // This will confirm if function is called
-  // ... rest of your code
+    console.log('🔴🔴🔴 REGISTER BUTTON CLICKED! 🔴🔴🔴');
+    alert('Register button clicked!'); // This will confirm if function is called
+
     // Log when function is called
     console.log('🔵 ===== REGISTER METHOD CALLED =====');
     console.log('📝 Form values:', {
@@ -44,6 +51,13 @@ export class RegisterComponent {
     // Clear previous messages
     this.errorMessage = '';
     this.successMessage = '';
+
+    // ✅ Add terms acceptance validation
+    if (!this.acceptTerms) {
+      console.log('❌ Validation failed: Terms not accepted');
+      this.errorMessage = 'You must accept the Terms of Service and Privacy Policy.';
+      return;
+    }
 
     // Validate all fields are filled
     if (!this.fullName || !this.email || !this.college || !this.role || !this.password || !this.confirmPassword) {
@@ -97,15 +111,18 @@ export class RegisterComponent {
         console.log('Response data:', res);
         
         this.isLoading = false;
-        this.successMessage = res.message || 'Registration successful!';
+        this.successMessage = res.message || 'Registration successful! Redirecting...';
 
         if (res.token) {
           console.log('🔑 Token received, saving user data...');
           this.authService.saveUserData(
             res.token,
             res.role,
-            res.fullName,
-            res.email || this.email
+            res.fullName || this.fullName,
+            res.email || this.email,
+            res.userId,
+            res.college || this.college,
+            res.walletBalance || 0
           );
           console.log('✅ User data saved, redirecting in 1 second...');
           setTimeout(() => this.redirectBasedOnRole(res.role), 1000);
@@ -135,7 +152,7 @@ export class RegisterComponent {
     
     const routes: any = {
       student: '/student-dashboard',
-      'college-admin': '/admin-dashboard',
+      'college-admin': '/college-admin-dashboard',
       superadmin: '/super-admin-dashboard'
     };
 
@@ -148,5 +165,21 @@ export class RegisterComponent {
   goToLogin() {
     console.log('🔵 Navigating to login page');
     this.router.navigate(['/login']);
+  }
+
+  // ✅ Optional: Add password strength checker
+  getPasswordStrength(): string {
+    if (!this.password) return '';
+    
+    let strength = 0;
+    if (this.password.length >= 8) strength++;
+    if (/[A-Z]/.test(this.password)) strength++;
+    if (/[0-9]/.test(this.password)) strength++;
+    if (/[^A-Za-z0-9]/.test(this.password)) strength++;
+    
+    if (strength <= 1) return 'weak';
+    if (strength <= 2) return 'medium';
+    if (strength >= 3) return 'strong';
+    return '';
   }
 }

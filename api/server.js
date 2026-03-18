@@ -1,47 +1,36 @@
-const express = require('express');
-const mongoose = require('mongoose');  
-const cors = require('cors');
-const dotenv= require('dotenv');
-//const roleRoute = require('./routes/role.js');
-//const { APP_ID } = require('@angular/core');
-const app = express();
+const express    = require('express');
+const mongoose   = require('mongoose');
+const cors       = require('cors');
+const dotenv     = require('dotenv');
+const path       = require('path');
+
 dotenv.config();
+const app = express();
 
 app.use(cors());
 app.use(express.json());
-//app.use("/api/role",roleRoute);
 
-const connectMongoDB = async () =>{
-    try{
-         await mongoose.connect(process.env.MONGO_URL);
-         console.log("Connected to Database!")
-    }catch(error){
-        throw error;
+// Serve uploaded images statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-    }
-}
-//MongoDB Connection
-/*mongoose.connect('mongodb://127.0.0.1:27017/campusEventHub',{
-    useNewUrlParser: true,
-    useUnifiedTopology:true
-})
-.then(() => console.log("MongoDB Connected"))
-.catch(error => console.log(error));*/
+// Routes
+app.use('/api/auth',          require('./routes/auth'));
+app.use('/api/events',        require('./routes/events'));
+app.use('/api/registrations', require('./routes/registrations'));
+app.use('/api/notifications', require('./routes/notifications'));
 
-//Routes
-app.use('/api/role',require('./routes/role'));
+const connectMongoDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URL);
+    console.log('Connected to MongoDB');
+  } catch (err) {
+    console.error('MongoDB connection failed:', err.message);
+    process.exit(1);
+  }
+};
 
-
-
-
-
-
-
-/*app.use('/', (req,res) =>{
-   return res.send("Hello,Welcome to MEAN Stack Project!!");
-})*/
-
-app.listen(8800, () =>{
-    connectMongoDB();
-    console.log("connected to backend");
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  connectMongoDB();
+  console.log('Server running on port ' + PORT);
 });

@@ -1,13 +1,15 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
 
 export interface UserData {
-  token: string;
-  role: string;
+  token: string; 
+  role: string; 
   fullName: string;
-  email: string;
-  userId?: string;
+  email: string; 
+  userId?: string; 
+  college?: string; 
+  walletBalance?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -17,26 +19,33 @@ export class AuthService {
 
   constructor(private http: HttpClient) {}
 
-  register(data: any): Observable<any> {
-    return this.http.post(`${this.apiUrl}/register`, data);
+  // ===== AUTHENTICATION =====
+  register(data: any): Observable<any> { 
+    return this.http.post(`${this.apiUrl}/register`, data); 
+  }
+  
+  login(data: any): Observable<any> {    
+    return this.http.post(`${this.apiUrl}/login`, data); 
   }
 
-  login(data: any): Observable<any> {
-    return this.http.post(`${this.apiUrl}/login`, data);
+  logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('fullName');
+    localStorage.removeItem('email');
+    localStorage.removeItem('user');
+    this.loginEvent$.next();
   }
 
-  saveUserData(token: string, role: string, fullName: string, email: string, userId?: string) {
-    const user: UserData = { token, role, fullName, email, userId };
+  // ===== USER DATA MANAGEMENT =====
+  saveUserData(token: string, role: string, fullName: string, email: string, userId?: string, college?: string, walletBalance?: number) {
+    const user: UserData = { token, role, fullName, email, userId, college, walletBalance };
     localStorage.setItem('token', token);
     localStorage.setItem('role', role);
     localStorage.setItem('fullName', fullName);
     localStorage.setItem('email', email);
     localStorage.setItem('user', JSON.stringify(user));
     this.loginEvent$.next();
-  }
-
-  getToken(): string | null {
-    return localStorage.getItem('token');
   }
 
   getUser(): UserData | null {
@@ -46,6 +55,10 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  getToken(): string | null {
+    return localStorage.getItem('token');
   }
 
   getRole(): string | null { 
@@ -64,6 +77,23 @@ export class AuthService {
     return this.getUser()?.userId || null; 
   }
 
+  getCollege(): string | null {
+    return this.getUser()?.college || null;
+  }
+
+  getWallet(): number {
+    const user = this.getUser();
+    return user?.walletBalance || 0;
+  }
+
+  updateWalletBalance(balance: number) {
+    const user = this.getUser();
+    if (user) {
+      user.walletBalance = balance;
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+  }
+
   isLoggedIn(): boolean { 
     return !!this.getToken(); 
   }
@@ -75,12 +105,27 @@ export class AuthService {
     return allowed.includes(role);
   }
 
-  logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    localStorage.removeItem('fullName');
-    localStorage.removeItem('email');
-    localStorage.removeItem('user');
-    this.loginEvent$.next();
+  // ===== WALLET =====
+  getWalletBalance(): Observable<any> { 
+    return this.http.get(`${this.apiUrl}/wallet`); 
+  }
+  
+  topUpWallet(amount: number): Observable<any> { 
+    return this.http.post(`${this.apiUrl}/wallet/topup`, { amount }); 
+  }
+
+  // ===== USER MANAGEMENT (for Super Admin) =====
+ /**
+   * Get user by ID
+   */
+  getUserById(id: string): Observable<any> {
+    return this.http.get(`${this.apiUrl}/users/${id}`);
+  }
+
+  /**
+   * Update user role
+   */
+  updateUserRole(id: string, role: string): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/users/${id}/role`, { role });
   }
 }

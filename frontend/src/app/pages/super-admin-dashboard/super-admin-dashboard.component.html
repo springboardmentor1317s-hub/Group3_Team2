@@ -226,7 +226,7 @@
       </div>
       }
 
-      <!-- ══ EVENTS ══ (BUG FIX #3: shows full event details, no debug info) -->
+      <!-- ══ EVENTS ══ -->
       @if (currentView() === 'events') {
       <div class="animate-in">
         <div class="section-head" style="margin-bottom:14px;">
@@ -258,7 +258,7 @@
               <option value="seminar">Seminar</option>
             </select>
             <button class="btn btn-secondary btn-sm" (click)="clearEventFilters()">✕ Clear</button>
-            <button class="btn btn-secondary btn-sm" (click)="loadEventsFromDB()">🔄 Refresh</button>
+            <button class="btn btn-secondary btn-sm" (click)="loadEvents()">🔄 Refresh</button>
           </div>
         </div>
         <div class="section-card">

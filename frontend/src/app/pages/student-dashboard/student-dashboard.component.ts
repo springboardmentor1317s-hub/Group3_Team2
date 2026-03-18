@@ -6,6 +6,7 @@ import { Subscription, interval } from 'rxjs';
 import { EventService } from '../../services/event.service';
 import { AuthService } from '../../services/auth.service';
 import { ChatService } from '../../services/chat.service';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-student-dashboard',
@@ -19,39 +20,47 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   currentView = signal<string>('overview');
   activeTab   = signal<string>('details');
 
-  events: any[]          = [];
-  filteredEvents: any[]  = [];
-  registeredEventIds     = new Set<string>();
-  pendingEventIds        = new Set<string>();
+  events: any[] = [];
+  filteredEvents: any[] = [];
+  registeredEventIds = new Set<string>();
+  pendingEventIds = new Set<string>();
   registeredEvents: any[] = [];
   pendingEvents: any[] = [];
 
   notifications: any[] = [];
-  payments: any[]      = [];
-  leaderboard: any[]   = [];
+  payments: any[] = [];
+  leaderboard: any[] = [];
 
   selectedEvent: any = null;
   selectedSlot: string = '';
 
   showEventModal = false;
-  registering    = false;
-
-  searchQuery    = '';
-  categoryFilter = 'all';
-  dateFilter     = '';
-  statusFilter   = 'all';
-
+  registering = false;
   errorMessage = '';
 
+  searchQuery = '';
+  categoryFilter = 'all';
+  dateFilter = '';
+  statusFilter = 'all';
+
   user: any = null;
-
-  sidebarCollapsed    = false;
-  mobileSidebarOpen   = false;
-  selectedPaymentMethod = 'upi';
-
+  walletBalance = 0;
+  sidebarCollapsed = false;
+  mobileSidebarOpen = false;
   totalPoints = 0;
-  myRank      = 0;
+  myRank = 0;
   showConfetti = false;
+
+  // Payment modal
+  showPaymentModal = false;
+  processingPayment = false;
+  paymentSuccess = false;
+  selectedPaymentMethod = 'wallet';
+  pendingPaymentEvent: any = null;
+  showTopUpModal = false;
+  topUpAmount = 200;
+  topUpLoading = false;
+  topUpSuccess = false;
 
   cancelling = false;
   
@@ -60,20 +69,33 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   private isActive = true;
   lastUpdateTime: Date = new Date();
 
+  // Feedback
+  showFeedbackModal = false;
+  feedbackEvent: any = null;
+  feedbackRating = 0;
+  feedbackComment = '';
+  feedbackSubmitting = false;
+  feedbackError = '';
+
+  showProfileModal = false;
   private navSub!: Subscription | undefined;
+
+  // ✅ Add this for password visibility (if needed in dashboard)
+  showPassword = false;
 
   constructor(
     public authService: AuthService,
     private eventService: EventService,
     private router: Router,
-    private chatService: ChatService
+    private chatService: ChatService,
+    public notifService: NotificationService
   ) {
     effect(() => {
       const req = this.chatService.navRequest();
       if (!req) return;
 
-      if (req === 'BROWSE_EVENTS')  { this.setView('events');      }
-      if (req === 'LEADERBOARD')    { this.setView('leaderboard'); }
+      if (req === 'BROWSE_EVENTS') { this.setView('events'); }
+      if (req === 'LEADERBOARD') { this.setView('leaderboard'); }
 
       this.chatService.navRequest.set(null);
     });
@@ -87,12 +109,26 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     }
 
     this.user = this.authService.getUser() || {};
-
+    this.walletBalance = this.authService.getWallet ? this.authService.getWallet() : 0;
+    
     this.loadEvents();
     this.loadMyRegistrations();
     this.loadMockData();
+    this.loadLeaderboard();
+    this.notifService.reload();
     
-    // FIXED: Start auto-refresh every 10 seconds (increased frequency)
+    // Sync wallet from server
+    this.authService.getWalletBalance().subscribe({
+      next: (r: any) => { 
+        this.walletBalance = r.walletBalance; 
+        this.authService.updateWalletBalance(r.walletBalance); 
+      },
+      error: (err) => {
+        console.error('Failed to load wallet balance:', err);
+      }
+    });
+
+    // Start auto-refresh every 10 seconds
     this.startAutoRefresh();
   }
 
@@ -125,6 +161,8 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     console.log('🔄 Manual refresh triggered');
     this.loadEvents();
     this.loadMyRegistrations();
+    this.loadLeaderboard();
+    this.notifService.reload();
     this.lastUpdateTime = new Date();
   }
 
@@ -139,13 +177,16 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     if (view === 'events') {
       this.loadEvents();
     }
+    if (view === 'payments') {
+      this.loadMyRegistrations();
+    }
   }
   
-  setTab(tab: string)   { this.activeTab.set(tab);    }
+  setTab(tab: string) { this.activeTab.set(tab); }
 
-  toggleSidebar()       { this.sidebarCollapsed    = !this.sidebarCollapsed;    }
-  toggleMobileSidebar() { this.mobileSidebarOpen   = !this.mobileSidebarOpen;   }
-  closeMobileSidebar()  { this.mobileSidebarOpen   = false;                     }
+  toggleSidebar() { this.sidebarCollapsed = !this.sidebarCollapsed; }
+  toggleMobileSidebar() { this.mobileSidebarOpen = !this.mobileSidebarOpen; }
+  closeMobileSidebar() { this.mobileSidebarOpen = false; }
 
   // ─── USER HELPERS ───────────────────────────────────────────────────────────
 
@@ -161,24 +202,31 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     return this.user?.email || '';
   }
 
+  getCollege(): string {
+    return this.user?.college || '—';
+  }
+
   // ─── EVENT DATA ─────────────────────────────────────────────────────────────
 
   loadEvents() {
     const filters: any = {};
     if (this.categoryFilter !== 'all') filters.category = this.categoryFilter;
-    if (this.statusFilter   !== 'all') filters.status   = this.statusFilter;
-    if (this.dateFilter)               filters.date      = this.dateFilter;
+    if (this.statusFilter !== 'all') filters.status = this.statusFilter;
+    if (this.dateFilter) filters.date = this.dateFilter;
 
     this.eventService.getAllEvents(filters).subscribe({
       next: (data: any) => {
         console.log('📡 All Events API Response:', data);
-        const list     = Array.isArray(data) ? data : data?.events || [];
-        this.events    = list;
+        const list = Array.isArray(data) ? data : data?.events || [];
+        this.events = list.map((e: any) => ({ 
+          ...e, 
+          status: this.eventService.computeStatus ? this.eventService.computeStatus(e) : e.status 
+        }));
         this.filterEvents();
       },
       error: (err: any) => {
         console.error('❌ Failed to load events:', err);
-        this.events        = [];
+        this.events = [];
         this.filteredEvents = [];
       }
     });
@@ -189,10 +237,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       next: (data: any) => {
         console.log('📡 My Registrations API Response:', data);
         const list = Array.isArray(data) ? data : data?.events || [];
-        
-        // Store previous counts to detect changes
-        const prevPendingCount = this.pendingEvents?.length || 0;
-        const prevApprovedCount = this.registeredEvents?.length || 0;
         
         // Split registrations based on approvalStatus from the backend
         const newRegisteredEvents = list.filter((ev: any) => 
@@ -268,8 +312,15 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         }
 
         // Update the arrays
-        this.registeredEvents = newRegisteredEvents;
-        this.pendingEvents = newPendingEvents;
+        this.registeredEvents = newRegisteredEvents.map((e: any) => ({ 
+          ...e, 
+          status: this.eventService.computeStatus ? this.eventService.computeStatus(e) : e.status 
+        }));
+        
+        this.pendingEvents = newPendingEvents.map((e: any) => ({ 
+          ...e, 
+          status: this.eventService.computeStatus ? this.eventService.computeStatus(e) : e.status 
+        }));
 
         // Update ID sets
         this.registeredEventIds = new Set(
@@ -279,6 +330,16 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         this.pendingEventIds = new Set(
           this.pendingEvents.map((ev: any) => String(ev?._id || ev?.id))
         );
+
+        // Update payments list
+        this.payments = list.filter((e: any) => (e.paymentAmount || 0) > 0).map((e: any) => ({
+          id: e.paymentTxnId || ('TXN-' + e.registrationId),
+          event: e.title,
+          amount: e.paymentAmount,
+          status: e.paymentStatus === 'paid' ? 'success' : e.paymentStatus,
+          method: e.paymentMethod || '—',
+          date: e.registeredAt || e.createdAt
+        }));
 
         console.log('✅ Approved Events:', Array.from(this.registeredEventIds));
         console.log('⏳ Pending Events:', Array.from(this.pendingEventIds));
@@ -296,8 +357,24 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  loadLeaderboard() {
+    // Mock leaderboard data - in production, this would come from an API
+    this.leaderboard = [
+      { rank: 1, name: 'Arjun Kumar', college: 'IIT Madras', events: 12, points: 2400, badges: ['🏆', '🎯', '⚡'] },
+      { rank: 2, name: 'Priya Sharma', college: 'NIT Trichy', events: 10, points: 2100, badges: ['🥈', '🎨'] },
+      { rank: 3, name: 'Vikram Nair', college: 'BITS Pilani', events: 9, points: 1950, badges: ['🥉', '💡'] },
+      { rank: 4, name: 'Meera Patel', college: 'VIT Vellore', events: 8, points: 1800, badges: ['🎯'] },
+      { rank: 5, name: 'Rahul Singh', college: 'SRM Chennai', events: 7, points: 1600, badges: ['⚡'] },
+      { rank: 6, name: this.getFullName(), college: this.getCollege(), events: this.registeredEvents.length, points: this.totalPoints, badges: [] }
+    ];
+    
+    // Find my rank
+    const myEntry = this.leaderboard.find(l => l.name === this.getFullName());
+    this.myRank = myEntry ? myEntry.rank : 6;
+  }
+
   calculateTotalPoints() {
-    this.totalPoints = this.registeredEvents.length * 10;
+    this.totalPoints = this.registeredEvents.length * 200;
   }
 
   addNotification(notification: any) {
@@ -308,20 +385,8 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   }
 
   loadMockData() {
-    this.notifications = [
-      { id: 1, icon: '📅', title: 'Tech Fest Registration Open',  message: 'Slots filling fast', time: '2h ago', read: false },
-      { id: 2, icon: '✅', title: 'Registration Confirmed', message: 'You registered for Cultural Night', time: '1d ago', read: true }
-    ];
-    
-    this.leaderboard = [
-      { rank: 1, name: 'Alex Johnson', college: 'Engineering', events: 12, points: 450, badges: ['🥇', '🔥'] },
-      { rank: 2, name: 'Sarah Chen', college: 'Arts', events: 10, points: 380, badges: ['🥈'] },
-      { rank: 3, name: 'Mike Peters', college: 'Science', events: 8, points: 320, badges: ['🥉'] },
-      { rank: 4, name: this.getFullName(), college: 'Your College', events: this.registeredEvents.length, points: this.totalPoints, badges: [] }
-    ];
-    
-    const myEntry = this.leaderboard.find(l => l.name === this.getFullName());
-    this.myRank = myEntry ? myEntry.rank : 5;
+    // This is just a placeholder - actual notifications come from NotificationService
+    this.notifications = [];
   }
 
   // ─── FILTERING ──────────────────────────────────────────────────────────────
@@ -333,18 +398,26 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       const q = this.searchQuery.toLowerCase();
       list = list.filter((e: any) =>
         e.title?.toLowerCase().includes(q) ||
-        e.description?.toLowerCase().includes(q)
+        e.description?.toLowerCase().includes(q) ||
+        e.venue?.toLowerCase().includes(q)
       );
     }
 
     if (this.categoryFilter !== 'all') list = list.filter((e: any) => e.category === this.categoryFilter);
-    if (this.statusFilter   !== 'all') list = list.filter((e: any) => e.status   === this.statusFilter);
+    if (this.statusFilter !== 'all') list = list.filter((e: any) => e.status === this.statusFilter);
 
     this.filteredEvents = list;
   }
 
   onSearchChange() { this.filterEvents(); }
-  onFilterChange() { this.loadEvents();   }
+  onFilterChange() { this.filterEvents(); }
+  
+  clearFilters() { 
+    this.searchQuery = ''; 
+    this.categoryFilter = 'all'; 
+    this.statusFilter = 'all'; 
+    this.filterEvents(); 
+  }
 
   // ─── EVENT UTILITIES ────────────────────────────────────────────────────────
 
@@ -354,12 +427,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
   isPendingApproval(ev: any): boolean {
     return this.pendingEventIds.has(String(ev._id || ev.id));
-  }
-
-  getRegistrationStatus(ev: any): string {
-    if (this.isRegistered(ev)) return 'registered';
-    if (this.isPendingApproval(ev)) return 'pending';
-    return 'none';
   }
 
   isFull(ev: any): boolean {
@@ -372,23 +439,47 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   }
 
   isSpotsUrgent(ev: any): boolean {
-    return this.getSpotsLeft(ev) <= 5;
+    return this.getSpotsLeft(ev) <= 5 && this.getSpotsLeft(ev) > 0;
   }
 
-  // ─── DASHBOARD HELPERS ──────────────────────────────────────────────────────
+  getMyRegistration(eventId: string): any {
+    return this.registeredEvents.find(r => String(r._id || r.id) === String(eventId)) || null;
+  }
+
+  canGiveFeedback(ev: any): boolean {
+    return ev.status === 'completed' && this.isRegistered(ev) &&
+           (this.getMyRegistration(ev._id)?.approvalStatus === 'approved') &&
+           !(this.getMyRegistration(ev._id)?.hasFeedback);
+  }
+
+  getPastEventsWithFeedback(): any[] {
+    return this.registeredEvents.filter(e => e.status === 'completed');
+  }
+
+  getAllTestimonials(): any[] {
+    const all: any[] = [];
+    this.events.forEach(ev => {
+      if (ev.feedback?.length) ev.feedback.forEach((f: any) => all.push({ ...f, eventTitle: ev.title }));
+    });
+    return all.slice(0, 6);
+  }
 
   getDashboardStats() {
+    const r = this.registeredEvents;
     return {
-      registered: this.registeredEvents.length,
+      registered: r.length,
+      upcoming: r.filter(e => e.status === 'upcoming').length,
+      completed: r.filter(e => e.status === 'completed').length,
       pending: this.pendingEvents?.length || 0,
-      upcoming: this.registeredEvents.filter((e: any) => e.status === 'upcoming').length,
-      completed: this.registeredEvents.filter((e: any) => e.status === 'completed').length
+      approved: r.filter(e => e.approvalStatus === 'approved').length,
+      rejected: r.filter(e => e.approvalStatus === 'rejected').length
     };
   }
 
-  getTrendingEvents()   { return this.events.slice(0, 4); }
+  getTrendingEvents() { 
+    return this.events.filter(e => e.status !== 'completed').slice(0, 4); 
+  }
 
-  // FIXED: Removed pending approval from schedule - only shows upcoming events regardless of approval status
   getUpcomingSchedule() {
     // Combine both approved and pending registrations that are upcoming
     const allUpcoming = [
@@ -403,30 +494,84 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
   // ─── DATE FORMATTERS ────────────────────────────────────────────────────────
 
-  formatDate(date: any)     { if (!date) return ''; return new Date(date).toLocaleDateString();  }
-  formatDateTime(date: any) { if (!date) return ''; return new Date(date).toLocaleString();      }
+  formatDate(d: any): string { 
+    if (!d) return ''; 
+    return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); 
+  }
+  
+  formatDateTime(d: any): string { 
+    if (!d) return ''; 
+    return new Date(d).toLocaleString('en-IN'); 
+  }
+  
+  getStars(r: number): string { 
+    return '★'.repeat(Math.round(r || 0)) + '☆'.repeat(5 - Math.round(r || 0)); 
+  }
 
   // ─── NOTIFICATIONS ──────────────────────────────────────────────────────────
 
-  get unreadCount()             { return this.notifications.filter(n => !n.read).length;   }
-  markNotificationRead(n: any)  { n.read = true;                                            }
-  markAllRead()                 { this.notifications.forEach(n => n.read = true);           }
+  get unreadCount() { return this.notifService.unreadCount; }
+  markNotificationRead(n: any) { this.notifService.markRead(n._id); }
+  markAllRead() { this.notifService.markAllRead(); }
+  deleteNotification(n: any) { this.notifService.delete(n._id); }
+  
+  getNotifIcon(type: string): string {
+    const m: any = { 
+      'registration-approved': '✅',
+      'registration-rejected': '❌',
+      'new-registration': '📋',
+      'event-update': '📢',
+      'general': '🔔' 
+    };
+    return m[type] || '🔔';
+  }
 
-  // ─── REGISTRATION ───────────────────────────────────────────────────────────
+  // ─── REGISTRATION FLOW ──────────────────────────────────────────────────────
 
-  registerForEvent() {
+  openEventModal(event: any) {
+    this.selectedEvent = event;
+    this.showEventModal = true;
+    this.setTab('details');
+    this.errorMessage = '';
+    this.selectedSlot = '';
+  }
+
+  closeEventModal() {
+    this.showEventModal = false;
+    this.selectedEvent = null;
+  }
+
+  startRegistration() {
     if (!this.selectedEvent) return;
     
     if (this.selectedEvent.slots?.length > 0 && !this.selectedSlot) {
       this.errorMessage = 'Please select a time slot first.';
       return;
     }
+    
+    if ((this.selectedEvent.registrationFee || 0) > 0) {
+      this.pendingPaymentEvent = this.selectedEvent;
+      this.showPaymentModal = true;
+      this.paymentSuccess = false;
+      this.processingPayment = false;
+      this.selectedPaymentMethod = this.walletBalance >= this.selectedEvent.registrationFee ? 'wallet' : 'upi';
+      return;
+    }
+    
+    this.doRegister();
+  }
 
+  doRegister(paymentPayload?: { paymentMethod: string; paymentTxnId?: string; paymentAmount: number; useWallet?: boolean }) {
+    if (!this.selectedEvent) return;
+    
     const id = this.selectedEvent._id || this.selectedEvent.id;
     this.registering = true;
     this.errorMessage = '';
+    
+    const payload: any = { selectedSlot: this.selectedSlot };
+    if (paymentPayload) Object.assign(payload, paymentPayload);
 
-    this.eventService.registerForEvent(id, this.selectedSlot).subscribe({
+    this.eventService.registerForEvent(id, payload).subscribe({
       next: (res: any) => {
         if (res.registration?.approvalStatus === 'pending') {
           alert('Registration submitted! Your request is pending admin approval.');
@@ -455,12 +600,17 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         }
         
         this.registering = false;
+        if (res?.walletBalance !== undefined) {
+          this.walletBalance = res.walletBalance;
+          this.authService.updateWalletBalance(res.walletBalance);
+        }
         this.selectedSlot = '';
         this.loadMyRegistrations();
         this.closeEventModal();
         
-        this.showConfetti = true; 
+        this.showConfetti = true;
         setTimeout(() => this.showConfetti = false, 3000);
+        this.notifService.reload();
       },
       error: (err: any) => {
         console.error('Registration failed:', err);
@@ -518,6 +668,14 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
           this.selectedEvent = null;
           this.showEventModal = false;
         }
+
+        // Refresh wallet (might have been refunded)
+        this.authService.getWalletBalance().subscribe({ 
+          next: (r: any) => { 
+            this.walletBalance = r.walletBalance; 
+            this.authService.updateWalletBalance(r.walletBalance); 
+          } 
+        });
       },
       error: (err: any) => {
         console.error('Cancellation failed:', err);
@@ -532,33 +690,163 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     this.cancelRegistration(this.selectedEvent);
   }
 
-  openEventModal(event: any)  { 
-    this.selectedEvent = event; 
-    this.showEventModal = true;  
+  // ─── PAYMENT MODAL ──────────────────────────────────────────────────────────
+
+  closePaymentModal() { 
+    this.showPaymentModal = false; 
+    this.pendingPaymentEvent = null; 
+  }
+
+  processPayment() {
+    if (!this.pendingPaymentEvent) return;
+    this.processingPayment = true;
+
+    if (this.selectedPaymentMethod === 'wallet') {
+      if (this.walletBalance < this.pendingPaymentEvent.registrationFee) {
+        this.processingPayment = false;
+        alert('Insufficient wallet balance. Please top up or choose another method.');
+        return;
+      }
+      // Wallet payment: register directly with useWallet flag
+      this.processingPayment = false;
+      this.paymentSuccess = true;
+      setTimeout(() => {
+        this.showPaymentModal = false;
+        this.doRegister({ 
+          paymentMethod: 'wallet', 
+          paymentAmount: this.pendingPaymentEvent.registrationFee, 
+          useWallet: true 
+        });
+      }, 1000);
+    } else {
+      // Simulate other payment gateway (2 sec delay)
+      setTimeout(() => {
+        this.processingPayment = false;
+        this.paymentSuccess = true;
+        const txnId = 'TXN' + Date.now();
+        const amount = this.pendingPaymentEvent.registrationFee;
+        setTimeout(() => {
+          this.showPaymentModal = false;
+          this.doRegister({ 
+            paymentMethod: this.selectedPaymentMethod, 
+            paymentTxnId: txnId, 
+            paymentAmount: amount 
+          });
+        }, 1000);
+      }, 2000);
+    }
+  }
+
+  // ─── TOP UP WALLET ──────────────────────────────────────────────────────────
+
+  openTopUp() { 
+    this.showTopUpModal = true; 
+    this.topUpAmount = 200; 
+    this.topUpSuccess = false; 
   }
   
-  closeEventModal()           { 
-    this.showEventModal = false; 
-    this.selectedEvent = null;
-    this.selectedSlot = '';
-    this.errorMessage = '';
+  closeTopUp() { 
+    this.showTopUpModal = false; 
   }
 
-  // ─── PAYMENT STATUS ─────────────────────────────────────────────────────────
+  submitTopUp() {
+    if (!this.topUpAmount || this.topUpAmount < 1) return;
+    this.topUpLoading = true;
+    this.authService.topUpWallet(this.topUpAmount).subscribe({
+      next: (r: any) => {
+        this.walletBalance = r.walletBalance;
+        this.authService.updateWalletBalance(r.walletBalance);
+        this.topUpLoading = false;
+        this.topUpSuccess = true;
+        setTimeout(() => { 
+          this.showTopUpModal = false; 
+          this.topUpSuccess = false; 
+        }, 1500);
+      },
+      error: () => { 
+        this.topUpLoading = false; 
+      }
+    });
+  }
 
-  getStatusClass(status: string) {
-    switch (status) {
-      case 'success': return 'text-success';
-      case 'failed':  return 'text-danger';
-      case 'pending': return 'text-warning';
-      default:        return 'text-info';
+  // ─── FEEDBACK ───────────────────────────────────────────────────────────────
+
+  openFeedback(ev: any) {
+    this.feedbackEvent = ev;
+    this.feedbackRating = 0;
+    this.feedbackComment = '';
+    this.feedbackError = '';
+    this.showFeedbackModal = true;
+  }
+  
+  closeFeedback() { 
+    this.showFeedbackModal = false; 
+    this.feedbackEvent = null; 
+  }
+
+  setFeedbackRating(r: number) { 
+    this.feedbackRating = r; 
+  }
+
+  submitFeedback() {
+    if (!this.feedbackRating) { 
+      this.feedbackError = 'Please select a star rating.'; 
+      return; 
     }
+    if (!this.feedbackEvent) return;
+    
+    this.feedbackSubmitting = true;
+    this.feedbackError = '';
+    const eventId = this.feedbackEvent._id || this.feedbackEvent.id;
+    
+    this.eventService.submitFeedback(eventId, { 
+      rating: this.feedbackRating, 
+      comment: this.feedbackComment 
+    }).subscribe({
+      next: () => {
+        this.feedbackSubmitting = false;
+        // Mark hasFeedback locally
+        const reg = this.registeredEvents.find(r => String(r._id || r.id) === String(eventId));
+        if (reg) reg.hasFeedback = true;
+        this.closeFeedback();
+        this.loadEvents(); // refresh to get updated feedback
+      },
+      error: (err: any) => { 
+        this.feedbackError = err?.error?.message || 'Failed to submit feedback.'; 
+        this.feedbackSubmitting = false; 
+      }
+    });
+  }
+
+  // ─── PROFILE MODAL ──────────────────────────────────────────────────────────
+
+  openProfileModal() { 
+    this.showProfileModal = true; 
+  }
+  
+  closeProfileModal() { 
+    this.showProfileModal = false; 
+  }
+
+  getRegistrationStatusClass(status: string) {
+    return { 
+      'status-pending': status === 'pending', 
+      'status-approved': status === 'approved', 
+      'status-rejected': status === 'rejected' 
+    };
+  }
+  
+  getStatusClass(s: string) {
+    if (s === 'success' || s === 'paid') return 'badge-success';
+    if (s === 'failed') return 'badge-danger';
+    if (s === 'pending') return 'badge-warning';
+    return 'badge-info';
   }
 
   // ─── AUTH ───────────────────────────────────────────────────────────────────
 
-  logout() {
-    this.authService.logout();
-    this.router.navigate(['/login']);
+  logout() { 
+    this.authService.logout(); 
+    this.router.navigate(['/login']); 
   }
 }
