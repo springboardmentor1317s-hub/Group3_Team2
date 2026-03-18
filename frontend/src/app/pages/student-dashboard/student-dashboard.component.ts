@@ -1,10 +1,11 @@
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subscription, interval } from 'rxjs';
 import { EventService } from '../../services/event.service';
 import { AuthService } from '../../services/auth.service';
+import { ChatService } from '../../services/chat.service';
 
 @Component({
   selector: 'app-student-dashboard',
@@ -18,106 +19,133 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   currentView = signal<string>('overview');
   activeTab   = signal<string>('details');
 
-  events: any[] = [];
-  filteredEvents: any[] = [];
-  registeredEventIds = new Set<string>();
-  pendingRegistrationIds = new Set<string>();
+  events: any[]          = [];
+  filteredEvents: any[]  = [];
+  registeredEventIds     = new Set<string>();
+  pendingEventIds        = new Set<string>();
   registeredEvents: any[] = [];
-  pendingRegistrations: any[] = [];
-  approvedRegistrations: any[] = [];
+  pendingEvents: any[] = [];
 
   notifications: any[] = [];
-  payments: any[] = [];
-  leaderboard: any[] = [];
+  payments: any[]      = [];
+  leaderboard: any[]   = [];
 
   selectedEvent: any = null;
-  showEventModal = false;
-  registering = false;
+  selectedSlot: string = '';
 
-  searchQuery = '';
+  showEventModal = false;
+  registering    = false;
+
+  searchQuery    = '';
   categoryFilter = 'all';
-  dateFilter = '';
-  statusFilter = 'all';
+  dateFilter     = '';
+  statusFilter   = 'all';
 
   errorMessage = '';
+
   user: any = null;
 
-  sidebarCollapsed = false;
-  mobileSidebarOpen = false;
+  sidebarCollapsed    = false;
+  mobileSidebarOpen   = false;
   selectedPaymentMethod = 'upi';
 
   totalPoints = 0;
-  myRank = 0;
+  myRank      = 0;
   showConfetti = false;
 
-  private subscriptions: Subscription[] = [];
+  cancelling = false;
+  
+  // Auto-refresh
+  private refreshSubscription!: Subscription;
+  private isActive = true;
+  lastUpdateTime: Date = new Date();
+
+  private navSub!: Subscription | undefined;
 
   constructor(
     public authService: AuthService,
     private eventService: EventService,
-    private router: Router
+    private router: Router,
+    private chatService: ChatService
   ) {
-    console.log('✅ StudentDashboard constructor');
+    effect(() => {
+      const req = this.chatService.navRequest();
+      if (!req) return;
+
+      if (req === 'BROWSE_EVENTS')  { this.setView('events');      }
+      if (req === 'LEADERBOARD')    { this.setView('leaderboard'); }
+
+      this.chatService.navRequest.set(null);
+    });
   }
 
   ngOnInit() {
-    console.log('🔵 Dashboard ngOnInit started');
-    
-    // Check authentication
-    if (!this.authService.isLoggedIn()) {
-      console.log('❌ Not logged in, redirecting');
-      this.router.navigate(['/login']);
-      return;
-    }
-
-    // Check role
-    const userRole = this.authService.getRole();
-    console.log('User role:', userRole);
-    
-    if (userRole !== 'student') {
-      console.log('❌ Wrong role, redirecting');
+    if (!this.authService.isLoggedIn() || !this.authService.isAuthorized('student')) {
       this.authService.logout();
       this.router.navigate(['/login']);
       return;
     }
 
-    // Get user data
     this.user = this.authService.getUser() || {};
-    console.log('✅ User data loaded:', this.user);
 
-    // Load data
     this.loadEvents();
     this.loadMyRegistrations();
     this.loadMockData();
-    this.loadLeaderboard();
+    
+    // FIXED: Start auto-refresh every 10 seconds (increased frequency)
+    this.startAutoRefresh();
   }
 
   ngOnDestroy() {
-    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.navSub?.unsubscribe();
+    this.stopAutoRefresh();
+    this.isActive = false;
+  }
+
+  // ─── Auto-Refresh Methods ────────────────────────────────────────────
+
+  startAutoRefresh() {
+    // Refresh every 10 seconds to check for approval updates
+    this.refreshSubscription = interval(10000).subscribe(() => {
+      if (this.isActive && document.visibilityState === 'visible') {
+        console.log('🔄 Auto-refreshing registrations...');
+        this.loadMyRegistrations();
+        this.lastUpdateTime = new Date();
+      }
+    });
+  }
+
+  stopAutoRefresh() {
+    if (this.refreshSubscription) {
+      this.refreshSubscription.unsubscribe();
+    }
+  }
+
+  refreshData() {
+    console.log('🔄 Manual refresh triggered');
+    this.loadEvents();
+    this.loadMyRegistrations();
+    this.lastUpdateTime = new Date();
   }
 
   // ─── UI CONTROLS ────────────────────────────────────────────────────────────
 
   setView(view: string) { 
-    console.log('Setting view to:', view);
     this.currentView.set(view); 
+    // Refresh when switching to views that need latest data
+    if (view === 'registered' || view === 'schedule' || view === 'overview') {
+      this.loadMyRegistrations();
+    }
+    if (view === 'events') {
+      this.loadEvents();
+    }
   }
   
-  setTab(tab: string) { 
-    this.activeTab.set(tab);    
-  }
+  setTab(tab: string)   { this.activeTab.set(tab);    }
 
-  toggleSidebar() { 
-    this.sidebarCollapsed = !this.sidebarCollapsed;    
-  }
-  
-  toggleMobileSidebar() { 
-    this.mobileSidebarOpen = !this.mobileSidebarOpen;   
-  }
-  
-  closeMobileSidebar() { 
-    this.mobileSidebarOpen = false;                     
-  }
+  toggleSidebar()       { this.sidebarCollapsed    = !this.sidebarCollapsed;    }
+  toggleMobileSidebar() { this.mobileSidebarOpen   = !this.mobileSidebarOpen;   }
+  closeMobileSidebar()  { this.mobileSidebarOpen   = false;                     }
 
   // ─── USER HELPERS ───────────────────────────────────────────────────────────
 
@@ -138,88 +166,162 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   loadEvents() {
     const filters: any = {};
     if (this.categoryFilter !== 'all') filters.category = this.categoryFilter;
-    if (this.statusFilter !== 'all') filters.status = this.statusFilter;
-    if (this.dateFilter) filters.date = this.dateFilter;
+    if (this.statusFilter   !== 'all') filters.status   = this.statusFilter;
+    if (this.dateFilter)               filters.date      = this.dateFilter;
 
-    const sub = this.eventService.getAllEvents(filters).subscribe({
+    this.eventService.getAllEvents(filters).subscribe({
       next: (data: any) => {
-        const list = Array.isArray(data) ? data : data?.events || [];
-        this.events = list;
+        console.log('📡 All Events API Response:', data);
+        const list     = Array.isArray(data) ? data : data?.events || [];
+        this.events    = list;
         this.filterEvents();
       },
-      error: (err) => {
-        console.error('Error loading events:', err);
-        this.events = [];
+      error: (err: any) => {
+        console.error('❌ Failed to load events:', err);
+        this.events        = [];
         this.filteredEvents = [];
       }
     });
-    this.subscriptions.push(sub);
   }
 
   loadMyRegistrations() {
-    const sub = this.eventService.getMyRegistrations().subscribe({
+    this.eventService.getMyRegistrations().subscribe({
       next: (data: any) => {
-        console.log('📥 Registrations response:', data);
+        console.log('📡 My Registrations API Response:', data);
+        const list = Array.isArray(data) ? data : data?.events || [];
         
-        // Handle different response structures
-        const registrations = Array.isArray(data) ? data : data?.registrations || [];
+        // Store previous counts to detect changes
+        const prevPendingCount = this.pendingEvents?.length || 0;
+        const prevApprovedCount = this.registeredEvents?.length || 0;
         
-        // Store all registrations
-        this.registeredEvents = registrations;
+        // Split registrations based on approvalStatus from the backend
+        const newRegisteredEvents = list.filter((ev: any) => 
+          ev.approvalStatus === 'approved'
+        );
         
-        // Separate by status
-        this.pendingRegistrations = registrations.filter((r: any) => r.status === 'pending');
-        this.approvedRegistrations = registrations.filter((r: any) => r.status === 'approved');
-        
-        // Track IDs for quick lookup
+        const newPendingEvents = list.filter((ev: any) => 
+          ev.approvalStatus === 'pending'
+        );
+
+        // Check for newly approved events (were pending, now approved)
+        if (this.pendingEvents && this.pendingEvents.length > 0) {
+          const newlyApproved = this.pendingEvents.filter(pending => {
+            const pendingId = pending._id || pending.id;
+            return !newPendingEvents.some((ev: any) => {
+              const evId = ev._id || ev.id;
+              return evId === pendingId;
+            }) && newRegisteredEvents.some((ev: any) => {
+              const evId = ev._id || ev.id;
+              return evId === pendingId;
+            });
+          });
+          
+          if (newlyApproved.length > 0) {
+            console.log('✅ New approvals detected:', newlyApproved.length);
+            
+            // Show alert for first approval
+            if (newlyApproved.length === 1) {
+              alert(`✅ Your registration for "${newlyApproved[0].title}" has been approved!`);
+            } else {
+              alert(`✅ ${newlyApproved.length} of your registrations have been approved!`);
+            }
+            
+            // Add notification for each approval
+            newlyApproved.forEach((event: any) => {
+              this.addNotification({
+                id: Date.now() + Math.random(),
+                icon: '✅',
+                title: 'Registration Approved',
+                message: `Your registration for "${event.title}" has been approved!`,
+                time: 'Just now',
+                read: false
+              });
+            });
+          }
+        }
+
+        // Check for newly rejected events
+        if (this.pendingEvents && this.pendingEvents.length > 0) {
+          const newlyRejected = this.pendingEvents.filter(pending => {
+            const pendingId = pending._id || pending.id;
+            return !newPendingEvents.some((ev: any) => {
+              const evId = ev._id || ev.id;
+              return evId === pendingId;
+            }) && !newRegisteredEvents.some((ev: any) => {
+              const evId = ev._id || ev.id;
+              return evId === pendingId;
+            });
+          });
+          
+          if (newlyRejected.length > 0) {
+            newlyRejected.forEach((event: any) => {
+              this.addNotification({
+                id: Date.now() + Math.random(),
+                icon: '❌',
+                title: 'Registration Rejected',
+                message: `Your registration for "${event.title}" was not approved.`,
+                time: 'Just now',
+                read: false
+              });
+            });
+          }
+        }
+
+        // Update the arrays
+        this.registeredEvents = newRegisteredEvents;
+        this.pendingEvents = newPendingEvents;
+
+        // Update ID sets
         this.registeredEventIds = new Set(
-          this.approvedRegistrations.map((reg: any) => String(reg.event?._id || reg.eventId || reg._id))
+          this.registeredEvents.map((ev: any) => String(ev?._id || ev?.id))
         );
         
-        this.pendingRegistrationIds = new Set(
-          this.pendingRegistrations.map((reg: any) => String(reg.event?._id || reg.eventId || reg._id))
+        this.pendingEventIds = new Set(
+          this.pendingEvents.map((ev: any) => String(ev?._id || ev?.id))
         );
+
+        console.log('✅ Approved Events:', Array.from(this.registeredEventIds));
+        console.log('⏳ Pending Events:', Array.from(this.pendingEventIds));
         
-        console.log('✅ Loaded registrations:', registrations.length);
-        console.log('⏳ Pending:', this.pendingRegistrations.length);
-        console.log('✅ Approved:', this.approvedRegistrations.length);
+        // Calculate points
+        this.calculateTotalPoints();
       },
-      error: (err) => {
-        console.error('❌ Error loading registrations:', err);
+      error: (err: any) => {
+        console.error('❌ Failed to load registrations:', err);
         this.registeredEvents = [];
+        this.pendingEvents = [];
         this.registeredEventIds = new Set();
-        this.pendingRegistrationIds = new Set();
-        this.pendingRegistrations = [];
-        this.approvedRegistrations = [];
+        this.pendingEventIds = new Set();
       }
     });
-    this.subscriptions.push(sub);
   }
 
-  loadLeaderboard() {
-    // Mock data - replace with actual API call later
-    this.leaderboard = [
-      { rank: 1, name: 'Riya Sharma', college: 'MIT', events: 8, points: 1200, badges: ['🥇'] },
-      { rank: 2, name: 'Arjun Singh', college: 'NIT', events: 6, points: 950, badges: ['🥈'] },
-      { rank: 3, name: 'Priya Patel', college: 'DTU', events: 5, points: 800, badges: ['🥉'] },
-      { rank: 4, name: 'Rahul Verma', college: 'BITS', events: 4, points: 600, badges: [] },
-      { rank: 5, name: 'Neha Gupta', college: 'VIT', events: 3, points: 450, badges: [] },
-    ];
-    
-    const userEmail = this.getEmail();
-    const userRank = this.leaderboard.findIndex(item => 
-      item.name.toLowerCase().includes('rahul') || 
-      item.name.toLowerCase().includes('test')
-    );
-    this.myRank = userRank !== -1 ? userRank + 1 : 5;
-    this.totalPoints = this.myRank === 5 ? 450 : 600;
+  calculateTotalPoints() {
+    this.totalPoints = this.registeredEvents.length * 10;
+  }
+
+  addNotification(notification: any) {
+    this.notifications.unshift(notification);
+    if (this.notifications.length > 50) {
+      this.notifications.pop();
+    }
   }
 
   loadMockData() {
     this.notifications = [
-      { id: 1, icon: '📅', title: 'Tech Fest Registration Open', message: 'Slots filling fast', time: '2h ago', read: false },
+      { id: 1, icon: '📅', title: 'Tech Fest Registration Open',  message: 'Slots filling fast', time: '2h ago', read: false },
       { id: 2, icon: '✅', title: 'Registration Confirmed', message: 'You registered for Cultural Night', time: '1d ago', read: true }
     ];
+    
+    this.leaderboard = [
+      { rank: 1, name: 'Alex Johnson', college: 'Engineering', events: 12, points: 450, badges: ['🥇', '🔥'] },
+      { rank: 2, name: 'Sarah Chen', college: 'Arts', events: 10, points: 380, badges: ['🥈'] },
+      { rank: 3, name: 'Mike Peters', college: 'Science', events: 8, points: 320, badges: ['🥉'] },
+      { rank: 4, name: this.getFullName(), college: 'Your College', events: this.registeredEvents.length, points: this.totalPoints, badges: [] }
+    ];
+    
+    const myEntry = this.leaderboard.find(l => l.name === this.getFullName());
+    this.myRank = myEntry ? myEntry.rank : 5;
   }
 
   // ─── FILTERING ──────────────────────────────────────────────────────────────
@@ -236,13 +338,13 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     }
 
     if (this.categoryFilter !== 'all') list = list.filter((e: any) => e.category === this.categoryFilter);
-    if (this.statusFilter !== 'all') list = list.filter((e: any) => e.status === this.statusFilter);
+    if (this.statusFilter   !== 'all') list = list.filter((e: any) => e.status   === this.statusFilter);
 
     this.filteredEvents = list;
   }
 
   onSearchChange() { this.filterEvents(); }
-  onFilterChange() { this.loadEvents(); }
+  onFilterChange() { this.loadEvents();   }
 
   // ─── EVENT UTILITIES ────────────────────────────────────────────────────────
 
@@ -250,8 +352,14 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     return this.registeredEventIds.has(String(ev._id || ev.id));
   }
 
-  isPending(ev: any): boolean {
-    return this.pendingRegistrationIds.has(String(ev._id || ev.id));
+  isPendingApproval(ev: any): boolean {
+    return this.pendingEventIds.has(String(ev._id || ev.id));
+  }
+
+  getRegistrationStatus(ev: any): string {
+    if (this.isRegistered(ev)) return 'registered';
+    if (this.isPendingApproval(ev)) return 'pending';
+    return 'none';
   }
 
   isFull(ev: any): boolean {
@@ -271,96 +379,169 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
   getDashboardStats() {
     return {
-      registered: this.approvedRegistrations.length,
-      pending: this.pendingRegistrations.length,
-      upcoming: this.approvedRegistrations.filter((e: any) => e.event?.status === 'upcoming').length,
-      completed: this.approvedRegistrations.filter((e: any) => e.event?.status === 'completed').length
+      registered: this.registeredEvents.length,
+      pending: this.pendingEvents?.length || 0,
+      upcoming: this.registeredEvents.filter((e: any) => e.status === 'upcoming').length,
+      completed: this.registeredEvents.filter((e: any) => e.status === 'completed').length
     };
   }
 
-  getTrendingEvents() { return this.events.slice(0, 4); }
+  getTrendingEvents()   { return this.events.slice(0, 4); }
 
+  // FIXED: Removed pending approval from schedule - only shows upcoming events regardless of approval status
   getUpcomingSchedule() {
-    return this.approvedRegistrations
-      .filter((reg: any) => reg.event?.status === 'upcoming')
-      .map((reg: any) => reg.event)
-      .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    // Combine both approved and pending registrations that are upcoming
+    const allUpcoming = [
+      ...this.registeredEvents.filter((e: any) => e.status === 'upcoming'),
+      ...this.pendingEvents.filter((e: any) => e.status === 'upcoming')
+    ];
+    
+    return allUpcoming.sort((a: any, b: any) => 
+      new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+    );
   }
 
   // ─── DATE FORMATTERS ────────────────────────────────────────────────────────
 
-  formatDate(date: any) { if (!date) return ''; return new Date(date).toLocaleDateString(); }
-  formatDateTime(date: any) { if (!date) return ''; return new Date(date).toLocaleString(); }
+  formatDate(date: any)     { if (!date) return ''; return new Date(date).toLocaleDateString();  }
+  formatDateTime(date: any) { if (!date) return ''; return new Date(date).toLocaleString();      }
 
   // ─── NOTIFICATIONS ──────────────────────────────────────────────────────────
 
-  get unreadCount() { return this.notifications.filter(n => !n.read).length; }
-  markNotificationRead(n: any) { n.read = true; }
-  markAllRead() { this.notifications.forEach(n => n.read = true); }
+  get unreadCount()             { return this.notifications.filter(n => !n.read).length;   }
+  markNotificationRead(n: any)  { n.read = true;                                            }
+  markAllRead()                 { this.notifications.forEach(n => n.read = true);           }
 
   // ─── REGISTRATION ───────────────────────────────────────────────────────────
 
   registerForEvent() {
     if (!this.selectedEvent) return;
+    
+    if (this.selectedEvent.slots?.length > 0 && !this.selectedSlot) {
+      this.errorMessage = 'Please select a time slot first.';
+      return;
+    }
+
     const id = this.selectedEvent._id || this.selectedEvent.id;
     this.registering = true;
+    this.errorMessage = '';
 
-    const sub = this.eventService.registerForEvent(id).subscribe({
-      next: (response: any) => {
-        console.log('✅ Registration response:', response);
+    this.eventService.registerForEvent(id, this.selectedSlot).subscribe({
+      next: (res: any) => {
+        if (res.registration?.approvalStatus === 'pending') {
+          alert('Registration submitted! Your request is pending admin approval.');
+          this.pendingEventIds.add(String(id));
+          
+          this.addNotification({
+            id: Date.now(),
+            icon: '⏳',
+            title: 'Registration Pending',
+            message: `Your registration for "${this.selectedEvent.title}" is pending approval.`,
+            time: 'Just now',
+            read: false
+          });
+        } else {
+          alert(res.message || 'Successfully registered!');
+          this.registeredEventIds.add(String(id));
+          
+          this.addNotification({
+            id: Date.now(),
+            icon: '✅',
+            title: 'Registration Confirmed',
+            message: `You are registered for "${this.selectedEvent.title}".`,
+            time: 'Just now',
+            read: false
+          });
+        }
+        
         this.registering = false;
+        this.selectedSlot = '';
         this.loadMyRegistrations();
         this.closeEventModal();
         
-        // Show appropriate message based on response
-        if (response.status === 'pending') {
-          alert('Registration submitted! Waiting for admin approval.');
-        } else {
-          alert('Successfully registered for event!');
-        }
+        this.showConfetti = true; 
+        setTimeout(() => this.showConfetti = false, 3000);
       },
       error: (err: any) => {
-        console.error('❌ Registration error:', err);
+        console.error('Registration failed:', err);
         this.errorMessage = err?.error?.message || 'Registration failed.';
+        alert(this.errorMessage);
         this.registering = false;
       }
     });
-    this.subscriptions.push(sub);
   }
 
   cancelRegistration(ev: any) {
-    const id = ev._id || ev.id;
-    const sub = this.eventService.unregisterFromEvent(id).subscribe({
-      next: () => {
-        this.registeredEventIds.delete(String(id));
-        this.pendingRegistrationIds.delete(String(id));
-        this.registeredEvents = this.registeredEvents.filter(e => e !== ev);
+    const eventTitle = ev.title || 'this event';
+    const eventId = ev._id || ev.id;
+    
+    let confirmationMessage = `Are you sure you want to cancel your registration for "${eventTitle}"?`;
+    
+    if (this.isPendingApproval(ev)) {
+      confirmationMessage = `Your registration for "${eventTitle}" is still pending approval. Are you sure you want to cancel it?`;
+    } else {
+      confirmationMessage += ' This action cannot be undone.';
+    }
+    
+    const isConfirmed = window.confirm(confirmationMessage);
+    
+    if (!isConfirmed) {
+      return;
+    }
+
+    this.eventService.unregisterFromEvent(eventId).subscribe({
+      next: (response: any) => {
+        this.registeredEventIds.delete(String(eventId));
+        this.pendingEventIds.delete(String(eventId));
+        
+        this.registeredEvents = this.registeredEvents.filter(e => 
+          (e._id || e.id) !== eventId
+        );
+        this.pendingEvents = this.pendingEvents.filter(e => 
+          (e._id || e.id) !== eventId
+        );
+        
+        alert(`Successfully cancelled registration for "${eventTitle}".`);
+        
+        this.addNotification({
+          id: Date.now(),
+          icon: '🗑️',
+          title: 'Registration Cancelled',
+          message: `Your registration for "${eventTitle}" has been cancelled.`,
+          time: 'Just now',
+          read: false
+        });
+        
         this.loadEvents();
-        this.loadMyRegistrations();
-        alert('Registration cancelled successfully');
+        
+        if (this.selectedEvent && (this.selectedEvent._id || this.selectedEvent.id) === eventId) {
+          this.selectedEvent = null;
+          this.showEventModal = false;
+        }
       },
       error: (err: any) => {
-        this.errorMessage = err?.error?.message || 'Could not cancel registration.';
+        console.error('Cancellation failed:', err);
+        this.errorMessage = err?.error?.message || 'Could not cancel registration. Please try again.';
+        alert(this.errorMessage);
       }
     });
-    this.subscriptions.push(sub);
   }
 
   cancelFromModal() {
     if (!this.selectedEvent) return;
     this.cancelRegistration(this.selectedEvent);
-    this.closeEventModal();
   }
 
-  openEventModal(event: any) { 
+  openEventModal(event: any)  { 
     this.selectedEvent = event; 
-    this.showEventModal = true; 
-    this.setTab('details');
+    this.showEventModal = true;  
   }
   
-  closeEventModal() { 
+  closeEventModal()           { 
     this.showEventModal = false; 
-    this.selectedEvent = null; 
+    this.selectedEvent = null;
+    this.selectedSlot = '';
+    this.errorMessage = '';
   }
 
   // ─── PAYMENT STATUS ─────────────────────────────────────────────────────────
@@ -368,9 +549,9 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   getStatusClass(status: string) {
     switch (status) {
       case 'success': return 'text-success';
-      case 'failed': return 'text-danger';
+      case 'failed':  return 'text-danger';
       case 'pending': return 'text-warning';
-      default: return 'text-info';
+      default:        return 'text-info';
     }
   }
 

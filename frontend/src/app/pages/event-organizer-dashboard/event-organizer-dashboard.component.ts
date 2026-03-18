@@ -46,7 +46,12 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   selectedEvent: ApiEvent | null = null;
   selectedEventFeedback: any[] = []; selectedEventName = '';
-  averageRating = 0; participants: Participant[] = []; loadingParticipants = false;
+  averageRating = 0; participants: any[] = []; loadingParticipants = false;
+
+  // Bulk Actions
+  selectedParticipantIds = new Set<string>();
+  bulkActionStatus: 'pending' | 'success' | 'error' | null = null;
+  bulkActionMessage = '';
 
   eventForm: FormGroup; isSubmitting = false; formError = '';
 
@@ -237,11 +242,61 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   // ── PARTICIPANTS MODAL ────────────────────────────────────────────────────
   openParticipants(event: ApiEvent) {
-    this.selectedEventName = event.title; this.participants = []; this.loadingParticipants = true;
+    this.selectedEvent = event;
+    this.selectedEventName = event.title; 
+    this.participants = []; 
+    this.loadingParticipants = true;
+    this.selectedParticipantIds.clear();
     this.showParticipantsModal = true;
     this.eventService.getEventRegistrations(event._id).subscribe({
       next:  (data: any) => { this.participants = data.registrations || []; this.loadingParticipants = false; },
       error: ()          => { this.participants = [];                        this.loadingParticipants = false; }
+    });
+  }
+
+  toggleParticipantSelection(id: string) {
+    if (this.selectedParticipantIds.has(id)) {
+      this.selectedParticipantIds.delete(id);
+    } else {
+      this.selectedParticipantIds.add(id);
+    }
+  }
+
+  isAllSelected() {
+    return this.participants.length > 0 && this.selectedParticipantIds.size === this.participants.length;
+  }
+
+  toggleSelectAll() {
+    if (this.isAllSelected()) {
+      this.selectedParticipantIds.clear();
+    } else {
+      this.participants.forEach(p => this.selectedParticipantIds.add(p.registrationId));
+    }
+  }
+
+  bulkUpdateStatus(status: 'approved' | 'rejected') {
+    if (this.selectedParticipantIds.size === 0) return;
+    
+    const ids = Array.from(this.selectedParticipantIds);
+    this.bulkActionStatus = 'pending';
+    
+    this.eventService.bulkUpdateRegistrationStatus(ids, status).subscribe({
+      next: (res: any) => {
+        this.bulkActionStatus = 'success';
+        this.bulkActionMessage = res.message;
+        // Update local state instantly
+        this.participants.forEach(p => {
+          if (this.selectedParticipantIds.has(p.registrationId)) {
+            p.approvalStatus = status;
+          }
+        });
+        this.selectedParticipantIds.clear();
+        setTimeout(() => this.bulkActionStatus = null, 3000);
+      },
+      error: (err: any) => {
+        this.bulkActionStatus = 'error';
+        this.bulkActionMessage = err.error?.message || 'Bulk update failed';
+      }
     });
   }
   closeParticipants() { this.showParticipantsModal = false; }

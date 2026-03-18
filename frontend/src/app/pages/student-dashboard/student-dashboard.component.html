@@ -23,7 +23,11 @@
       </button>
       <button class="nav-item" [class.active]="currentView()==='registered'" (click)="setView('registered');closeMobileSidebar()">
         <span class="nav-icon">✅</span><span class="nav-label">My Events</span>
-        <span class="badge warning">{{ approvedRegistrations.length + pendingRegistrations.length }}</span>
+        <span class="badge warning">{{ registeredEvents.length }}</span>
+        <!-- Show pending count badge if exists -->
+        @if (pendingEvents && pendingEvents.length > 0) {
+          <span class="badge pending-badge-nav">{{ pendingEvents.length }}</span>
+        }
       </button>
       <button class="nav-item" [class.active]="currentView()==='schedule'" (click)="setView('schedule');closeMobileSidebar()">
         <span class="nav-icon">📅</span><span class="nav-label">Schedule</span>
@@ -51,6 +55,21 @@
       <button class="menu-toggle" (click)="toggleMobileSidebar()">☰</button>
       <div class="header-actions">
         <div class="wallet">💰 {{ totalPoints }} pts</div>
+        
+        <!-- Pending indicator (only shows when there are pending approvals) -->
+        @if (pendingEvents && pendingEvents.length > 0) {
+        <div class="pending-indicator" (click)="setView('registered')" title="{{ pendingEvents.length }} pending approval(s)">
+          <span class="pending-dot"></span>
+          <span class="pending-text">{{ pendingEvents.length }}</span>
+        </div>
+        }
+        
+        <!-- Refresh indicator -->
+        <div class="refresh-indicator" (click)="refreshData()" title="Last updated: {{ lastUpdateTime | date:'HH:mm:ss' }}">
+          🔄
+          <span class="refresh-time">{{ lastUpdateTime | date:'HH:mm' }}</span>
+        </div>
+        
         <div class="notification-icon" (click)="setView('notifications')">
           🔔
           @if (unreadCount > 0) { <span class="badge">{{ unreadCount }}</span> }
@@ -70,15 +89,25 @@
         <div class="stats-grid-compact">
           <div class="stat-item-premium">
             <div class="stat-icon-wrapper">📅</div>
-            <div class="stat-info"><h4>Registered</h4><p>{{ getDashboardStats().registered }}</p></div>
+            <div class="stat-info">
+              <h4>Registered</h4>
+              <p>{{ getDashboardStats().registered }}</p>
+            </div>
           </div>
+          <!-- Show pending stats -->
           <div class="stat-item-premium">
-            <div class="stat-icon-wrapper">⏰</div>
-            <div class="stat-info"><h4>Upcoming</h4><p>{{ getDashboardStats().upcoming }}</p></div>
+            <div class="stat-icon-wrapper">⏳</div>
+            <div class="stat-info">
+              <h4>Pending</h4>
+              <p>{{ getDashboardStats().pending || 0 }}</p>
+            </div>
           </div>
           <div class="stat-item-premium">
             <div class="stat-icon-wrapper">🏆</div>
-            <div class="stat-info"><h4>My Points</h4><p>{{ totalPoints }}</p></div>
+            <div class="stat-info">
+              <h4>My Points</h4>
+              <p>{{ totalPoints }}</p>
+            </div>
           </div>
         </div>
 
@@ -117,14 +146,14 @@
             </div>
             <div class="schedule-list">
               @for (ev of getUpcomingSchedule().slice(0,4); track ev._id) {
-              <div class="schedule-item">
-                <div class="event-time">{{ formatDate(ev.startDate) }}</div>
-                <div class="event-info">
-                  <h4>{{ ev.title }}</h4>
-                  <p>{{ ev.venue }}</p>
+                <div class="schedule-item">
+                  <div class="event-time">{{ formatDate(ev.startDate) }}</div>
+                  <div class="event-info">
+                    <h4>{{ ev.title }}</h4>
+                    <p>{{ ev.venue }}</p>
+                  </div>
+                  <span class="event-type-badge" [ngClass]="ev.type?.toLowerCase()">{{ ev.type || 'Event' }}</span>
                 </div>
-                <span class="event-type-badge" [ngClass]="ev.type?.toLowerCase()">{{ ev.type || 'Event' }}</span>
-              </div>
               } @empty {
               <div class="empty-state">📭 No upcoming events. Browse and register!</div>
               }
@@ -210,10 +239,11 @@
                   <div class="date-info">📅 {{ formatDate(ev.startDate) }}</div>
                   <div class="date-info">📍 {{ ev.venue }}</div>
                 </div>
+                <!-- Use the correct method names from TS -->
                 @if (isRegistered(ev)) {
                 <button class="btn-primary" style="font-size:11px;padding:5px 12px;" disabled>✓ Registered</button>
-                } @else if (isPending(ev)) {
-                <button class="btn-warning" style="font-size:11px;padding:5px 12px;background:#f39c12;color:white;" disabled>⏳ Pending</button>
+                } @else if (isPendingApproval(ev)) {
+                <button class="btn-pending" style="font-size:11px;padding:5px 12px;" disabled>⏳ Pending</button>
                 } @else if (isFull(ev)) {
                 <button class="btn-secondary" style="font-size:11px;padding:5px 12px;" disabled>Full</button>
                 } @else {
@@ -232,45 +262,31 @@
       </div>
       }
 
-      <!-- ══ MY REGISTERED EVENTS ══ (UPDATED WITH APPROVAL WORKFLOW) -->
+      <!-- ══ MY REGISTERED EVENTS ══ -->
       @if (currentView() === 'registered') {
       <div class="registered-view">
         <h1>My Events ✅</h1>
         
-        <!-- Stats Cards -->
-        <div style="display: flex; gap: 15px; margin-bottom: 25px;">
-          <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; flex: 1; text-align: center;">
-            <div style="font-size: 28px; font-weight: bold; color: #2e7d32;">{{ approvedRegistrations.length }}</div>
-            <div style="color: #2e7d32;">✅ Approved</div>
-          </div>
-          <div style="background: #fff3e0; padding: 15px; border-radius: 8px; flex: 1; text-align: center;">
-            <div style="font-size: 28px; font-weight: bold; color: #f57c00;">{{ pendingRegistrations.length }}</div>
-            <div style="color: #f57c00;">⏳ Pending</div>
-          </div>
-        </div>
-        
-        <!-- Pending Registrations Section -->
-        @if (pendingRegistrations.length > 0) {
-        <div style="margin-bottom: 30px;">
-          <h3 style="color: #f57c00; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-            <span>⏳</span> Pending Approval
-          </h3>
+        <!-- Pending Events Section - Using pendingEvents array -->
+        @if (pendingEvents && pendingEvents.length > 0) {
+        <div class="pending-section">
+          <h2 class="section-subtitle">⏳ Pending Approval ({{ pendingEvents.length }})</h2>
           <div class="events-grid">
-            @for (reg of pendingRegistrations; track reg._id) {
-            <div class="event-card pending" style="border-left: 4px solid #f57c00;">
-              <div style="background: #fff3e0; color: #f57c00; padding: 4px 8px; font-size: 12px; font-weight: bold; text-align: center;">
-                ⏳ AWAITING APPROVAL
-              </div>
-              <div class="event-image-minimal" style="height:130px">
-                <img [src]="reg.event?.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="reg.event?.title">
+            @for (ev of pendingEvents; track ev._id) {
+            <div class="event-card registered pending-card">
+              <div class="event-status pending">PENDING APPROVAL</div>
+              <div class="event-image-minimal" style="height:130px" (click)="openEventModal(ev)">
+                <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="ev.title">
               </div>
               <div class="event-details">
-                <h3>{{ reg.event?.title || 'Event' }}</h3>
-                <p class="event-venue">📍 {{ reg.event?.venue || 'TBA' }}</p>
-                <p class="event-organizer">🏛️ {{ reg.event?.organizer || 'Organizer' }}</p>
-                <p class="event-datetime">📅 {{ formatDateTime(reg.event?.startDate) }}</p>
+                <h3>{{ ev.title }} <span class="pending-chip">⏳</span></h3>
+                <p class="event-venue">📍 {{ ev.venue }}</p>
+                <p class="event-organizer">🏛️ {{ ev.organizer }}</p>
+                <p class="event-datetime">📅 {{ formatDateTime(ev.startDate) }}</p>
+                <p class="pending-message">⏳ Awaiting admin approval</p>
                 <div class="event-actions">
-                  <button class="btn-secondary" style="background:#f39c12;color:white;" disabled>⏳ Pending Approval</button>
+                  <button class="btn-primary" (click)="openEventModal(ev)">View Details</button>
+                  <button class="btn-danger" (click)="cancelRegistration(ev)">Cancel Request</button>
                 </div>
               </div>
             </div>
@@ -278,76 +294,77 @@
           </div>
         </div>
         }
-        
-        <!-- Approved Registrations Section -->
-        @if (approvedRegistrations.length > 0) {
-        <div>
-          <h3 style="color: #2e7d32; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-            <span>✅</span> Approved Events
-          </h3>
-          <div class="events-grid">
-            @for (reg of approvedRegistrations; track reg._id) {
-            <div class="event-card approved" style="border-left: 4px solid #2e7d32;">
-              <div style="background: #e8f5e9; color: #2e7d32; padding: 4px 8px; font-size: 12px; font-weight: bold; text-align: center;">
-                ✅ APPROVED
-              </div>
-              <div class="event-image-minimal" style="height:130px" (click)="openEventModal(reg.event)">
-                <img [src]="reg.event?.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="reg.event?.title">
-              </div>
-              <div class="event-details">
-                <h3>{{ reg.event?.title }}</h3>
-                <p class="event-venue">📍 {{ reg.event?.venue }}</p>
-                <p class="event-organizer">🏛️ {{ reg.event?.organizer }}</p>
-                <p class="event-datetime">📅 {{ formatDateTime(reg.event?.startDate) }}</p>
-                <div class="event-actions">
-                  <button class="btn-primary" (click)="openEventModal(reg.event)">View Details</button>
-                  @if (reg.event?.status === 'upcoming') {
-                  <button class="btn-danger" (click)="cancelRegistration(reg)">Cancel</button>
-                  }
-                </div>
+
+        <!-- Approved Events Section - Using registeredEvents array -->
+        @if (registeredEvents && registeredEvents.length > 0) {
+        <h2 class="section-subtitle">✅ Approved Events ({{ registeredEvents.length }})</h2>
+        <div class="events-grid">
+          @for (ev of registeredEvents; track ev._id) {
+          <div class="event-card registered">
+            <div class="event-status" [ngClass]="ev.status">{{ ev.status?.toUpperCase() }}</div>
+            <div class="event-image-minimal" style="height:130px" (click)="openEventModal(ev)">
+              <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="ev.title">
+            </div>
+            <div class="event-details">
+              <h3>{{ ev.title }}</h3>
+              <p class="event-venue">📍 {{ ev.venue }}</p>
+              <p class="event-organizer">🏛️ {{ ev.organizer }}</p>
+              <p class="event-datetime">📅 {{ formatDateTime(ev.startDate) }}</p>
+              <div class="event-actions">
+                <button class="btn-primary" (click)="openEventModal(ev)">View Details</button>
+                @if (ev.status === 'upcoming') {
+                <button class="btn-danger" (click)="cancelRegistration(ev)">Cancel</button>
+                }
               </div>
             </div>
-            }
           </div>
+          }
         </div>
         }
-        
+
         <!-- Empty State -->
-        @if (registeredEvents.length === 0) {
+        @if ((!registeredEvents || registeredEvents.length === 0) && (!pendingEvents || pendingEvents.length === 0)) {
         <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted);">
           <div style="font-size:50px;margin-bottom:12px;">📭</div>
-          <p>No registrations yet. <button class="view-all" (click)="setView('events')">Browse events →</button></p>
+          <p>No registered events yet. <button class="view-all" (click)="setView('events')">Browse events →</button></p>
         </div>
         }
       </div>
       }
 
-      <!-- ══ SCHEDULE ══ -->
+      <!-- ══ SCHEDULE ══ (Fixed - no pending approval labels, just shows upcoming events) -->
       @if (currentView() === 'schedule') {
       <div class="schedule-view">
         <h1>My Schedule 📅</h1>
-        <div class="schedule-timeline">
-          @for (ev of getUpcomingSchedule(); track ev._id) {
-          <div class="timeline-item">
-            <div class="date-badge">
-              <span class="month">{{ formatDate(ev.startDate).split(' ')[1] }}</span>
-              <span class="day">{{ formatDate(ev.startDate).split(' ')[0] }}</span>
+        <div class="premium-timeline">
+          @if (getUpcomingSchedule().length === 0) {
+            <div class="empty-state">
+              <div class="empty-icon">📅</div>
+              <p>Your schedule is clear. Time to find some events!</p>
+              <button class="btn-primary" (click)="setView('events')">Browse Events</button>
             </div>
-            <div class="timeline-content">
-              <h3>{{ ev.title }}</h3>
-              <div class="timeline-meta">
-                <span>📍 {{ ev.venue }}</span>
-                <span>⏰ {{ formatDateTime(ev.startDate).split(',')[1] }}</span>
-                <span>👥 {{ ev.maxParticipants }} max</span>
+          } @else {
+            <!-- Show all upcoming events together - NO pending approval labels -->
+            @for (reg of getUpcomingSchedule(); track reg._id) {
+              <div class="premium-timeline-item">
+                <div class="timeline-date">
+                  <span class="month">{{ reg.startDate | date:'MMM' }}</span>
+                  <span class="day">{{ reg.startDate | date:'dd' }}</span>
+                </div>
+                <div class="timeline-dot"></div>
+                <div class="timeline-card glassmorphism">
+                  <div class="card-header-status">
+                    <h3>{{ reg.title }}</h3>
+                  </div>
+                  <div class="card-body-meta">
+                    <span class="meta-item">📍 {{ reg.venue }}</span>
+                    <span class="meta-item">⏰ {{ formatDateTime(reg.startDate).split(',')[1] }}</span>
+                    <span *ngIf="reg.selectedSlot" class="slot-pill">🕐 {{ reg.selectedSlot }}</span>
+                  </div>
+                  <p class="event-brief">{{ (reg.description || '').substring(0, 100) }}...</p>
+                </div>
               </div>
-              <p>{{ ev.description }}</p>
-            </div>
-          </div>
-          } @empty {
-          <div style="text-align:center;padding:60px;color:var(--text-muted);">
-            <div style="font-size:50px;margin-bottom:12px;">📅</div>
-            <p>No upcoming events in schedule. Register for events to see them here.</p>
-          </div>
+            }
           }
         </div>
       </div>
@@ -458,6 +475,8 @@
             <div class="detail-row"><label>Role</label><span>Student</span></div>
             <div class="detail-row"><label>Total Points</label><span class="wallet-amount">{{ totalPoints }} pts</span></div>
             <div class="detail-row"><label>Global Rank</label><span>#{{ myRank }}</span></div>
+            <!-- Show pending approvals count -->
+            <div class="detail-row"><label>Pending Approvals</label><span>{{ pendingEvents?.length || 0 }}</span></div>
           </div>
           <div class="profile-stats">
             <div class="stat"><div class="stat-value">{{ getDashboardStats().registered }}</div><div class="stat-label">Events Joined</div></div>
@@ -482,6 +501,10 @@
       <div class="modal-hero-badges">
         <span class="badge-pill type">{{ selectedEvent.type }}</span>
         <span class="badge-pill status" [ngClass]="selectedEvent.status">{{ selectedEvent.status }}</span>
+        <!-- Show pending badge if applicable -->
+        @if (isPendingApproval(selectedEvent)) {
+          <span class="badge-pill pending-badge">⏳ PENDING</span>
+        }
       </div>
     </div>
     <div class="modal-body-content">
@@ -565,21 +588,37 @@
         <span class="label">Registration Fee</span>
         <span class="value">{{ selectedEvent.registrationFee > 0 ? '₹' + selectedEvent.registrationFee : 'Free' }}</span>
       </div>
-      <div style="display:flex;gap:10px;">
-        @if (isRegistered(selectedEvent)) {
-        <button class="btn-rounded-success" disabled>✓ Registered</button>
-        <button class="btn-danger" style="border-radius:24px;padding:11px 20px;" (click)="cancelFromModal()">Cancel</button>
-        } @else if (isPending(selectedEvent)) {
-        <button class="btn-rounded-warning" style="background:#f39c12;color:white;border-radius:24px;padding:11px 20px;" disabled>⏳ Pending Approval</button>
-        } @else if (isFull(selectedEvent)) {
-        <button class="btn-rounded-disabled" disabled>Event Full</button>
-        } @else if (selectedEvent.status === 'completed' || selectedEvent.status === 'cancelled') {
-        <button class="btn-rounded-disabled" disabled>Registration Closed</button>
-        } @else {
-        <button class="btn-rounded-primary" [disabled]="registering" (click)="registerForEvent()">
-          {{ registering ? 'Registering...' : '🎟️ Register Now' }}
-        </button>
+      <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
+        @if (selectedEvent.slots?.length > 0 && !isRegistered(selectedEvent) && !isPendingApproval(selectedEvent)) {
+          <div class="slot-picker-container">
+            <label class="slot-label">🕐 Select Time Slot</label>
+            <select class="form-select slot-select" [(ngModel)]="selectedSlot">
+              <option value="">-- Choose a Slot --</option>
+              @for (slot of selectedEvent.slots; track slot.name) {
+                <option [value]="slot.name">{{ slot.name }} ({{ slot.startTime }} - {{ slot.endTime }})</option>
+              }
+            </select>
+          </div>
         }
+        
+        <div style="display:flex;gap:10px; justify-content: flex-end;">
+          <!-- Using correct method names from TS -->
+          @if (isRegistered(selectedEvent)) {
+          <button class="btn-rounded-success" disabled>✓ Registered</button>
+          <button class="btn-danger" style="border-radius:24px;padding:11px 20px;" (click)="cancelFromModal()">Cancel</button>
+          } @else if (isPendingApproval(selectedEvent)) {
+          <button class="btn-rounded-warning" disabled>⏳ Pending Approval</button>
+          <button class="btn-danger" style="border-radius:24px;padding:11px 20px;" (click)="cancelFromModal()">Cancel Request</button>
+          } @else if (isFull(selectedEvent)) {
+          <button class="btn-rounded-disabled" disabled>Event Full</button>
+          } @else if (selectedEvent.status === 'completed' || selectedEvent.status === 'cancelled') {
+          <button class="btn-rounded-disabled" disabled>Registration Closed</button>
+          } @else {
+          <button class="btn-rounded-primary" [disabled]="registering" (click)="registerForEvent()">
+            {{ registering ? 'Registering...' : '🎟️ Register Now' }}
+          </button>
+          }
+        </div>
       </div>
     </div>
   </div>

@@ -212,3 +212,95 @@
   .filters-bar { flex-direction: column; }
   .reports-grid { grid-template-columns: 1fr; }
 }
+/* Premium Status UI for Organizer Dashboard */
+.status-pill-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.pill-icon {
+  font-style: normal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-pill-mini.approved {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.status-pill-mini.rejected {
+  background: rgba(244, 63, 94, 0.1);
+  color: #e11d48;
+  border: 1px solid rgba(244, 63, 94, 0.2);
+}
+
+.status-pill-mini.pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+/* Bulk Actions Improvements */
+.bulk-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.selection-info {
+  font-weight: 700;
+  color: #475569;
+  font-size: 13px;
+}
+
+.bulk-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-bulk {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-bulk.approve {
+  background: #10b981;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
+}
+
+.btn-bulk.reject {
+  background: #f43f5e;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(244, 63, 94, 0.2);
+}
+
+.btn-bulk:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-bulk:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}

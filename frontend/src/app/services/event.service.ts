@@ -22,24 +22,33 @@ export interface Event {
   createdBy?: string;
   registeredUsers?: string[];
   imageUrl?: string;
-  feedback?: { userId: string; rating: number; comment?: string; createdAt?: Date; }[];
+  feedback?: { userId: string; rating: number; comment?: string; createdAt?: Date }[];
 }
 
 @Injectable({ providedIn: 'root' })
 export class EventService {
+
   private apiUrl = 'http://localhost:5000/api/events';
-  private registrationUrl = 'http://localhost:5000/api/registrations';
 
   constructor(private http: HttpClient) {}
 
   getAllEvents(filters?: {
-    startDate?: string; endDate?: string; status?: string;
-    type?: string; category?: string; organizer?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    type?: string;
+    category?: string;
+    organizer?: string;
   }): Observable<Event[]> {
+
     let params = new HttpParams();
+
     if (filters) {
-      Object.entries(filters).forEach(([k, v]) => { if (v) params = params.set(k, v); });
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v) params = params.set(k, v);
+      });
     }
+
     return this.http.get<Event[]>(this.apiUrl, { params });
   }
 
@@ -63,23 +72,36 @@ export class EventService {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }
 
-  // ✅ FIXED: Use registrationUrl instead of apiUrl
-  registerForEvent(id: string): Observable<any> {
-    return this.http.post(`${this.registrationUrl}/${id}/register`, {});
+  registerForEvent(eventId: string, selectedSlot?: string): Observable<any> {
+    return this.http.post(
+      `http://localhost:5000/api/registrations/${eventId}/register`,
+      { selectedSlot }
+    );
   }
 
-  // ✅ FIXED: Use registrationUrl
+  bulkUpdateRegistrationStatus(
+    ids: string[],
+    status: 'approved' | 'rejected' | 'pending'
+  ): Observable<any> {
+
+    return this.http.patch(
+      `http://localhost:5000/api/registrations/bulk-status`,
+      { ids, status }
+    );
+  }
+
   unregisterFromEvent(id: string): Observable<any> {
-    return this.http.delete(`${this.registrationUrl}/${id}`);
+    return this.http.delete(`http://localhost:5000/api/registrations/${id}`);
   }
 
   getEventRegistrations(id: string): Observable<any> {
     return this.http.get(`${this.apiUrl}/${id}/registrations`);
   }
 
-  // ✅ FIXED: Use registrationUrl
   getMyRegistrations(): Observable<any> {
-    return this.http.get(`${this.registrationUrl}/my/registrations`);
+    return this.http.get(
+      `http://localhost:5000/api/registrations/my/registrations`
+    );
   }
 
   submitFeedback(id: string, data: { rating: number; comment: string }): Observable<any> {
