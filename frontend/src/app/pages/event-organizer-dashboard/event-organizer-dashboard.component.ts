@@ -38,7 +38,7 @@ const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1501281668745-f7f57925c
   styleUrls: ['./event-organizer-dashboard.component.css']
 })
 export class EventOrganizerDashboardComponent implements OnInit {
-  currentView = signal<'overview' | 'events' | 'reports'>('overview');
+  currentView = signal<'overview' | 'events' | 'reports' | 'notifications' | 'analytics' | 'settings'>('overview');
 
   totalEvents = 0;
   activeEvents = 0;
@@ -96,6 +96,12 @@ export class EventOrganizerDashboardComponent implements OnInit {
   typeOptions = ['technical', 'cultural', 'sports', 'workshop', 'seminar'];
   categoryOptions = ['college', 'inter-college'];
 
+  // ✅ NEW PROPERTIES
+  notificationFilter: string = 'all';
+  filteredNotifications: any[] = [];
+  pendingApprovals: number = 0;
+  notificationList: any[] = []; // Local copy for notifications
+
   constructor(
     private fb: FormBuilder,
     public authService: AuthService,
@@ -122,6 +128,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
     }
     this.loadEvents();
     this.notifService.reload();
+    this.loadNotifications();
   }
 
   // ── FORM ──────────────────────────────────────────────────────────────────
@@ -146,8 +153,11 @@ export class EventOrganizerDashboardComponent implements OnInit {
     return d.toISOString().slice(0, 16);
   }
 
-  setView(v: 'overview' | 'events' | 'reports') {
+  setView(v: 'overview' | 'events' | 'reports' | 'notifications' | 'analytics' | 'settings') {
     this.currentView.set(v);
+    if (v === 'notifications') {
+      this.loadNotifications();
+    }
   }
 
   logout() {
@@ -166,7 +176,6 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
     this.eventService.getAllEvents(filters).subscribe({
       next: (evts: any[]) => {
-        // Filter events created by this admin
         const userId = this.authService.getUserId();
         this.events = (evts as ApiEvent[])
           .filter(e => this.authService.getRole() === 'superadmin' || String(e.createdBy) === String(userId))
@@ -215,53 +224,80 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   // ── IMAGE ────────────────────────────────────────────────────────────────
   onImageSelected(event: any) {
-    const file: File = event.target.files[0];
-    if (!file) return;
-    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowed.includes(file.type)) {
-      this.formError = 'Only JPEG, PNG, GIF or WebP.';
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      this.formError = 'Image must be < 5 MB.';
-      return;
-    }
-    this.selectedImageFile = file;
-    this.formError = '';
-    const reader = new FileReader();
-    reader.onload = (e: any) => { this.imagePreviewUrl = e.target.result; };
-    reader.readAsDataURL(file);
+  const file: File = event.target.files[0];
+  console.log('📸 File selected:', file?.name);
+  
+  if (!file) {
+    console.log('❌ No file');
+    return;
   }
+  
+  const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  if (!allowed.includes(file.type)) {
+    this.formError = 'Only JPEG, PNG, GIF or WebP.';
+    console.log('❌ Invalid type:', file.type);
+    return;
+  }
+  
+  if (file.size > 5 * 1024 * 1024) {
+    this.formError = 'Image must be < 5 MB.';
+    console.log('❌ Too large:', file.size);
+    return;
+  }
+  
+  this.selectedImageFile = file;
+  this.formError = '';
+  
+  const reader = new FileReader();
+  reader.onload = (e: any) => { 
+    console.log('✅ Image loaded, preview created');
+    this.imagePreviewUrl = e.target.result; 
+  };
+  reader.onerror = (err) => {
+    console.log('❌ FileReader error:', err);
+  };
+  reader.readAsDataURL(file);
+}
 
-  clearImage() {
-    this.selectedImageFile = null;
-    this.imagePreviewUrl = '';
-  }
+clearImage() {
+  console.log('🗑️ Clearing image');
+  this.selectedImageFile = null;
+  this.imagePreviewUrl = '';
+}
 
-  private buildPayload(): FormData | any {
-    const v = this.eventForm.value;
-    const fields: Record<string, string> = {
-      title: v.title,
-      description: v.description,
-      type: v.type,
-      category: v.category,
-      venue: v.venue,
-      startDate: new Date(v.startDate).toISOString(),
-      endDate: new Date(v.endDate).toISOString(),
-      registrationDeadline: new Date(v.registrationDeadline).toISOString(),
-      maxParticipants: String(Number(v.maxParticipants)),
-      registrationFee: String(Number(v.registrationFee) || 0),
-      organizer: v.organizer,
-      contactEmail: v.contactEmail
-    };
-    if (this.selectedImageFile) {
-      const fd = new FormData();
-      Object.entries(fields).forEach(([k, val]) => fd.append(k, val));
-      fd.append('image', this.selectedImageFile);
-      return fd;
-    }
-    return fields;
+private buildPayload(): FormData | any {
+  const v = this.eventForm.value;
+  console.log('📝 Building payload, image present:', !!this.selectedImageFile);
+  
+  const fields: Record<string, string> = {
+    title: v.title,
+    description: v.description,
+    type: v.type,
+    category: v.category,
+    venue: v.venue,
+    startDate: new Date(v.startDate).toISOString(),
+    endDate: new Date(v.endDate).toISOString(),
+    registrationDeadline: new Date(v.registrationDeadline).toISOString(),
+    maxParticipants: String(Number(v.maxParticipants)),
+    registrationFee: String(Number(v.registrationFee) || 0),
+    organizer: v.organizer,
+    contactEmail: v.contactEmail
+  };
+  
+  console.log('Fields prepared:', Object.keys(fields));
+  
+  if (this.selectedImageFile) {
+    console.log('📸 Creating FormData with image:', this.selectedImageFile.name);
+    const fd = new FormData();
+    Object.entries(fields).forEach(([k, val]) => fd.append(k, val));
+    fd.append('image', this.selectedImageFile);
+    console.log('📤 FormData created with image');
+    return fd;
   }
+  
+  console.log('📤 Sending JSON without image');
+  return fields;
+}
 
   // ── CREATE ───────────────────────────────────────────────────────────────
   openCreate() {
@@ -407,6 +443,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
         const p = this.participants.find(p => String(p.registrationId) === String(regId));
         if (p) p.approvalStatus = 'approved';
         this.notifService.reload();
+        this.loadNotifications();
         this.bulkActionStatus = 'success';
         this.bulkActionMessage = 'Registration approved!';
         setTimeout(() => this.bulkActionStatus = null, 3000);
@@ -444,6 +481,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
         }
         this.closeRejectModal();
         this.notifService.reload();
+        this.loadNotifications();
         this.bulkActionStatus = 'success';
         this.bulkActionMessage = 'Registration rejected.';
         setTimeout(() => this.bulkActionStatus = null, 3000);
@@ -490,6 +528,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
         });
         this.selectedParticipantIds.clear();
         this.notifService.reload();
+        this.loadNotifications();
         setTimeout(() => this.bulkActionStatus = null, 3000);
       },
       error: (err) => {
@@ -526,6 +565,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
         this.selectedParticipantIds.clear();
         this.closeBulkRejectModal();
         this.notifService.reload();
+        this.loadNotifications();
         setTimeout(() => this.bulkActionStatus = null, 3000);
       },
       error: (err) => {
@@ -536,11 +576,20 @@ export class EventOrganizerDashboardComponent implements OnInit {
   }
 
   // ── NOTIFICATIONS ─────────────────────────────────────────────────────────
-  get adminNotifications() { return this.notifService.notifications(); }
-  get unreadNotifCount() { return this.notifService.unreadCount; }
+  // Get notifications from service
+  getNotificationList() {
+    return this.notifService.notifications();
+  }
+
+  getUnreadCount() {
+    return this.notifService.unreadCount;
+  }
 
   toggleNotifDropdown() {
     this.showNotifDropdown = !this.showNotifDropdown;
+    if (this.showNotifDropdown) {
+      this.loadNotifications();
+    }
   }
 
   closeNotifDropdown() {
@@ -551,14 +600,17 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   markNotifRead(n: any) {
     this.notifService.markRead(n._id);
+    this.loadNotifications();
   }
 
   markAllNotifsRead() {
     this.notifService.markAllRead();
+    this.loadNotifications();
   }
 
   deleteNotif(n: any) {
     this.notifService.delete(n._id);
+    this.loadNotifications();
   }
 
   // ── PROFILE MODAL ─────────────────────────────────────────────────────────
@@ -651,6 +703,17 @@ export class EventOrganizerDashboardComponent implements OnInit {
     return new Date(d).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
+  formatDateTime(d: any): string {
+    if (!d) return '';
+    return new Date(d).toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
   getStars(r: number): string {
     return '★'.repeat(Math.round(r)) + '☆'.repeat(5 - Math.round(r));
   }
@@ -677,5 +740,133 @@ export class EventOrganizerDashboardComponent implements OnInit {
       'general': '🔔'
     };
     return map[type] || '🔔';
+  }
+
+  // ✅ ===== NEW METHODS FOR ENHANCED DASHBOARD =====
+
+  getTimeOfDay(): string {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Morning';
+    if (hour < 17) return 'Afternoon';
+    return 'Evening';
+  }
+
+  getCurrentDate(): string {
+    return new Date().toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  }
+
+  getTimeAgo(date: Date): string {
+    const now = new Date();
+    const past = new Date(date);
+    const diffMs = now.getTime() - past.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return past.toLocaleDateString();
+  }
+
+  loadNotifications() {
+    // Get notifications from the service
+    const notifications = this.notifService.notifications();
+    
+    // Store in local array
+    this.notificationList = notifications;
+    
+    // Update counts
+    this.pendingApprovals = notifications.filter(
+      (n: any) => n.type === 'new-registration' && !n.read
+    ).length;
+    
+    // Apply current filter
+    this.filterNotifications(this.notificationFilter);
+  }
+
+  filterNotifications(filter: string) {
+    this.notificationFilter = filter;
+    
+    // Get fresh notifications
+    const notifications = this.notifService.notifications();
+    
+    if (!notifications || notifications.length === 0) {
+      this.filteredNotifications = [];
+      return;
+    }
+    
+    switch(filter) {
+      case 'unread':
+        this.filteredNotifications = notifications.filter((n: any) => !n.read);
+        break;
+      case 'registrations':
+        this.filteredNotifications = notifications.filter(
+          (n: any) => n.type?.includes('registration')
+        );
+        break;
+      case 'events':
+        this.filteredNotifications = notifications.filter(
+          (n: any) => n.type?.includes('event')
+        );
+        break;
+      case 'system':
+        this.filteredNotifications = notifications.filter(
+          (n: any) => n.type === 'system' || n.type === 'general'
+        );
+        break;
+      default:
+        this.filteredNotifications = [...notifications];
+    }
+  }
+
+  refreshNotifications() {
+    this.notifService.reload();
+    // Wait a bit for the service to update
+    setTimeout(() => {
+      this.loadNotifications();
+    }, 100);
+  }
+
+  handleNotificationClick(n: any) {
+    if (n.type === 'new-registration' && n.data?.eventId) {
+      this.openParticipantsFromNotif(n.data.eventId);
+    } else if (n.type?.includes('event')) {
+      this.setView('events');
+    }
+  }
+
+  openParticipantsFromNotif(eventId: string) {
+    const event = this.events.find(e => e._id === eventId);
+    if (event) {
+      this.openParticipants(event);
+    }
+  }
+
+  getTopEvents(): any[] {
+    return [...this.events]
+      .sort((a, b) => (b.currentParticipants || 0) - (a.currentParticipants || 0))
+      .slice(0, 5);
+  }
+
+  getCompletionRate(): number {
+    if (this.events.length === 0) return 0;
+    const completed = this.events.filter(e => e.status === 'completed').length;
+    return Math.round((completed / this.events.length) * 100);
+  }
+
+  toggleDarkMode() {
+    document.body.classList.toggle('dark-theme');
+  }
+
+  backupData() {
+    alert('Backup feature coming soon!');
   }
 }

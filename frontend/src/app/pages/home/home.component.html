@@ -10,6 +10,7 @@
       <div class="nav-links">
         <a href="#features">Features</a>
         <a href="#stats">Statistics</a>
+        <a href="#testimonials">Testimonials</a>
         <a href="#contact">Contact</a>
       </div>
 
@@ -24,13 +25,13 @@
   <section class="hero">
     <div class="hero-content animate-slide">
       <div class="hero-badge">🎉 Welcome to the future of campus events</div>
-      <h1>
-        Discover <span class="gradient-text">Unforgettable</span><br>
+      <h1 class="gradient-text">
+        Discover <span>Unforgettable</span><br>
         College Events
       </h1>
       <p class="hero-description">
-        CampusEventHub connects students with technical, cultural, and sports events across colleges. 
-        Explore opportunities, build connections, and showcase your talent.
+        Your one-stop platform to explore, register, and manage inter-college events 
+        across the nation. Connect with thousands of students and showcase your talent.
       </p>
       
       <div class="hero-cta">
@@ -62,37 +63,44 @@
 
     <div class="hero-visual animate-scale">
       <div class="visual-card main-card">
-        <img src="https://images.unsplash.com/photo-1594122230689-45899d9e6f69?q=80&w=870&auto=format&fit=crop" 
+        <img src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80" 
              alt="Event audience" 
              class="hero-image">
         <div class="card-overlay">
           <div class="overlay-content">
             <span class="live-badge">LIVE</span>
-            <span class="event-count">250+ attending</span>
+            <span class="event-count">Tech Fest 2024 · 250+ attending</span>
           </div>
         </div>
       </div>
       
-      <!-- Floating Cards -->
+      <!-- Floating Cards - Repositioned to avoid overlap -->
       <div class="floating-card card-1">
         <span>🎯</span>
         <div>
-          <strong>Tech Fest 2024</strong>
-          <small>Tomorrow • 2pm</small>
+          <strong>Technical Events</strong>
+          <small>Hackathons, Coding</small>
         </div>
       </div>
       <div class="floating-card card-2">
         <span>🎨</span>
         <div>
-          <strong>Cultural Night</strong>
-          <small>This Friday</small>
+          <strong>Cultural Fests</strong>
+          <small>Music, Dance, Drama</small>
         </div>
       </div>
       <div class="floating-card card-3">
         <span>⚡</span>
         <div>
-          <strong>Hackathon</strong>
-          <small>Registration open</small>
+          <strong>Workshops</strong>
+          <small>Learn from experts</small>
+        </div>
+      </div>
+      <div class="floating-card card-4">
+        <span>🏆</span>
+        <div>
+          <strong>Competitions</strong>
+          <small>Win prizes</small>
         </div>
       </div>
     </div>
@@ -140,7 +148,7 @@
   <section id="features" class="features-section">
     <div class="section-header">
       <h2 class="section-title">Why Choose <span class="gradient-text">CampusEventHub?</span></h2>
-      <p class="section-subtitle">Everything you need to make the most of campus events</p>
+      <p class="section-subtitle">Everything you need to make the most of campus life</p>
     </div>
 
     <div class="features-grid">
@@ -200,6 +208,52 @@
     </div>
   </section>
 
+  <!-- Testimonials Section -->
+  <section id="testimonials" class="testimonials-section">
+    <div class="section-header">
+      <h2 class="section-title">What Students <span class="gradient-text">Say</span></h2>
+      <p class="section-subtitle">Join thousands of satisfied students</p>
+    </div>
+
+    <div class="testimonials-grid">
+      <div class="testimonial-card">
+        <div class="testimonial-rating">★★★★★</div>
+        <p class="testimonial-text">"CampusEventHub helped me discover so many technical events I never knew existed. Won 2 hackathons already!"</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">AK</div>
+          <div class="author-info">
+            <h4>Arjun Kumar</h4>
+            <p>IIT Madras · CSE</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="testimonial-card">
+        <div class="testimonial-rating">★★★★★</div>
+        <p class="testimonial-text">"The platform is incredibly easy to use. Registered for cultural fest in under a minute. Great experience!"</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">PS</div>
+          <div class="author-info">
+            <h4>Priya Sharma</h4>
+            <p>NIT Trichy · ECE</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="testimonial-card">
+        <div class="testimonial-rating">★★★★★</div>
+        <p class="testimonial-text">"Digital wallet feature is a game-changer. No more payment hassles, and refunds are instant!"</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">VN</div>
+          <div class="author-info">
+            <h4>Vikram Nair</h4>
+            <p>BITS Pilani · CS</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- CTA Section -->
   <section class="cta-section">
     <div class="cta-card">
@@ -207,20 +261,20 @@
       <p>Join thousands of students already discovering amazing events</p>
       <div class="cta-buttons">
         <button class="btn btn-primary btn-lg" routerLink="/register">Get Started Now</button>
-        <button class="btn btn-outline btn-lg" routerLink="/register">Learn More</button>
+        <button class="btn btn-outline-light btn-lg" routerLink="/register">Learn More</button>
       </div>
     </div>
   </section>
 
   <!-- Footer -->
-  <footer class="footer">
+  <footer id="contact" class="footer">
     <div class="footer-content">
       <div class="footer-brand">
         <div class="logo">
           <div class="logo-icon">🎓</div>
           <div class="logo-text">CampusEventHub</div>
         </div>
-        <p>Connecting students through unforgettable campus events.</p>
+        <p>Connecting students through unforgettable campus events across the nation.</p>
         <div class="social-links">
           <a href="#" class="social-link">📘</a>
           <a href="#" class="social-link">📷</a>
@@ -252,7 +306,7 @@
     </div>
     
     <div class="footer-bottom">
-      <p>&copy; 2024 CampusEventHub. All rights reserved.</p>
+      <p>&copy; 2024 CampusEventHub. All rights reserved. Made with ❤️ for students.</p>
     </div>
   </footer>
 </div>

@@ -24,8 +24,10 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   filteredEvents: any[] = [];
   registeredEventIds = new Set<string>();
   pendingEventIds = new Set<string>();
+  rejectedEventIds = new Set<string>();
   registeredEvents: any[] = [];
   pendingEvents: any[] = [];
+  rejectedEvents: any[] = [];
 
   notifications: any[] = [];
   payments: any[] = [];
@@ -80,7 +82,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   showProfileModal = false;
   private navSub!: Subscription | undefined;
 
-  // ✅ Add this for password visibility (if needed in dashboard)
   showPassword = false;
 
   constructor(
@@ -113,9 +114,10 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     
     this.loadEvents();
     this.loadMyRegistrations();
-    this.loadMockData();
     this.loadLeaderboard();
-    this.notifService.reload();
+    
+    // Load notifications from service
+    this.loadNotifications();
     
     // Sync wallet from server
     this.authService.getWalletBalance().subscribe({
@@ -163,6 +165,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     this.loadMyRegistrations();
     this.loadLeaderboard();
     this.notifService.reload();
+    this.loadNotifications(); // Refresh notifications
     this.lastUpdateTime = new Date();
   }
 
@@ -179,6 +182,9 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     }
     if (view === 'payments') {
       this.loadMyRegistrations();
+    }
+    if (view === 'notifications') {
+      this.loadNotifications();
     }
   }
   
@@ -238,6 +244,9 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         console.log('📡 My Registrations API Response:', data);
         const list = Array.isArray(data) ? data : data?.events || [];
         
+        // Store previous pending events to detect changes
+        const prevPendingEvents = [...(this.pendingEvents || [])];
+        
         // Split registrations based on approvalStatus from the backend
         const newRegisteredEvents = list.filter((ev: any) => 
           ev.approvalStatus === 'approved'
@@ -247,9 +256,48 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
           ev.approvalStatus === 'pending'
         );
 
+        const newRejectedEvents = list.filter((ev: any) => 
+          ev.approvalStatus === 'rejected'
+        );
+
+        // Check for newly rejected events (were pending, now rejected)
+        if (prevPendingEvents && prevPendingEvents.length > 0) {
+          const newlyRejected = prevPendingEvents.filter(pending => {
+            const pendingId = pending._id || pending.id;
+            return !newPendingEvents.some((ev: any) => {
+              const evId = ev._id || ev.id;
+              return evId === pendingId;
+            }) && newRejectedEvents.some((ev: any) => {
+              const evId = ev._id || ev.id;
+              return evId === pendingId;
+            });
+          });
+          
+          if (newlyRejected.length > 0) {
+            console.log('❌ New rejections detected:', newlyRejected);
+            
+            newlyRejected.forEach((event: any) => {
+              // Show alert for rejection
+              alert(`❌ Your registration for "${event.title}" was rejected.`);
+              
+              // Add notification for rejection
+              this.addNotification({
+                id: Date.now() + Math.random(),
+                icon: '❌',
+                title: 'Registration Rejected',
+                message: `Your registration for "${event.title}" was not approved.`,
+                time: 'Just now',
+                read: false,
+                type: 'rejection',
+                data: { eventId: event._id || event.id }
+              });
+            });
+          }
+        }
+
         // Check for newly approved events (were pending, now approved)
-        if (this.pendingEvents && this.pendingEvents.length > 0) {
-          const newlyApproved = this.pendingEvents.filter(pending => {
+        if (prevPendingEvents && prevPendingEvents.length > 0) {
+          const newlyApproved = prevPendingEvents.filter(pending => {
             const pendingId = pending._id || pending.id;
             return !newPendingEvents.some((ev: any) => {
               const evId = ev._id || ev.id;
@@ -278,39 +326,14 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
                 title: 'Registration Approved',
                 message: `Your registration for "${event.title}" has been approved!`,
                 time: 'Just now',
-                read: false
+                read: false,
+                type: 'approval',
+                data: { eventId: event._id || event.id }
               });
             });
           }
         }
-
-        // Check for newly rejected events
-        if (this.pendingEvents && this.pendingEvents.length > 0) {
-          const newlyRejected = this.pendingEvents.filter(pending => {
-            const pendingId = pending._id || pending.id;
-            return !newPendingEvents.some((ev: any) => {
-              const evId = ev._id || ev.id;
-              return evId === pendingId;
-            }) && !newRegisteredEvents.some((ev: any) => {
-              const evId = ev._id || ev.id;
-              return evId === pendingId;
-            });
-          });
-          
-          if (newlyRejected.length > 0) {
-            newlyRejected.forEach((event: any) => {
-              this.addNotification({
-                id: Date.now() + Math.random(),
-                icon: '❌',
-                title: 'Registration Rejected',
-                message: `Your registration for "${event.title}" was not approved.`,
-                time: 'Just now',
-                read: false
-              });
-            });
-          }
-        }
-
+        
         // Update the arrays
         this.registeredEvents = newRegisteredEvents.map((e: any) => ({ 
           ...e, 
@@ -322,6 +345,11 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
           status: this.eventService.computeStatus ? this.eventService.computeStatus(e) : e.status 
         }));
 
+        this.rejectedEvents = newRejectedEvents.map((e: any) => ({ 
+          ...e, 
+          status: this.eventService.computeStatus ? this.eventService.computeStatus(e) : e.status 
+        }));
+
         // Update ID sets
         this.registeredEventIds = new Set(
           this.registeredEvents.map((ev: any) => String(ev?._id || ev?.id))
@@ -329,6 +357,10 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         
         this.pendingEventIds = new Set(
           this.pendingEvents.map((ev: any) => String(ev?._id || ev?.id))
+        );
+
+        this.rejectedEventIds = new Set(
+          this.rejectedEvents.map((ev: any) => String(ev?._id || ev?.id))
         );
 
         // Update payments list
@@ -343,6 +375,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
         console.log('✅ Approved Events:', Array.from(this.registeredEventIds));
         console.log('⏳ Pending Events:', Array.from(this.pendingEventIds));
+        console.log('❌ Rejected Events:', Array.from(this.rejectedEventIds));
         
         // Calculate points
         this.calculateTotalPoints();
@@ -351,10 +384,19 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         console.error('❌ Failed to load registrations:', err);
         this.registeredEvents = [];
         this.pendingEvents = [];
+        this.rejectedEvents = [];
         this.registeredEventIds = new Set();
         this.pendingEventIds = new Set();
+        this.rejectedEventIds = new Set();
       }
     });
+  }
+
+  // Load notifications from service
+  loadNotifications() {
+    // Get notifications from the service
+    this.notifications = this.notifService.notifications();
+    console.log('📬 Notifications loaded:', this.notifications.length);
   }
 
   loadLeaderboard() {
@@ -382,11 +424,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     if (this.notifications.length > 50) {
       this.notifications.pop();
     }
-  }
-
-  loadMockData() {
-    // This is just a placeholder - actual notifications come from NotificationService
-    this.notifications = [];
   }
 
   // ─── FILTERING ──────────────────────────────────────────────────────────────
@@ -429,6 +466,10 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     return this.pendingEventIds.has(String(ev._id || ev.id));
   }
 
+  isRejected(ev: any): boolean {
+    return this.rejectedEventIds.has(String(ev._id || ev.id));
+  }
+
   isFull(ev: any): boolean {
     if (!ev.maxParticipants) return false;
     return (ev.currentParticipants || 0) >= ev.maxParticipants;
@@ -443,7 +484,9 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   }
 
   getMyRegistration(eventId: string): any {
-    return this.registeredEvents.find(r => String(r._id || r.id) === String(eventId)) || null;
+    return this.registeredEvents.find(r => String(r._id || r.id) === String(eventId)) || 
+           this.pendingEvents.find(r => String(r._id || r.id) === String(eventId)) ||
+           this.rejectedEvents.find(r => String(r._id || r.id) === String(eventId)) || null;
   }
 
   canGiveFeedback(ev: any): boolean {
@@ -465,14 +508,14 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   }
 
   getDashboardStats() {
-    const r = this.registeredEvents;
     return {
-      registered: r.length,
-      upcoming: r.filter(e => e.status === 'upcoming').length,
-      completed: r.filter(e => e.status === 'completed').length,
+      registered: this.registeredEvents.length,
+      upcoming: this.registeredEvents.filter(e => e.status === 'upcoming').length,
+      completed: this.registeredEvents.filter(e => e.status === 'completed').length,
       pending: this.pendingEvents?.length || 0,
-      approved: r.filter(e => e.approvalStatus === 'approved').length,
-      rejected: r.filter(e => e.approvalStatus === 'rejected').length
+      rejected: this.rejectedEvents?.length || 0,
+      approved: this.registeredEvents.filter(e => e.approvalStatus === 'approved').length,
+      total: this.registeredEvents.length + this.pendingEvents.length + this.rejectedEvents.length
     };
   }
 
@@ -510,20 +553,47 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
   // ─── NOTIFICATIONS ──────────────────────────────────────────────────────────
 
-  get unreadCount() { return this.notifService.unreadCount; }
-  markNotificationRead(n: any) { this.notifService.markRead(n._id); }
-  markAllRead() { this.notifService.markAllRead(); }
-  deleteNotification(n: any) { this.notifService.delete(n._id); }
+  get unreadCount() { 
+    return this.notifService.unreadCount; 
+  }
+  
+  markNotificationRead(n: any) { 
+    this.notifService.markRead(n._id);
+    n.read = true;
+    
+    // If it's a rejection or approval notification, navigate appropriately
+    if (n.type === 'rejection' && n.data?.eventId) {
+      const event = this.events.find(e => (e._id || e.id) === n.data.eventId);
+      if (event) {
+        this.openEventModal(event);
+      }
+    } else if (n.type === 'approval' && n.data?.eventId) {
+      this.setView('registered'); // Go to My Events to see approved event
+    }
+  }
+  
+  markAllRead() { 
+    this.notifService.markAllRead(); 
+    this.loadNotifications(); // Refresh notifications after marking all read
+  }
+  
+  deleteNotification(n: any) { 
+    this.notifService.delete(n._id); 
+    this.loadNotifications(); // Refresh after deletion
+  }
   
   getNotifIcon(type: string): string {
-    const m: any = { 
+    const icons: any = { 
       'registration-approved': '✅',
       'registration-rejected': '❌',
       'new-registration': '📋',
       'event-update': '📢',
-      'general': '🔔' 
+      'general': '🔔',
+      'approval': '✅',
+      'rejection': '❌',
+      'pending': '⏳'
     };
-    return m[type] || '🔔';
+    return icons[type] || '🔔';
   }
 
   // ─── REGISTRATION FLOW ──────────────────────────────────────────────────────
@@ -543,6 +613,12 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
   startRegistration() {
     if (!this.selectedEvent) return;
+    
+    // Check if already rejected
+    if (this.isRejected(this.selectedEvent)) {
+      alert('Your previous registration for this event was rejected. You can try registering again.');
+      // Proceed with registration anyway
+    }
     
     if (this.selectedEvent.slots?.length > 0 && !this.selectedSlot) {
       this.errorMessage = 'Please select a time slot first.';
@@ -583,7 +659,8 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
             title: 'Registration Pending',
             message: `Your registration for "${this.selectedEvent.title}" is pending approval.`,
             time: 'Just now',
-            read: false
+            read: false,
+            type: 'pending'
           });
         } else {
           alert(res.message || 'Successfully registered!');
@@ -595,7 +672,8 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
             title: 'Registration Confirmed',
             message: `You are registered for "${this.selectedEvent.title}".`,
             time: 'Just now',
-            read: false
+            read: false,
+            type: 'approval'
           });
         }
         
@@ -611,6 +689,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         this.showConfetti = true;
         setTimeout(() => this.showConfetti = false, 3000);
         this.notifService.reload();
+        this.loadNotifications(); // Refresh notifications
       },
       error: (err: any) => {
         console.error('Registration failed:', err);
@@ -643,11 +722,15 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       next: (response: any) => {
         this.registeredEventIds.delete(String(eventId));
         this.pendingEventIds.delete(String(eventId));
+        this.rejectedEventIds.delete(String(eventId));
         
         this.registeredEvents = this.registeredEvents.filter(e => 
           (e._id || e.id) !== eventId
         );
         this.pendingEvents = this.pendingEvents.filter(e => 
+          (e._id || e.id) !== eventId
+        );
+        this.rejectedEvents = this.rejectedEvents.filter(e => 
           (e._id || e.id) !== eventId
         );
         
@@ -659,7 +742,8 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
           title: 'Registration Cancelled',
           message: `Your registration for "${eventTitle}" has been cancelled.`,
           time: 'Just now',
-          read: false
+          read: false,
+          type: 'general'
         });
         
         this.loadEvents();
@@ -676,6 +760,8 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
             this.authService.updateWalletBalance(r.walletBalance); 
           } 
         });
+        
+        this.loadNotifications(); // Refresh notifications
       },
       error: (err: any) => {
         console.error('Cancellation failed:', err);

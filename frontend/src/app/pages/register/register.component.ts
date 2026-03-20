@@ -17,7 +17,7 @@ export class RegisterComponent {
   fullName = '';
   email = '';
   college = '';
-  role = 'student';   // default
+  role = 'student' ;   // default
   password = '';
   confirmPassword = '';
 

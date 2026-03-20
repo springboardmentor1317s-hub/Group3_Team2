@@ -815,3 +815,105 @@
   .wallet-big-card { flex-direction: column; gap: 16px; }
   .profile-grid { grid-template-columns: 1fr; }
 }
+/* Rejected indicators */
+.rejected-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(220, 38, 38, 0.1);
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 4px;
+}
+
+.rejected-indicator:hover {
+  background: rgba(220, 38, 38, 0.2);
+}
+
+.rejected-dot {
+  width: 8px;
+  height: 8px;
+  background: #dc2626;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.rejected-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #dc2626;
+}
+
+.sb-badge.danger {
+  background: #dc2626 !important;
+  color: #fff;
+}
+
+/* Rejected section */
+.rejected-section {
+  margin-bottom: 30px;
+}
+
+.my-ev-card.border-rejected {
+  border-left: 4px solid #dc2626;
+}
+
+.mev-approval.rejected {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.rejected-message {
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.approval-mini.rejected {
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 3px 9px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ev-registered-chip.rejected {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(220, 38, 38, 0.9);
+  color: #fff;
+  padding: 4px 9px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.hbadge.rejected-badge {
+  background: #dc2626;
+  color: #fff;
+}
+
+.btn-registered.rejected {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 12px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: not-allowed;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 1; }
+}

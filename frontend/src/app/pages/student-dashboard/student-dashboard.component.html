@@ -40,6 +40,9 @@
         @if (pendingEvents && pendingEvents.length > 0) {
           <span class="sb-badge red">{{ pendingEvents.length }}</span>
         }
+        @if (rejectedEvents && rejectedEvents.length > 0) {
+          <span class="sb-badge danger">{{ rejectedEvents.length }}</span>
+        }
       </button>
       <button class="sb-item" [class.active]="currentView()==='schedule'" (click)="setView('schedule'); closeMobileSidebar()">
         <span class="sb-icon">📅</span><span class="sb-label">Schedule</span>
@@ -78,6 +81,14 @@
         <div class="pending-indicator" (click)="setView('registered')" title="{{ pendingEvents.length }} pending approval(s)">
           <span class="pending-dot"></span>
           <span class="pending-text">{{ pendingEvents.length }}</span>
+        </div>
+        }
+        
+        <!-- Rejected indicator -->
+        @if (rejectedEvents && rejectedEvents.length > 0) {
+        <div class="rejected-indicator" (click)="setView('registered')" title="{{ rejectedEvents.length }} rejected registration(s)">
+          <span class="rejected-dot"></span>
+          <span class="rejected-text">{{ rejectedEvents.length }}</span>
         </div>
         }
         
@@ -157,6 +168,8 @@
                 <span class="ev-badge" [ngClass]="ev.status">{{ ev.status }}</span>
                 @if ((ev.registrationFee||0) > 0) { <span class="ev-fee">₹{{ ev.registrationFee }}</span> }
                 @if (isRegistered(ev)) { <span class="ev-registered-chip">✓ Registered</span> }
+                @if (isPendingApproval(ev)) { <span class="ev-registered-chip pending">⏳ Pending</span> }
+                @if (isRejected(ev)) { <span class="ev-registered-chip rejected">❌ Rejected</span> }
               </div>
               <div class="ev-card-body">
                 <h3>{{ ev.title }}</h3>
@@ -165,9 +178,13 @@
                 <div class="ev-footer">
                   <span class="spots" [class.urgent]="isSpotsUrgent(ev)">{{ getSpotsLeft(ev) }} spots left</span>
                   @if (isRegistered(ev)) {
-                    <span class="approval-mini" [ngClass]="getMyRegistration(ev._id)?.approvalStatus || 'pending'">
-                      {{ getMyRegistration(ev._id)?.approvalStatus || 'pending' }}
-                    </span>
+                    <span class="approval-mini approved">✓ Registered</span>
+                  } @else if (isPendingApproval(ev)) {
+                    <span class="approval-mini pending">⏳ Pending</span>
+                  } @else if (isRejected(ev)) {
+                    <span class="approval-mini rejected">❌ Rejected</span>
+                  } @else {
+                    <span class="register-chip">Register →</span>
                   }
                 </div>
               </div>
@@ -291,6 +308,7 @@
               @if ((ev.registrationFee||0) > 0) { <span class="ev-fee">₹{{ ev.registrationFee }}</span> }
               @if (isRegistered(ev)) { <span class="ev-registered-chip">✓ Registered</span> }
               @if (isPendingApproval(ev)) { <span class="ev-registered-chip pending">⏳ Pending</span> }
+              @if (isRejected(ev)) { <span class="ev-registered-chip rejected">❌ Rejected</span> }
             </div>
             <div class="ev-card-body">
               <div class="ev-type-chip">{{ ev.type | titlecase }}</div>
@@ -303,6 +321,8 @@
                   <span class="approval-mini approved">✓ Registered</span>
                 } @else if (isPendingApproval(ev)) {
                   <span class="approval-mini pending">⏳ Pending</span>
+                } @else if (isRejected(ev)) {
+                  <span class="approval-mini rejected">❌ Rejected</span>
                 } @else {
                   <span class="register-chip">Register →</span>
                 }
@@ -326,7 +346,7 @@
       <div class="view-section">
         <div class="page-header">
           <h1>My Events ✅</h1>
-          <p>{{ registeredEvents.length }} approved · {{ pendingEvents.length }} pending</p>
+          <p>{{ registeredEvents.length }} approved · {{ pendingEvents.length }} pending · {{ rejectedEvents.length }} rejected</p>
         </div>
 
         <!-- Pending Events Section -->
@@ -409,8 +429,42 @@
         </div>
         }
 
+        <!-- Rejected Events Section -->
+        @if (rejectedEvents && rejectedEvents.length > 0) {
+        <div class="rejected-section">
+          <h2 class="section-subtitle">❌ Rejected Registrations ({{ rejectedEvents.length }})</h2>
+          <div class="my-events-list">
+            @for (ev of rejectedEvents; track ev._id) {
+            <div class="my-ev-card border-rejected">
+              <div class="mev-img">
+                <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=200&q=70'" [alt]="ev.title">
+                <span class="mev-status-badge" [ngClass]="ev.status">{{ ev.status }}</span>
+              </div>
+              <div class="mev-body">
+                <div class="mev-title-row">
+                  <h3>{{ ev.title }}</h3>
+                  <span class="mev-approval rejected">❌ Rejected</span>
+                </div>
+                <div class="mev-meta">
+                  <span>📍 {{ ev.venue }}</span>
+                  <span>📅 {{ formatDate(ev.startDate) }}</span>
+                  <span>🏷 {{ ev.type | titlecase }}</span>
+                  @if (ev.selectedSlot) { <span>🕐 {{ ev.selectedSlot }}</span> }
+                </div>
+                <p class="rejected-message">❌ Your registration was rejected. You can try registering again.</p>
+              </div>
+              <div class="mev-actions">
+                <button class="btn-primary" (click)="openEventModal(ev)">View Details</button>
+                <button class="btn-primary" (click)="openEventModal(ev)">Register Again</button>
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+        }
+
         <!-- Empty State -->
-        @if (registeredEvents.length === 0 && pendingEvents.length === 0) {
+        @if (registeredEvents.length === 0 && pendingEvents.length === 0 && rejectedEvents.length === 0) {
         <div class="empty-state-full">
           <div class="empty-icon">📭</div>
           <h3>No registrations yet</h3>
@@ -578,6 +632,9 @@
         @if (isPendingApproval(selectedEvent)) {
           <span class="hbadge pending-badge">⏳ PENDING</span>
         }
+        @if (isRejected(selectedEvent)) {
+          <span class="hbadge rejected-badge">❌ REJECTED</span>
+        }
       </div>
     </div>
     <div class="evm-body">
@@ -635,7 +692,7 @@
 
     <!-- Slot selector + actions footer -->
     <div class="evm-footer">
-      @if (selectedEvent.slots?.length > 0 && !isRegistered(selectedEvent) && !isPendingApproval(selectedEvent)) {
+      @if (selectedEvent.slots?.length > 0 && !isRegistered(selectedEvent) && !isPendingApproval(selectedEvent) && !isRejected(selectedEvent)) {
       <div class="slot-row">
         <label>🕐 Time Slot</label>
         <select [(ngModel)]="selectedSlot" class="slot-sel">
@@ -656,6 +713,9 @@
         } @else if (isPendingApproval(selectedEvent)) {
           <button class="btn-registered pending" disabled>⏳ Pending Approval</button>
           <button class="btn-cancel-ev" (click)="cancelFromModal()">Cancel Request</button>
+        } @else if (isRejected(selectedEvent)) {
+          <button class="btn-registered rejected" disabled>❌ Rejected</button>
+          <button class="btn-register-ev" (click)="startRegistration()">Register Again</button>
         } @else if (isFull(selectedEvent)) {
           <button class="btn-disabled-ev" disabled>Event Full</button>
         } @else if (selectedEvent.status === 'completed' || selectedEvent.status === 'cancelled') {
@@ -833,6 +893,7 @@
       <div class="pg-item"><label>✅ Approved</label><span>{{ getDashboardStats().approved }}</span></div>
       <div class="pg-item"><label>🏆 Points</label><span>{{ totalPoints }}</span></div>
       <div class="pg-item"><label>⏳ Pending</label><span>{{ pendingEvents.length || 0 }}</span></div>
+      <div class="pg-item"><label>❌ Rejected</label><span>{{ rejectedEvents.length || 0 }}</span></div>
     </div>
     <button class="btn-topup-big" (click)="closeProfileModal(); openTopUp()">+ Top Up Wallet</button>
   </div>
