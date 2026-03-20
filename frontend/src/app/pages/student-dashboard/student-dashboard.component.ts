@@ -25,9 +25,11 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   registeredEventIds = new Set<string>();
   pendingEventIds = new Set<string>();
   rejectedEventIds = new Set<string>();
+  cancelledEventIds = new Set<string>();
   registeredEvents: any[] = [];
   pendingEvents: any[] = [];
   rejectedEvents: any[] = [];
+  cancelledEvents: any[] = [];
 
   notifications: any[] = [];
   payments: any[] = [];
@@ -224,10 +226,15 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       next: (data: any) => {
         console.log('📡 All Events API Response:', data);
         const list = Array.isArray(data) ? data : data?.events || [];
-        this.events = list.map((e: any) => ({ 
-          ...e, 
-          status: this.eventService.computeStatus ? this.eventService.computeStatus(e) : e.status 
-        }));
+        
+        // Filter out cancelled events from display
+        this.events = list
+          .filter((e: any) => e.status !== 'cancelled')
+          .map((e: any) => ({ 
+            ...e, 
+            status: this.eventService.computeStatus ? this.eventService.computeStatus(e) : e.status 
+          }));
+        
         this.filterEvents();
       },
       error: (err: any) => {
@@ -244,25 +251,92 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         console.log('📡 My Registrations API Response:', data);
         const list = Array.isArray(data) ? data : data?.events || [];
         
-        // Store previous pending events to detect changes
-        const prevPendingEvents = [...(this.pendingEvents || [])];
+        // Store previous states to detect changes
+        const prevRegisteredIds = new Set(this.registeredEventIds);
+        const prevPendingIds = new Set(this.pendingEventIds);
         
-        // Split registrations based on approvalStatus from the backend
+        // Split registrations based on status
         const newRegisteredEvents = list.filter((ev: any) => 
-          ev.approvalStatus === 'approved'
+          ev.approvalStatus === 'approved' && ev.status !== 'cancelled'
         );
         
         const newPendingEvents = list.filter((ev: any) => 
-          ev.approvalStatus === 'pending'
+          ev.approvalStatus === 'pending' && ev.status !== 'cancelled'
         );
 
         const newRejectedEvents = list.filter((ev: any) => 
-          ev.approvalStatus === 'rejected'
+          ev.approvalStatus === 'rejected' && ev.status !== 'cancelled'
         );
 
-        // Check for newly rejected events (were pending, now rejected)
-        if (prevPendingEvents && prevPendingEvents.length > 0) {
-          const newlyRejected = prevPendingEvents.filter(pending => {
+        // Track cancelled events separately
+        const newCancelledEvents = list.filter((ev: any) => 
+          ev.status === 'cancelled'
+        );
+
+        console.log('📊 Registration counts:', {
+          registered: newRegisteredEvents.length,
+          pending: newPendingEvents.length,
+          rejected: newRejectedEvents.length,
+          cancelled: newCancelledEvents.length
+        });
+
+        // Check for newly cancelled events
+        if (list.length > 0) {
+          const allPrevEvents = [
+            ...this.registeredEvents,
+            ...this.pendingEvents,
+            ...this.rejectedEvents
+          ];
+          
+          const newlyCancelled = allPrevEvents.filter(prev => {
+            const prevId = prev._id || prev.id;
+            return newCancelledEvents.some((cancelled: any) => {
+              const cancelledId = cancelled._id || cancelled.id;
+              return cancelledId === prevId;
+            });
+          });
+          
+          if (newlyCancelled.length > 0) {
+            console.log('🚫 Events cancelled by admin:', newlyCancelled);
+            
+            newlyCancelled.forEach((event: any) => {
+              // Check if there was a payment for refund
+              const hadPayment = event.paymentAmount && event.paymentAmount > 0;
+              
+              // Show alert for cancellation
+              alert(`🚫 The event "${event.title}" has been cancelled by the organizer.${hadPayment ? ' Your payment will be refunded.' : ''}`);
+              
+              // Add notification for cancellation
+              this.addNotification({
+                id: Date.now() + Math.random(),
+                icon: '🚫',
+                title: 'Event Cancelled',
+                message: `The event "${event.title}" has been cancelled by the organizer.${hadPayment ? ' Refund processed.' : ''}`,
+                time: 'Just now',
+                read: false,
+                type: 'cancellation',
+                data: { eventId: event._id || event.id, hadPayment }
+              });
+
+              // If there was a payment, refresh wallet balance
+              if (hadPayment) {
+                setTimeout(() => {
+                  this.authService.getWalletBalance().subscribe({ 
+                    next: (r: any) => { 
+                      this.walletBalance = r.walletBalance; 
+                      this.authService.updateWalletBalance(r.walletBalance); 
+                      alert(`💰 Refund of ₹${event.paymentAmount} has been credited to your wallet.`);
+                    } 
+                  });
+                }, 500);
+              }
+            });
+          }
+        }
+
+        // Check for newly rejected events
+        if (this.pendingEvents && this.pendingEvents.length > 0) {
+          const newlyRejected = this.pendingEvents.filter(pending => {
             const pendingId = pending._id || pending.id;
             return !newPendingEvents.some((ev: any) => {
               const evId = ev._id || ev.id;
@@ -295,9 +369,9 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
           }
         }
 
-        // Check for newly approved events (were pending, now approved)
-        if (prevPendingEvents && prevPendingEvents.length > 0) {
-          const newlyApproved = prevPendingEvents.filter(pending => {
+        // Check for newly approved events
+        if (this.pendingEvents && this.pendingEvents.length > 0) {
+          const newlyApproved = this.pendingEvents.filter(pending => {
             const pendingId = pending._id || pending.id;
             return !newPendingEvents.some((ev: any) => {
               const evId = ev._id || ev.id;
@@ -334,7 +408,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
           }
         }
         
-        // Update the arrays
+        // Update the arrays - ONLY include non-cancelled events in main lists
         this.registeredEvents = newRegisteredEvents.map((e: any) => ({ 
           ...e, 
           status: this.eventService.computeStatus ? this.eventService.computeStatus(e) : e.status 
@@ -350,6 +424,12 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
           status: this.eventService.computeStatus ? this.eventService.computeStatus(e) : e.status 
         }));
 
+        // Store cancelled events separately
+        this.cancelledEvents = newCancelledEvents.map((e: any) => ({ 
+          ...e, 
+          status: 'cancelled' 
+        }));
+
         // Update ID sets
         this.registeredEventIds = new Set(
           this.registeredEvents.map((ev: any) => String(ev?._id || ev?.id))
@@ -363,19 +443,26 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
           this.rejectedEvents.map((ev: any) => String(ev?._id || ev?.id))
         );
 
+        this.cancelledEventIds = new Set(
+          this.cancelledEvents.map((ev: any) => String(ev?._id || ev?.id))
+        );
+
         // Update payments list
         this.payments = list.filter((e: any) => (e.paymentAmount || 0) > 0).map((e: any) => ({
           id: e.paymentTxnId || ('TXN-' + e.registrationId),
           event: e.title,
           amount: e.paymentAmount,
-          status: e.paymentStatus === 'paid' ? 'success' : e.paymentStatus,
+          status: e.paymentStatus === 'paid' ? (e.status === 'cancelled' ? 'refunded' : 'success') : e.paymentStatus,
           method: e.paymentMethod || '—',
           date: e.registeredAt || e.createdAt
         }));
 
-        console.log('✅ Approved Events:', Array.from(this.registeredEventIds));
-        console.log('⏳ Pending Events:', Array.from(this.pendingEventIds));
-        console.log('❌ Rejected Events:', Array.from(this.rejectedEventIds));
+        console.log('✅ Final States:', {
+          registered: Array.from(this.registeredEventIds),
+          pending: Array.from(this.pendingEventIds),
+          rejected: Array.from(this.rejectedEventIds),
+          cancelled: Array.from(this.cancelledEventIds)
+        });
         
         // Calculate points
         this.calculateTotalPoints();
@@ -385,9 +472,11 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         this.registeredEvents = [];
         this.pendingEvents = [];
         this.rejectedEvents = [];
+        this.cancelledEvents = [];
         this.registeredEventIds = new Set();
         this.pendingEventIds = new Set();
         this.rejectedEventIds = new Set();
+        this.cancelledEventIds = new Set();
       }
     });
   }
@@ -470,6 +559,10 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     return this.rejectedEventIds.has(String(ev._id || ev.id));
   }
 
+  isCancelled(ev: any): boolean {
+    return ev.status === 'cancelled' || this.cancelledEventIds.has(String(ev._id || ev.id));
+  }
+
   isFull(ev: any): boolean {
     if (!ev.maxParticipants) return false;
     return (ev.currentParticipants || 0) >= ev.maxParticipants;
@@ -486,7 +579,8 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   getMyRegistration(eventId: string): any {
     return this.registeredEvents.find(r => String(r._id || r.id) === String(eventId)) || 
            this.pendingEvents.find(r => String(r._id || r.id) === String(eventId)) ||
-           this.rejectedEvents.find(r => String(r._id || r.id) === String(eventId)) || null;
+           this.rejectedEvents.find(r => String(r._id || r.id) === String(eventId)) ||
+           this.cancelledEvents.find(r => String(r._id || r.id) === String(eventId)) || null;
   }
 
   canGiveFeedback(ev: any): boolean {
@@ -514,6 +608,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       completed: this.registeredEvents.filter(e => e.status === 'completed').length,
       pending: this.pendingEvents?.length || 0,
       rejected: this.rejectedEvents?.length || 0,
+      cancelled: this.cancelledEvents?.length || 0,
       approved: this.registeredEvents.filter(e => e.approvalStatus === 'approved').length,
       total: this.registeredEvents.length + this.pendingEvents.length + this.rejectedEvents.length
     };
@@ -524,7 +619,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   }
 
   getUpcomingSchedule() {
-    // Combine both approved and pending registrations that are upcoming
+    // Combine both approved and pending registrations that are upcoming (exclude cancelled)
     const allUpcoming = [
       ...this.registeredEvents.filter((e: any) => e.status === 'upcoming'),
       ...this.pendingEvents.filter((e: any) => e.status === 'upcoming')
@@ -569,6 +664,14 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       }
     } else if (n.type === 'approval' && n.data?.eventId) {
       this.setView('registered'); // Go to My Events to see approved event
+    } else if (n.type === 'cancellation' && n.data?.eventId) {
+      this.setView('events'); // Go to browse events
+      if (n.data?.hadPayment) {
+        alert('💰 Refund has been processed to your wallet.');
+      }
+    } else if (n.type === 'refund' && n.data?.amount) {
+      // Show refund details
+      alert(`💰 Refund of ₹${n.data.amount} has been credited to your wallet.`);
     }
   }
   
@@ -591,7 +694,9 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       'general': '🔔',
       'approval': '✅',
       'rejection': '❌',
-      'pending': '⏳'
+      'pending': '⏳',
+      'cancellation': '🚫',
+      'refund': '💰'
     };
     return icons[type] || '🔔';
   }
@@ -599,6 +704,12 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   // ─── REGISTRATION FLOW ──────────────────────────────────────────────────────
 
   openEventModal(event: any) {
+    // Don't open modal for cancelled events
+    if (event.status === 'cancelled') {
+      alert('This event has been cancelled by the organizer.');
+      return;
+    }
+    
     this.selectedEvent = event;
     this.showEventModal = true;
     this.setTab('details');
@@ -613,6 +724,12 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
   startRegistration() {
     if (!this.selectedEvent) return;
+    
+    // Check if event is cancelled
+    if (this.selectedEvent.status === 'cancelled') {
+      alert('This event has been cancelled by the organizer and is no longer available for registration.');
+      return;
+    }
     
     // Check if already rejected
     if (this.isRejected(this.selectedEvent)) {
@@ -637,6 +754,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     this.doRegister();
   }
 
+  // ✅ FIXED: Proper payment handling with backend
   doRegister(paymentPayload?: { paymentMethod: string; paymentTxnId?: string; paymentAmount: number; useWallet?: boolean }) {
     if (!this.selectedEvent) return;
     
@@ -645,10 +763,33 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
     
     const payload: any = { selectedSlot: this.selectedSlot };
-    if (paymentPayload) Object.assign(payload, paymentPayload);
+    
+    // Add payment information if present
+    if (paymentPayload) {
+      payload.paymentMethod = paymentPayload.paymentMethod;
+      payload.paymentAmount = paymentPayload.paymentAmount;
+      
+      if (paymentPayload.paymentTxnId) {
+        payload.paymentTxnId = paymentPayload.paymentTxnId;
+      }
+      
+      if (paymentPayload.useWallet) {
+        payload.useWallet = true;
+      }
+      
+      console.log(`💳 Sending payment data to backend:`, payload);
+    }
 
     this.eventService.registerForEvent(id, payload).subscribe({
       next: (res: any) => {
+        console.log('✅ Registration response:', res);
+        
+        // Handle wallet balance update from backend
+        if (res.walletBalance !== undefined) {
+          this.walletBalance = res.walletBalance;
+          this.authService.updateWalletBalance(res.walletBalance);
+        }
+        
         if (res.registration?.approvalStatus === 'pending') {
           alert('Registration submitted! Your request is pending admin approval.');
           this.pendingEventIds.add(String(id));
@@ -663,14 +804,25 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
             type: 'pending'
           });
         } else {
-          alert(res.message || 'Successfully registered!');
+          // Show payment success message based on response
+          let paymentMsg = '';
+          if (res.paymentStatus === 'paid') {
+            if (payload.paymentMethod === 'wallet') {
+              paymentMsg = ` Payment of ₹${this.selectedEvent.registrationFee} deducted from wallet.`;
+            } else if (payload.paymentMethod) {
+              paymentMsg = ` Payment of ₹${this.selectedEvent.registrationFee} processed via ${payload.paymentMethod.toUpperCase()}.`;
+            }
+          }
+          
+          alert(`✅ Registration successful!${paymentMsg}`);
+          
           this.registeredEventIds.add(String(id));
           
           this.addNotification({
             id: Date.now(),
             icon: '✅',
             title: 'Registration Confirmed',
-            message: `You are registered for "${this.selectedEvent.title}".`,
+            message: `You are registered for "${this.selectedEvent.title}".${paymentMsg}`,
             time: 'Just now',
             read: false,
             type: 'approval'
@@ -678,10 +830,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         }
         
         this.registering = false;
-        if (res?.walletBalance !== undefined) {
-          this.walletBalance = res.walletBalance;
-          this.authService.updateWalletBalance(res.walletBalance);
-        }
         this.selectedSlot = '';
         this.loadMyRegistrations();
         this.closeEventModal();
@@ -689,25 +837,41 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         this.showConfetti = true;
         setTimeout(() => this.showConfetti = false, 3000);
         this.notifService.reload();
-        this.loadNotifications(); // Refresh notifications
+        this.loadNotifications();
       },
       error: (err: any) => {
         console.error('Registration failed:', err);
-        this.errorMessage = err?.error?.message || 'Registration failed.';
+        
+        // Check for specific error messages
+        if (err.error?.message?.includes('already registered')) {
+          this.errorMessage = 'You are already registered for this event.';
+        } else if (err.error?.message?.includes('insufficient wallet balance')) {
+          this.errorMessage = 'Insufficient wallet balance. Please top up your wallet.';
+        } else if (err.error?.message?.includes('payment failed')) {
+          this.errorMessage = 'Payment failed. Please try again with a different method.';
+        } else {
+          this.errorMessage = err?.error?.message || 'Registration failed.';
+        }
+        
         alert(this.errorMessage);
         this.registering = false;
       }
     });
   }
 
+  // ✅ FIXED: Cancel registration with refund handling
   cancelRegistration(ev: any) {
     const eventTitle = ev.title || 'this event';
     const eventId = ev._id || ev.id;
+    const eventFee = ev.registrationFee || ev.paymentAmount || 0;
+    const hadPayment = eventFee > 0 && (ev.paymentStatus === 'paid' || ev.paymentMethod);
     
     let confirmationMessage = `Are you sure you want to cancel your registration for "${eventTitle}"?`;
     
     if (this.isPendingApproval(ev)) {
       confirmationMessage = `Your registration for "${eventTitle}" is still pending approval. Are you sure you want to cancel it?`;
+    } else if (hadPayment) {
+      confirmationMessage = `Are you sure you want to cancel your registration for "${eventTitle}"? ₹${eventFee} will be refunded to your ${ev.paymentMethod || 'original payment method'}.`;
     } else {
       confirmationMessage += ' This action cannot be undone.';
     }
@@ -720,10 +884,15 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
     this.eventService.unregisterFromEvent(eventId).subscribe({
       next: (response: any) => {
+        console.log('✅ Cancellation response:', response);
+        
+        // Remove from all sets
         this.registeredEventIds.delete(String(eventId));
         this.pendingEventIds.delete(String(eventId));
         this.rejectedEventIds.delete(String(eventId));
+        this.cancelledEventIds.delete(String(eventId));
         
+        // Remove from all arrays
         this.registeredEvents = this.registeredEvents.filter(e => 
           (e._id || e.id) !== eventId
         );
@@ -733,17 +902,53 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         this.rejectedEvents = this.rejectedEvents.filter(e => 
           (e._id || e.id) !== eventId
         );
+        this.cancelledEvents = this.cancelledEvents.filter(e => 
+          (e._id || e.id) !== eventId
+        );
         
-        alert(`Successfully cancelled registration for "${eventTitle}".`);
+        // Handle refund from backend response
+        let refundMessage = `Successfully cancelled registration for "${eventTitle}".`;
+        let notificationType = 'general';
+        let notificationIcon = '🗑️';
+        
+        if (hadPayment) {
+          if (response?.refundProcessed || response?.walletBalance !== undefined) {
+            refundMessage = `✅ Registration cancelled! ₹${eventFee} has been refunded to your ${response.refundMethod || ev.paymentMethod || 'wallet'}.`;
+            notificationType = 'refund';
+            notificationIcon = '💰';
+            
+            // Add refund notification
+            this.addNotification({
+              id: Date.now(),
+              icon: '💰',
+              title: 'Refund Processed',
+              message: `Refund of ₹${eventFee} for "${eventTitle}" has been processed.`,
+              time: 'Just now',
+              read: false,
+              type: 'refund',
+              data: { amount: eventFee, eventId }
+            });
+          } else {
+            refundMessage = `Registration cancelled. Refund of ₹${eventFee} will be processed within 5-7 business days.`;
+          }
+          
+          // Update wallet balance if refund was to wallet
+          if (response?.walletBalance !== undefined) {
+            this.walletBalance = response.walletBalance;
+            this.authService.updateWalletBalance(response.walletBalance);
+          }
+        }
+        
+        alert(refundMessage);
         
         this.addNotification({
           id: Date.now(),
-          icon: '🗑️',
+          icon: notificationIcon,
           title: 'Registration Cancelled',
-          message: `Your registration for "${eventTitle}" has been cancelled.`,
+          message: hadPayment ? `Your registration for "${eventTitle}" has been cancelled. Refund initiated.` : `Your registration for "${eventTitle}" has been cancelled.`,
           time: 'Just now',
           read: false,
-          type: 'general'
+          type: notificationType
         });
         
         this.loadEvents();
@@ -753,7 +958,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
           this.showEventModal = false;
         }
 
-        // Refresh wallet (might have been refunded)
+        // Refresh wallet balance
         this.authService.getWalletBalance().subscribe({ 
           next: (r: any) => { 
             this.walletBalance = r.walletBalance; 
@@ -761,7 +966,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
           } 
         });
         
-        this.loadNotifications(); // Refresh notifications
+        this.loadNotifications();
       },
       error: (err: any) => {
         console.error('Cancellation failed:', err);
@@ -783,44 +988,51 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     this.pendingPaymentEvent = null; 
   }
 
+  // ✅ FIXED: Process payment - let backend handle the actual payment
   processPayment() {
     if (!this.pendingPaymentEvent) return;
     this.processingPayment = true;
 
-    if (this.selectedPaymentMethod === 'wallet') {
-      if (this.walletBalance < this.pendingPaymentEvent.registrationFee) {
-        this.processingPayment = false;
-        alert('Insufficient wallet balance. Please top up or choose another method.');
-        return;
-      }
-      // Wallet payment: register directly with useWallet flag
+    const amount = this.pendingPaymentEvent.registrationFee;
+    const method = this.selectedPaymentMethod;
+
+    // For wallet payments, check balance first (frontend validation only)
+    if (method === 'wallet' && this.walletBalance < amount) {
+      this.processingPayment = false;
+      alert('Insufficient wallet balance. Please top up or choose another method.');
+      return;
+    }
+
+    console.log(`💳 Processing ${method} payment of ₹${amount}...`);
+    
+    // Simulate payment gateway delay (2 seconds)
+    // In production, this would be handled by the backend
+    setTimeout(() => {
       this.processingPayment = false;
       this.paymentSuccess = true;
+      
+      // Generate transaction ID
+      const txnId = method.toUpperCase() + '-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+      
+      // Show payment processing message
+      let methodName = method === 'upi' ? 'UPI' : 
+                       method === 'card' ? 'Card' : 
+                       method === 'netbanking' ? 'Net Banking' : 'Wallet';
+      
+      alert(`✅ Payment of ₹${amount} via ${methodName} successful! Completing registration...`);
+      
+      // Wait a bit then complete registration
       setTimeout(() => {
         this.showPaymentModal = false;
         this.doRegister({ 
-          paymentMethod: 'wallet', 
-          paymentAmount: this.pendingPaymentEvent.registrationFee, 
-          useWallet: true 
+          paymentMethod: method, 
+          paymentTxnId: txnId, 
+          paymentAmount: amount,
+          useWallet: method === 'wallet' 
         });
       }, 1000);
-    } else {
-      // Simulate other payment gateway (2 sec delay)
-      setTimeout(() => {
-        this.processingPayment = false;
-        this.paymentSuccess = true;
-        const txnId = 'TXN' + Date.now();
-        const amount = this.pendingPaymentEvent.registrationFee;
-        setTimeout(() => {
-          this.showPaymentModal = false;
-          this.doRegister({ 
-            paymentMethod: this.selectedPaymentMethod, 
-            paymentTxnId: txnId, 
-            paymentAmount: amount 
-          });
-        }, 1000);
-      }, 2000);
-    }
+      
+    }, 2000);
   }
 
   // ─── TOP UP WALLET ──────────────────────────────────────────────────────────
@@ -838,25 +1050,43 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   submitTopUp() {
     if (!this.topUpAmount || this.topUpAmount < 1) return;
     this.topUpLoading = true;
+    
+    // Call backend API to top up wallet
     this.authService.topUpWallet(this.topUpAmount).subscribe({
       next: (r: any) => {
         this.walletBalance = r.walletBalance;
         this.authService.updateWalletBalance(r.walletBalance);
         this.topUpLoading = false;
         this.topUpSuccess = true;
+        
+        // Add notification for top-up
+        this.addNotification({
+          id: Date.now(),
+          icon: '💰',
+          title: 'Wallet Top-up',
+          message: `₹${this.topUpAmount} added to your wallet.`,
+          time: 'Just now',
+          read: false,
+          type: 'general'
+        });
+        
+        alert(`💰 ₹${this.topUpAmount} added to your wallet successfully!`);
+        
         setTimeout(() => { 
           this.showTopUpModal = false; 
           this.topUpSuccess = false; 
         }, 1500);
       },
-      error: () => { 
+      error: (err) => { 
         this.topUpLoading = false; 
+        alert('Top-up failed: ' + (err.error?.message || 'Please try again.'));
       }
     });
   }
 
   // ─── FEEDBACK ───────────────────────────────────────────────────────────────
-
+  // Commented out for now - will be implemented later
+  /*
   openFeedback(ev: any) {
     this.feedbackEvent = ev;
     this.feedbackRating = 0;
@@ -903,6 +1133,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       }
     });
   }
+  */
 
   // ─── PROFILE MODAL ──────────────────────────────────────────────────────────
 
@@ -926,6 +1157,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     if (s === 'success' || s === 'paid') return 'badge-success';
     if (s === 'failed') return 'badge-danger';
     if (s === 'pending') return 'badge-warning';
+    if (s === 'refunded') return 'badge-info';
     return 'badge-info';
   }
 

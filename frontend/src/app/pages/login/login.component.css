@@ -42,7 +42,7 @@
   gap: 0.75rem;
   margin-bottom: 2rem;
   position: relative;
-  z-index: 2;
+  z-index: 10;
 }
 
 .brand-logo {
@@ -64,8 +64,14 @@
 .hero-content {
   text-align: center;
   position: relative;
-  z-index: 2;
-  max-width: 32rem;
+  z-index: 10;
+  max-width: 80%;
+  margin: 0 auto;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(5px);
+  padding: 2rem;
+  border-radius: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .hero-content h1 {
@@ -89,7 +95,13 @@
   gap: 3rem;
   margin-top: 2.5rem;
   position: relative;
-  z-index: 2;
+  z-index: 10;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(5px);
+  padding: 1.5rem 2rem;
+  border-radius: 3rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .hero-stat {
@@ -112,41 +124,105 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
-/* Floating Elements */
+/* ===== FLOATING ELEMENTS - SINGLE VERSION ===== */
 .floating-elements {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 1;
+  overflow: hidden;
 }
 
 .float-card {
   position: absolute;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-full);
-  font-size: 0.875rem;
-  font-weight: 500;
+  padding: 0.6rem 1.2rem;
+  border-radius: 2rem;
+  font-size: 0.9rem;
+  font-weight: 600;
   color: white;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   white-space: nowrap;
+  z-index: 2;
+  opacity: 0.9;
+  transition: all 0.3s;
 }
 
-.c1 { top: 20%; left: 10%; animation: float1 8s ease-in-out infinite; }
-.c2 { top: 40%; right: 15%; animation: float2 9s ease-in-out infinite; }
-.c3 { bottom: 30%; left: 15%; animation: float3 7s ease-in-out infinite; }
-.c4 { top: 60%; right: 25%; animation: float4 8s ease-in-out infinite; }
-.c5 { bottom: 20%; right: 35%; animation: float5 6s ease-in-out infinite; }
-.c6 { top: 75%; left: 25%; animation: float6 7s ease-in-out infinite; }
+.float-card:hover {
+  opacity: 1;
+  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.25);
+}
 
-@keyframes float1 { 0%,100% { transform: translate(0, 0); } 50% { transform: translate(20px, -20px); } }
-@keyframes float2 { 0%,100% { transform: translate(0, 0); } 50% { transform: translate(-15px, 15px); } }
-@keyframes float3 { 0%,100% { transform: translate(0, 0); } 50% { transform: translate(10px, 25px); } }
-@keyframes float4 { 0%,100% { transform: translate(0, 0); } 50% { transform: translate(-20px, -15px); } }
-@keyframes float5 { 0%,100% { transform: translate(0, 0); } 50% { transform: translate(25px, 10px); } }
-@keyframes float6 { 0%,100% { transform: translate(0, 0); } 50% { transform: translate(-10px, -20px); } }
+/* Individual card positions - moved to corners away from center text */
+.c1 {
+  top: 10%;
+  left: 5%;
+  animation: float1 10s ease-in-out infinite;
+}
+
+.c2 {
+  top: 75%;
+  left: 8%;
+  animation: float2 11s ease-in-out infinite;
+}
+
+.c3 {
+  top: 20%;
+  right: 5%;
+  animation: float3 9s ease-in-out infinite;
+}
+
+.c4 {
+  bottom: 25%;
+  right: 8%;
+  animation: float4 10s ease-in-out infinite;
+}
+
+.c5 {
+  top: 70%;
+  left: 15%;
+  animation: float5 12s ease-in-out infinite;
+}
+
+.c6 {
+  bottom: 10%;
+  right: 12%;
+  animation: float6 11s ease-in-out infinite;
+}
+
+/* Animation keyframes */
+@keyframes float1 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(15px, -20px); }
+}
+
+@keyframes float2 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-20px, 15px); }
+}
+
+@keyframes float3 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(10px, 25px); }
+}
+
+@keyframes float4 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-25px, -15px); }
+}
+
+@keyframes float5 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(20px, 10px); }
+}
+
+@keyframes float6 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-15px, -20px); }
+}
 
 /* ===== RIGHT PANEL ===== */
 .auth-right {
@@ -186,11 +262,12 @@
   font-size: 0.875rem;
 }
 
-/* Input Wrapper */
+/* ===== FIXED: Input field icons - prevent overlap ===== */
 .input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .input-icon {
@@ -198,17 +275,38 @@
   left: 1rem;
   font-size: 1.125rem;
   color: var(--text-muted);
-  z-index: 1;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.8rem !important;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  transition: all 0.2s;
+  line-height: 1.5;
+}
+
+.form-control::placeholder {
+  color: var(--gray-400);
+  opacity: 1;
 }
 
 .password-toggle {
   position: absolute;
   right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   font-size: 1.125rem;
   color: var(--text-muted);
   cursor: pointer;
+  z-index: 3;
   padding: 0.25rem;
   border-radius: var(--radius-sm);
   transition: all 0.2s;
@@ -332,203 +430,7 @@
   font-size: 1.125rem;
 }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 1024px) {
-  .auth-page {
-    flex-direction: column;
-  }
-  
-  .auth-left {
-    flex: none;
-    padding: 3rem 1.5rem;
-  }
-  
-  .hero-content h1 {
-    font-size: 2rem;
-  }
-  
-  .auth-right {
-    flex: none;
-    padding: 2rem 1.5rem;
-  }
-}
-
-@media (max-width: 640px) {
-  .auth-card {
-    padding: 1.5rem;
-  }
-  
-  .hero-stats {
-    gap: 1.5rem;
-  }
-  
-  .hero-stat .num {
-    font-size: 1.5rem;
-  }
-  
-  .float-card {
-    display: none;
-  }
-}
-/* Add at the end of the file */
-
-/* ===== FIXED: Prevent float cards from colliding with text ===== */
-.floating-elements {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  overflow: hidden;
-}
-
-.float-card {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-full);
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: white;
-  box-shadow: var(--shadow-lg);
-  white-space: nowrap;
-  z-index: 2;
-  opacity: 0.9;
-  transition: opacity 0.3s;
-}
-
-.float-card:hover {
-  opacity: 1;
-}
-
-/* Reposition cards to avoid text overlap */
-.c1 { top: 15%; left: 5%; animation: float1 8s ease-in-out infinite; }
-.c2 { top: 70%; left: 10%; animation: float2 9s ease-in-out infinite; }
-.c3 { bottom: 15%; left: 20%; animation: float3 7s ease-in-out infinite; }
-.c4 { top: 25%; right: 5%; animation: float4 8s ease-in-out infinite; }
-.c5 { top: 60%; right: 10%; animation: float5 6s ease-in-out infinite; }
-.c6 { bottom: 20%; right: 15%; animation: float6 7s ease-in-out infinite; }
-
-/* Ensure hero content stays above float cards */
-.hero-content {
-  position: relative;
-  z-index: 5;
-}
-
-.hero-stats {
-  position: relative;
-  z-index: 5;
-}
-
-.brand {
-  position: relative;
-  z-index: 5;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .float-card {
-    display: none; /* Hide on mobile to avoid clutter */
-  }
-}
-/* ===== FIXED: Input field icons - prevent overlap ===== */
-.input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-.input-icon {
-  position: absolute;
-  left: 1rem;
-  font-size: 1.125rem;
-  color: var(--text-muted);
-  z-index: 2;
-  pointer-events: none;
-}
-
-.form-control {
-  width: 100%;
-  padding: 0.75rem 1rem 0.75rem 2.8rem !important; /* Increased left padding to make room for icon */
-  border: 2px solid var(--border);
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  color: var(--text-primary);
-  background: var(--bg-card);
-  transition: all 0.2s;
-  line-height: 1.5;
-}
-
-/* Ensure text doesn't go under icon */
-.form-control::placeholder {
-  color: var(--gray-400);
-  opacity: 1;
-  padding-left: 0;
-}
-
-/* ===== FIXED: Prevent floating cards from colliding with text ===== */
-.floating-elements {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  overflow: hidden;
-}
-
-.float-card {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius-full);
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: white;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  white-space: nowrap;
-  z-index: 2;
-  opacity: 0.85;
-  transition: opacity 0.3s;
-}
-
-.float-card:hover {
-  opacity: 1;
-}
-
-/* Reposition cards to avoid text overlap - moved further away from center */
-.c1 { top: 10%; left: 5%; animation: float1 10s ease-in-out infinite; }
-.c2 { top: 75%; left: 8%; animation: float2 11s ease-in-out infinite; }
-.c3 { bottom: 10%; left: 15%; animation: float3 9s ease-in-out infinite; }
-.c4 { top: 15%; right: 5%; animation: float4 10s ease-in-out infinite; }
-.c5 { top: 70%; right: 8%; animation: float5 8s ease-in-out infinite; }
-.c6 { bottom: 15%; right: 12%; animation: float6 9s ease-in-out infinite; }
-
-/* Ensure hero content stays above float cards */
-.hero-content {
-  position: relative;
-  z-index: 10;
-  max-width: 80%;
-  margin: 0 auto;
-}
-
-.hero-stats {
-  position: relative;
-  z-index: 10;
-  display: flex;
-  gap: 2rem;
-  justify-content: center;
-  margin-top: 2rem;
-}
-
-.brand {
-  position: relative;
-  z-index: 10;
-}
-
-/* ===== FIXED: Better form spacing ===== */
+/* Form spacing */
 .auth-form-wrap {
   padding: 2rem;
 }
@@ -545,31 +447,14 @@
   color: var(--text-secondary);
 }
 
-/* Password toggle button positioning */
-.password-toggle {
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  font-size: 1.125rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  z-index: 3;
-  padding: 0.25rem;
-  border-radius: var(--radius-sm);
-  transition: all 0.2s;
-}
-
-.password-toggle:hover {
-  color: var(--brand-600);
-  background: var(--gray-100);
-}
-
-/* ===== FIXED: Better responsive behavior ===== */
+/* ===== RESPONSIVE ===== */
 @media (max-width: 1024px) {
+  .auth-page {
+    flex-direction: column;
+  }
+  
   .auth-left {
+    flex: none;
     padding: 2rem 1.5rem;
   }
   
@@ -577,9 +462,19 @@
     font-size: 2rem;
   }
   
+  .hero-content {
+    max-width: 90%;
+    padding: 1.5rem;
+  }
+  
   .float-card {
-    font-size: 0.75rem;
-    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    padding: 0.4rem 1rem;
+  }
+  
+  .auth-right {
+    flex: none;
+    padding: 2rem 1.5rem;
   }
 }
 
@@ -596,8 +491,20 @@
     display: none; /* Hide on mobile to avoid clutter */
   }
   
+  .hero-content {
+    backdrop-filter: none;
+    background: transparent;
+    border: none;
+    max-width: 100%;
+    padding: 1rem;
+  }
+  
   .hero-stats {
-    gap: 1rem;
+    backdrop-filter: none;
+    background: transparent;
+    border: none;
+    gap: 1.5rem;
+    padding: 1rem;
   }
   
   .hero-stat .num {
@@ -606,6 +513,20 @@
   
   .auth-form-wrap {
     padding: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .auth-card {
+    padding: 1.5rem;
+  }
+  
+  .hero-stats {
+    gap: 1.5rem;
+  }
+  
+  .hero-stat .num {
+    font-size: 1.5rem;
   }
 }
 

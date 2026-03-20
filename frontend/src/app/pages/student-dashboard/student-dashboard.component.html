@@ -413,13 +413,14 @@
               }
             </div>
             <div class="mev-actions">
-              @if (ev.status === 'completed' && ev.approvalStatus === 'approved') {
+              <!-- Feedback button commented out for now -->
+              <!-- @if (ev.status === 'completed' && ev.approvalStatus === 'approved') {
                 @if (!ev.hasFeedback) {
                 <button class="btn-feedback" (click)="openFeedback(ev)">⭐ Give Feedback</button>
                 } @else {
                 <span class="feedback-done">✅ Reviewed</span>
                 }
-              }
+              } -->
               @if (ev.status === 'upcoming' || ev.status === 'ongoing') {
               <button class="btn-cancel-sm" (click)="cancelRegistration(ev)">Cancel</button>
               }
@@ -840,6 +841,8 @@
 }
 
 <!-- ══ FEEDBACK MODAL ════════════════════════════════════════════════════ -->
+<!-- Feedback modal commented out for now -->
+<!-- 
 @if (showFeedbackModal && feedbackEvent) {
 <div class="modal-backdrop" (click)="closeFeedback()">
   <div class="feedback-modal" (click)="$event.stopPropagation()">
@@ -876,6 +879,7 @@
   </div>
 </div>
 }
+-->
 
 <!-- ══ PROFILE MODAL ════════════════════════════════════════════════════ -->
 @if (showProfileModal) {

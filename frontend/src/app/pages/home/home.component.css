@@ -1230,3 +1230,390 @@
   padding-top: 1rem !important;
   font-size: 0.75rem !important;
 }
+/* ===== FIXED: Home Page Layout - Reduced Footer Size & Spacing ===== */
+
+/* Reduce overall spacing */
+.home-container {
+  padding: 0 !important;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* Compact navbar */
+.navbar {
+  padding: 0.75rem 2rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.nav-container {
+  padding: 0 !important;
+}
+
+/* Hero section - more compact */
+.hero {
+  padding: 2rem 2rem !important;
+  margin-bottom: 2rem !important;
+  gap: 2rem !important;
+}
+
+.hero h1 {
+  font-size: 2.8rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.hero-description {
+  font-size: 1rem !important;
+  margin-bottom: 1.5rem !important;
+  max-width: 500px !important;
+}
+
+.hero-cta {
+  margin-bottom: 1.5rem !important;
+}
+
+.hero-stats-mini {
+  gap: 1.5rem !important;
+}
+
+.stat-value {
+  font-size: 1.5rem !important;
+}
+
+.stat-label {
+  font-size: 0.8rem !important;
+}
+
+.hero-visual {
+  max-width: 450px !important;
+}
+
+.hero-image {
+  height: 300px !important;
+  object-fit: cover;
+}
+
+.floating-card {
+  padding: 0.5rem 0.8rem !important;
+  font-size: 0.8rem !important;
+}
+
+.floating-card span {
+  font-size: 1.2rem !important;
+}
+
+/* Stats section - more compact */
+.stats-section {
+  padding: 2rem 2rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.stats-grid {
+  gap: 1rem !important;
+  margin-top: 1.5rem !important;
+}
+
+.stat-card-modern {
+  padding: 1.2rem !important;
+}
+
+.stat-icon-box {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  font-size: 1.2rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.stat-number {
+  font-size: 1.8rem !important;
+}
+
+.stat-label {
+  font-size: 0.8rem !important;
+}
+
+.stat-change {
+  font-size: 0.7rem !important;
+  padding: 0.15rem 0.4rem !important;
+}
+
+/* Features section - more compact */
+.features-section {
+  padding: 2rem 2rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.features-grid {
+  gap: 1.2rem !important;
+  margin-top: 1.5rem !important;
+}
+
+.feature-card {
+  padding: 1.5rem !important;
+}
+
+.feature-icon-wrapper {
+  width: 3rem !important;
+  height: 3rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.feature-icon {
+  font-size: 1.5rem !important;
+}
+
+.feature-card h3 {
+  font-size: 1.1rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.feature-card p {
+  font-size: 0.85rem !important;
+  line-height: 1.5 !important;
+}
+
+/* Testimonials section - more compact */
+.testimonials-section {
+  padding: 2rem 2rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.testimonials-grid {
+  gap: 1rem !important;
+}
+
+.testimonial-card {
+  padding: 1.2rem !important;
+}
+
+.testimonial-rating {
+  font-size: 1rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.testimonial-text {
+  font-size: 0.9rem !important;
+  line-height: 1.5 !important;
+  margin-bottom: 1rem !important;
+}
+
+.testimonial-author {
+  gap: 0.8rem !important;
+}
+
+.author-avatar {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  font-size: 1rem !important;
+}
+
+.author-info h4 {
+  font-size: 0.9rem !important;
+}
+
+.author-info p {
+  font-size: 0.75rem !important;
+}
+
+/* CTA section - more compact */
+.cta-section {
+  padding: 1rem 2rem !important;
+}
+
+.cta-card {
+  padding: 2rem !important;
+}
+
+.cta-card h2 {
+  font-size: 2rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.cta-card p {
+  font-size: 1rem !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.cta-buttons {
+  gap: 1rem !important;
+}
+
+.cta-buttons .btn {
+  padding: 0.6rem 1.5rem !important;
+  font-size: 0.9rem !important;
+}
+
+/* ===== FIXED: Footer - Much Smaller & Compact ===== */
+.footer {
+  padding: 1.5rem 2rem 0.5rem !important;
+  margin-top: 1rem !important;
+  background: linear-gradient(135deg, #0f172a, #1e293b) !important;
+}
+
+.footer-content {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 2rem !important;
+  padding-bottom: 1rem !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.footer-brand .logo {
+  margin-bottom: 0.5rem !important;
+}
+
+.footer-brand .logo-icon {
+  font-size: 1.8rem !important;
+  width: 2rem !important;
+  height: 2rem !important;
+}
+
+.footer-brand .logo-text {
+  font-size: 1.2rem !important;
+}
+
+.footer-brand p {
+  font-size: 0.8rem !important;
+  line-height: 1.4 !important;
+  margin: 0.3rem 0 0.8rem !important;
+  max-width: 250px !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.social-links {
+  gap: 0.5rem !important;
+}
+
+.social-link {
+  width: 2rem !important;
+  height: 2rem !important;
+  font-size: 1rem !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.social-link:hover {
+  background: var(--brand-600) !important;
+}
+
+.footer-links {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem !important;
+}
+
+.footer-column h4 {
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.5rem !important;
+  color: white !important;
+}
+
+.footer-column a {
+  display: block;
+  font-size: 0.75rem !important;
+  margin-bottom: 0.3rem !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  transition: color 0.2s !important;
+}
+
+.footer-column a:hover {
+  color: white !important;
+  transform: translateX(3px);
+}
+
+.footer-bottom {
+  padding-top: 0.75rem !important;
+  text-align: center;
+  font-size: 0.7rem !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Responsive footer */
+@media (max-width: 768px) {
+  .footer-content {
+    grid-template-columns: 1fr;
+    gap: 1rem !important;
+  }
+  
+  .footer-links {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.8rem !important;
+  }
+  
+  .footer-brand p {
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer {
+    padding: 1rem 1rem 0.5rem !important;
+  }
+  
+  .footer-links {
+    grid-template-columns: 1fr;
+    gap: 0.5rem !important;
+  }
+  
+  .footer-column {
+    margin-bottom: 0.5rem !important;
+  }
+}
+
+/* Section headers - more compact */
+.section-header {
+  margin-bottom: 1rem !important;
+}
+
+.section-title {
+  font-size: 1.8rem !important;
+  margin-bottom: 0.2rem !important;
+}
+
+.section-subtitle {
+  font-size: 0.9rem !important;
+  margin-bottom: 0 !important;
+}
+
+/* Empty state - more compact */
+.empty-state-full {
+  padding: 2rem 1rem !important;
+}
+
+.empty-icon {
+  font-size: 3rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* Buttons - more compact */
+.btn {
+  padding: 0.5rem 1rem !important;
+  font-size: 0.85rem !important;
+}
+
+.btn-lg {
+  padding: 0.6rem 1.5rem !important;
+  font-size: 0.95rem !important;
+}
+
+.btn-sm {
+  padding: 0.3rem 0.8rem !important;
+  font-size: 0.75rem !important;
+}
+
+/* Remove extra spacing */
+.view-section {
+  padding: 0 !important;
+}
+
+.animate-in {
+  margin: 0 !important;
+}
+
+/* Fix any extra white space */
+body {
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}

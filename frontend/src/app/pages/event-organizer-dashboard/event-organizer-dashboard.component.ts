@@ -96,7 +96,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
   typeOptions = ['technical', 'cultural', 'sports', 'workshop', 'seminar'];
   categoryOptions = ['college', 'inter-college'];
 
-  // ✅ NEW PROPERTIES
+  // NEW PROPERTIES
   notificationFilter: string = 'all';
   filteredNotifications: any[] = [];
   pendingApprovals: number = 0;
@@ -224,83 +224,84 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   // ── IMAGE ────────────────────────────────────────────────────────────────
   onImageSelected(event: any) {
-  const file: File = event.target.files[0];
-  console.log('📸 File selected:', file?.name);
-  
-  if (!file) {
-    console.log('❌ No file');
-    return;
+    const file: File = event.target.files[0];
+    console.log('📸 File selected:', file?.name);
+    
+    if (!file) {
+      console.log('❌ No file');
+      return;
+    }
+    
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      this.formError = 'Only JPEG, PNG, GIF or WebP.';
+      console.log('❌ Invalid type:', file.type);
+      return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+      this.formError = 'Image must be < 5 MB.';
+      console.log('❌ Too large:', file.size);
+      return;
+    }
+    
+    this.selectedImageFile = file;
+    this.formError = '';
+    
+    const reader = new FileReader();
+    reader.onload = (e: any) => { 
+      console.log('✅ Image loaded, preview created');
+      this.imagePreviewUrl = e.target.result; 
+    };
+    reader.onerror = (err) => {
+      console.log('❌ FileReader error:', err);
+    };
+    reader.readAsDataURL(file);
   }
-  
-  const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-  if (!allowed.includes(file.type)) {
-    this.formError = 'Only JPEG, PNG, GIF or WebP.';
-    console.log('❌ Invalid type:', file.type);
-    return;
-  }
-  
-  if (file.size > 5 * 1024 * 1024) {
-    this.formError = 'Image must be < 5 MB.';
-    console.log('❌ Too large:', file.size);
-    return;
-  }
-  
-  this.selectedImageFile = file;
-  this.formError = '';
-  
-  const reader = new FileReader();
-  reader.onload = (e: any) => { 
-    console.log('✅ Image loaded, preview created');
-    this.imagePreviewUrl = e.target.result; 
-  };
-  reader.onerror = (err) => {
-    console.log('❌ FileReader error:', err);
-  };
-  reader.readAsDataURL(file);
-}
 
-clearImage() {
-  console.log('🗑️ Clearing image');
-  this.selectedImageFile = null;
-  this.imagePreviewUrl = '';
-}
-
-private buildPayload(): FormData | any {
-  const v = this.eventForm.value;
-  console.log('📝 Building payload, image present:', !!this.selectedImageFile);
-  
-  const fields: Record<string, string> = {
-    title: v.title,
-    description: v.description,
-    type: v.type,
-    category: v.category,
-    venue: v.venue,
-    startDate: new Date(v.startDate).toISOString(),
-    endDate: new Date(v.endDate).toISOString(),
-    registrationDeadline: new Date(v.registrationDeadline).toISOString(),
-    maxParticipants: String(Number(v.maxParticipants)),
-    registrationFee: String(Number(v.registrationFee) || 0),
-    organizer: v.organizer,
-    contactEmail: v.contactEmail
-  };
-  
-  console.log('Fields prepared:', Object.keys(fields));
-  
-  if (this.selectedImageFile) {
-    console.log('📸 Creating FormData with image:', this.selectedImageFile.name);
-    const fd = new FormData();
-    Object.entries(fields).forEach(([k, val]) => fd.append(k, val));
-    fd.append('image', this.selectedImageFile);
-    console.log('📤 FormData created with image');
-    return fd;
+  clearImage() {
+    console.log('🗑️ Clearing image');
+    this.selectedImageFile = null;
+    this.imagePreviewUrl = '';
   }
-  
-  console.log('📤 Sending JSON without image');
-  return fields;
-}
+
+  private buildPayload(): FormData | any {
+    const v = this.eventForm.value;
+    console.log('📝 Building payload, image present:', !!this.selectedImageFile);
+    
+    const fields: Record<string, string> = {
+      title: v.title,
+      description: v.description,
+      type: v.type,
+      category: v.category,
+      venue: v.venue,
+      startDate: new Date(v.startDate).toISOString(),
+      endDate: new Date(v.endDate).toISOString(),
+      registrationDeadline: new Date(v.registrationDeadline).toISOString(),
+      maxParticipants: String(Number(v.maxParticipants)),
+      registrationFee: String(Number(v.registrationFee) || 0),
+      organizer: v.organizer,
+      contactEmail: v.contactEmail
+    };
+    
+    console.log('Fields prepared:', Object.keys(fields));
+    
+    if (this.selectedImageFile) {
+      console.log('📸 Creating FormData with image:', this.selectedImageFile.name);
+      const fd = new FormData();
+      Object.entries(fields).forEach(([k, val]) => fd.append(k, val));
+      fd.append('image', this.selectedImageFile);
+      console.log('📤 FormData created with image');
+      return fd;
+    }
+    
+    console.log('📤 Sending JSON without image');
+    return fields;
+  }
 
   // ── CREATE ───────────────────────────────────────────────────────────────
   openCreate() {
+    console.log('🔵 Opening create modal');
     this.eventForm = this.buildForm();
     this.formError = '';
     this.clearImage();
@@ -308,65 +309,116 @@ private buildPayload(): FormData | any {
   }
 
   closeCreate() {
+    console.log('🔵 Closing create modal');
     this.showCreateModal = false;
     this.clearImage();
   }
 
   submitCreate() {
+    console.log('🔵 Submit Create called');
+    console.log('Form valid:', this.eventForm.valid);
+    console.log('Form value:', this.eventForm.value);
+    
     if (this.eventForm.invalid) {
+      console.log('❌ Form invalid, marking all as touched');
       this.eventForm.markAllAsTouched();
+      
+      // Log individual field errors
+      Object.keys(this.eventForm.controls).forEach(key => {
+        const control = this.eventForm.get(key);
+        if (control?.errors) {
+          console.log(`Field ${key} errors:`, control.errors);
+        }
+      });
       return;
     }
+    
     this.isSubmitting = true;
     this.formError = '';
-    this.eventService.createEvent(this.buildPayload()).subscribe({
-      next: () => {
+    
+    const payload = this.buildPayload();
+    console.log('📤 Payload:', payload);
+    
+    this.eventService.createEvent(payload).subscribe({
+      next: (response) => {
+        console.log('✅ Event created successfully:', response);
         this.showCreateModal = false;
         this.clearImage();
         this.loadEvents();
+        this.isSubmitting = false;
       },
       error: (err) => {
+        console.error('❌ Create event error:', err);
         this.formError = err.error?.message || 'Failed to create event';
         this.isSubmitting = false;
       },
-      complete: () => this.isSubmitting = false
+      complete: () => {
+        console.log('🏁 Create event complete');
+        this.isSubmitting = false;
+      }
     });
   }
 
   // ── EDIT ─────────────────────────────────────────────────────────────────
   openEdit(event: ApiEvent) {
+    console.log('🔵 Opening edit for event:', event);
+    
     this.selectedEvent = event;
     this.eventForm = this.buildForm(event);
     this.formError = '';
     this.selectedImageFile = null;
-    this.imagePreviewUrl = event.imageUrl || '';
+    
+    // ✅ FIX: Set the image preview URL from the existing event
+    if (event.imageUrl) {
+      console.log('📸 Setting image preview from event:', event.imageUrl);
+      this.imagePreviewUrl = event.imageUrl;
+    } else {
+      this.imagePreviewUrl = '';
+    }
+    
     this.showEditModal = true;
+    console.log('✅ Edit modal opened, imagePreviewUrl:', this.imagePreviewUrl);
   }
 
   closeEdit() {
+    console.log('🔵 Closing edit modal');
     this.showEditModal = false;
     this.selectedEvent = null;
     this.clearImage();
   }
 
   submitEdit() {
+    console.log('🔵 Submit Edit called');
+    
     if (!this.selectedEvent || this.eventForm.invalid) {
+      console.log('❌ Form invalid or no selected event');
       this.eventForm.markAllAsTouched();
       return;
     }
+    
     this.isSubmitting = true;
     this.formError = '';
-    this.eventService.updateEvent(this.selectedEvent._id, this.buildPayload()).subscribe({
-      next: () => {
+    
+    const payload = this.buildPayload();
+    console.log('📤 Edit payload:', payload);
+    
+    this.eventService.updateEvent(this.selectedEvent._id, payload).subscribe({
+      next: (response) => {
+        console.log('✅ Event updated successfully:', response);
         this.showEditModal = false;
         this.clearImage();
         this.loadEvents();
+        this.isSubmitting = false;
       },
       error: (err) => {
+        console.error('❌ Update event error:', err);
         this.formError = err.error?.message || 'Failed to update event';
         this.isSubmitting = false;
       },
-      complete: () => this.isSubmitting = false
+      complete: () => {
+        console.log('🏁 Update event complete');
+        this.isSubmitting = false;
+      }
     });
   }
 
@@ -576,7 +628,6 @@ private buildPayload(): FormData | any {
   }
 
   // ── NOTIFICATIONS ─────────────────────────────────────────────────────────
-  // Get notifications from service
   getNotificationList() {
     return this.notifService.notifications();
   }
