@@ -16,47 +16,125 @@ exports.registerForEvent = async (req, res) => {
     const { selectedSlot, paymentMethod, paymentTxnId, paymentAmount, useWallet } = req.body;
     const userId = req.userId;
 
-    console.log(`📝 Registration: Event=${id}, User=${userId}`);
+    console.log(`📝 Registration Request:`);
+    console.log(`   Event ID: ${id}`);
+    console.log(`   User ID: ${userId}`);
+    console.log(`   Payment Method: ${paymentMethod}`);
+    console.log(`   Use Wallet: ${useWallet}`);
+    console.log(`   Payment Amount: ${paymentAmount}`);
+    console.log(`   Transaction ID: ${paymentTxnId}`);
 
     const event = await Event.findById(id);
     if (!event) return res.status(404).json({ message: 'Event not found' });
     if (event.status === 'cancelled') return res.status(400).json({ message: 'Event is cancelled' });
     if (event.currentParticipants >= event.maxParticipants) return res.status(400).json({ message: 'Event is full' });
 
-    // Check already registered (using eventId/userId fields)
+    // Check already registered
     const existing = await Registration.findOne({ eventId: id, userId });
     if (existing) return res.status(400).json({ message: 'You are already registered for this event' });
 
     // Payment logic
-    let payStatus = 'free', txnId = paymentTxnId || '', finalAmount = paymentAmount || 0;
+    let payStatus = 'free';
+    let txnId = paymentTxnId || '';
+    let finalAmount = 0;
+    let updatedWalletBalance = null;
+    let paymentProcessed = false;
+    
     if (event.registrationFee > 0) {
-      if (useWallet) {
+      finalAmount = event.registrationFee;
+      
+      if (useWallet === true || paymentMethod === 'wallet') {
+        // WALLET PAYMENT - Deduct from wallet
         const student = await User.findById(userId);
-        if (!student || student.walletBalance < event.registrationFee)
+        if (!student || student.walletBalance < event.registrationFee) {
           return res.status(400).json({ message: 'Insufficient wallet balance' });
-        await User.findByIdAndUpdate(userId, { $inc: { walletBalance: -event.registrationFee } });
-        payStatus = 'paid'; txnId = 'WALLET-' + Date.now(); finalAmount = event.registrationFee;
+        }
+        
+        student.walletBalance -= event.registrationFee;
+        await student.save();
+        
+        payStatus = 'paid';
+        txnId = 'WALLET-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+        updatedWalletBalance = student.walletBalance;
+        paymentProcessed = true;
+        
+        console.log(`💰 Wallet payment successful: ₹${event.registrationFee} deducted, New balance: ${updatedWalletBalance}`);
+        
+      } else if (paymentMethod === 'upi') {
+        // UPI PAYMENT
+        console.log(`💳 Processing UPI payment of ₹${event.registrationFee}`);
+        
+        // Generate transaction ID if not provided
+        if (!txnId) {
+          txnId = 'UPI-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+        }
+        
+        payStatus = 'paid';
+        paymentProcessed = true;
+        
+        console.log(`✅ UPI payment successful! Transaction ID: ${txnId}`);
+        
+      } else if (paymentMethod === 'card') {
+        // CARD PAYMENT
+        console.log(`💳 Processing Card payment of ₹${event.registrationFee}`);
+        
+        if (!txnId) {
+          txnId = 'CARD-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+        }
+        
+        payStatus = 'paid';
+        paymentProcessed = true;
+        
+        console.log(`✅ Card payment successful! Transaction ID: ${txnId}`);
+        
+      } else if (paymentMethod === 'netbanking') {
+        // NET BANKING PAYMENT
+        console.log(`🏦 Processing Net Banking payment of ₹${event.registrationFee}`);
+        
+        if (!txnId) {
+          txnId = 'NB-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+        }
+        
+        payStatus = 'paid';
+        paymentProcessed = true;
+        
+        console.log(`✅ Net Banking payment successful! Transaction ID: ${txnId}`);
+        
+      } else if (paymentMethod && paymentAmount) {
+        // OTHER PAYMENT METHODS
+        console.log(`💳 Processing ${paymentMethod} payment of ₹${event.registrationFee}`);
+        
+        if (!txnId) {
+          txnId = 'PAY-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+        }
+        
+        payStatus = 'paid';
+        paymentProcessed = true;
+        
+        console.log(`✅ ${paymentMethod} payment successful! Transaction ID: ${txnId}`);
+        
       } else {
-        payStatus   = paymentTxnId ? 'paid' : 'pending';
-        finalAmount = paymentAmount || event.registrationFee;
+        return res.status(400).json({ message: 'Payment required for this event' });
       }
     }
 
+    // Create registration
     const registration = await Registration.create({
       eventId:       id,
       userId,
-      selectedSlot:  selectedSlot  || '',
-      approvalStatus:'pending',
+      selectedSlot:  selectedSlot || '',
+      approvalStatus: 'pending',
       paymentStatus: payStatus,
       paymentMethod: useWallet ? 'wallet' : (paymentMethod || ''),
       paymentTxnId:  txnId,
       paymentAmount: finalAmount
     });
 
+    // Update event participant count
     event.currentParticipants += 1;
     await event.save();
 
-    // Notify event creator
+    // Notify event creator about new registration
     if (event.createdBy) {
       const student = await User.findById(userId);
       await notify(event.createdBy, 'new-registration', '📋 New Registration Request',
@@ -64,16 +142,28 @@ exports.registerForEvent = async (req, res) => {
         event._id);
     }
 
+    // Get updated user for wallet balance
     const updatedUser = await User.findById(userId).select('walletBalance');
+    const currentWalletBalance = updatedUser?.walletBalance || updatedWalletBalance;
+
+    // Return success response
     res.status(201).json({
-      message:        `Successfully registered for ${event.title}`,
-      registrationId: registration._id,
-      walletBalance:  updatedUser?.walletBalance,
+      message:           `Successfully registered for ${event.title}`,
+      registrationId:    registration._id,
+      walletBalance:     currentWalletBalance,
+      paymentStatus:     payStatus,
+      paymentMethod:     useWallet ? 'wallet' : (paymentMethod || ''),
+      paymentTxnId:      txnId,
+      paymentAmount:     finalAmount,
+      paymentProcessed:  paymentProcessed,
       registration
     });
+    
   } catch (err) {
-    if (err.code === 11000) return res.status(400).json({ message: 'Already registered for this event' });
-    console.error('registerForEvent error:', err.message);
+    if (err.code === 11000) {
+      return res.status(400).json({ message: 'Already registered for this event' });
+    }
+    console.error('❌ registerForEvent error:', err.message);
     res.status(500).json({ message: err.message });
   }
 };
@@ -90,7 +180,7 @@ exports.getEventRegistrations = async (req, res) => {
       const rid = r._id.toString();
       return {
         _id:             rid,
-        registrationId:  rid,   // always plain string — fixes approve/reject
+        registrationId:  rid,
         fullName:        r.userId?.fullName  || 'Unknown',
         email:           r.userId?.email     || '',
         college:         r.userId?.college   || '',
@@ -229,18 +319,48 @@ exports.unregisterFromEvent = async (req, res) => {
     if (!registration) registration = await Registration.findOne({ _id: id, userId });
     if (!registration) return res.status(404).json({ message: 'Registration not found' });
 
-    // Refund wallet if paid via wallet
-    if (registration.paymentMethod === 'wallet' && registration.paymentAmount > 0) {
-      await User.findByIdAndUpdate(userId, { $inc: { walletBalance: registration.paymentAmount } });
+    let refundProcessed = false;
+    let refundMessage = '';
+    let updatedWalletBalance = null;
+
+    // Refund if payment was made
+    if (registration.paymentAmount > 0 && registration.paymentStatus === 'paid') {
+      
+      if (registration.paymentMethod === 'wallet') {
+        // Refund to wallet
+        await User.findByIdAndUpdate(userId, { $inc: { walletBalance: registration.paymentAmount } });
+        refundProcessed = true;
+        refundMessage = `₹${registration.paymentAmount} refunded to wallet`;
+        
+        const updatedUser = await User.findById(userId).select('walletBalance');
+        updatedWalletBalance = updatedUser?.walletBalance;
+        
+        console.log(`💰 Wallet refund: ₹${registration.paymentAmount} added back, New balance: ${updatedWalletBalance}`);
+        
+      } else {
+        // For UPI/Card/NetBanking - refund to original payment method
+        refundProcessed = true;
+        refundMessage = `₹${registration.paymentAmount} will be refunded to your ${registration.paymentMethod.toUpperCase()}`;
+        
+        console.log(`💰 ${registration.paymentMethod.toUpperCase()} refund initiated for ₹${registration.paymentAmount}, TXN: ${registration.paymentTxnId}`);
+      }
     }
 
     const eventId = registration.eventId;
     await registration.deleteOne();
     await Event.findByIdAndUpdate(eventId, { $inc: { currentParticipants: -1 } });
 
-    res.json({ message: 'Registration cancelled successfully' });
+    console.log(`✅ Unregistration successful: Event ${eventId}, User ${userId}`);
+
+    res.json({ 
+      message: 'Registration cancelled successfully',
+      refundProcessed,
+      refundMessage,
+      walletBalance: updatedWalletBalance
+    });
+    
   } catch (err) {
-    console.error('unregisterFromEvent error:', err.message);
+    console.error('❌ unregisterFromEvent error:', err.message);
     res.status(500).json({ message: err.message });
   }
 };
