@@ -413,14 +413,14 @@
               }
             </div>
             <div class="mev-actions">
-              <!-- Feedback button commented out for now -->
-              <!-- @if (ev.status === 'completed' && ev.approvalStatus === 'approved') {
+              <!--: Feedback button for completed events -->
+              @if (ev.status === 'completed' && ev.approvalStatus === 'approved') {
                 @if (!ev.hasFeedback) {
                 <button class="btn-feedback" (click)="openFeedback(ev)">⭐ Give Feedback</button>
                 } @else {
                 <span class="feedback-done">✅ Reviewed</span>
                 }
-              } -->
+              }
               @if (ev.status === 'upcoming' || ev.status === 'ongoing') {
               <button class="btn-cancel-sm" (click)="cancelRegistration(ev)">Cancel</button>
               }
@@ -558,16 +558,16 @@
             <tbody>
               @for (s of leaderboard; track s.rank) {
               <tr>
-                <td class="rank-cell">{{ s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : s.rank === 3 ? '🥉' : '#' + s.rank }}</td>
-                <td><strong>{{ s.name }}</strong></td>
-                <td>{{ s.college }}</td>
-                <td>{{ s.events }}</td>
-                <td class="points-cell">{{ s.points }}</td>
-                <td><span class="badge-list">@for (b of s.badges; track b) { <span>{{ b }}</span> }</span></td>
+                <td class="rank-cell">{{ s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : s.rank === 3 ? '🥉' : '#' + s.rank }}倒
+                <td><strong>{{ s.name }}</strong>倒
+                <td>{{ s.college }}倒
+                <td>{{ s.events }}倒
+                <td class="points-cell">{{ s.points }}倒
+                <td><span class="badge-list">@for (b of s.badges; track b) { <span>{{ b }}</span> }</span>倒
               </tr>
               }
             </tbody>
-          </table>
+           </table>
         </div>
       </div>
       }
@@ -595,7 +595,7 @@
           <div class="section-head"><h2>📋 Transaction History</h2></div>
           <div class="table-card">
             <table class="data-tbl">
-              <thead><tr><th>Transaction ID</th><th>Event</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th></tr></thead>
+              <thead> <tr><th>Transaction ID</th><th>Event</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th></tr> </thead>
               <tbody>
                 @for (p of payments; track p.id) {
                 <tr>
@@ -841,16 +841,15 @@
 }
 
 <!-- ══ FEEDBACK MODAL ════════════════════════════════════════════════════ -->
-<!-- Feedback modal commented out for now -->
-<!-- 
+<!-- ✅ UNCOMMENTED: Feedback modal is now active -->
 @if (showFeedbackModal && feedbackEvent) {
 <div class="modal-backdrop" (click)="closeFeedback()">
   <div class="feedback-modal" (click)="$event.stopPropagation()">
-    <div class="pay-modal-head">
+    <div class="modal-header">
       <h3>⭐ Rate Your Experience</h3>
-      <button class="evm-close" (click)="closeFeedback()">✕</button>
+      <button class="modal-close" (click)="closeFeedback()">✕</button>
     </div>
-    <div class="pay-modal-body">
+    <div class="modal-body">
       <div class="fb-event-name">{{ feedbackEvent.title }}</div>
       <div class="star-selector">
         <p>How would you rate this event?</p>
@@ -879,7 +878,6 @@
   </div>
 </div>
 }
--->
 
 <!-- ══ PROFILE MODAL ════════════════════════════════════════════════════ -->
 @if (showProfileModal) {

@@ -246,250 +246,262 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   }
 
   loadMyRegistrations() {
-    this.eventService.getMyRegistrations().subscribe({
-      next: (data: any) => {
-        console.log('📡 My Registrations API Response:', data);
-        const list = Array.isArray(data) ? data : data?.events || [];
+  this.eventService.getMyRegistrations().subscribe({
+    next: (data: any) => {
+      console.log('📡 My Registrations API Response:', data);
+      const list = Array.isArray(data) ? data : data?.events || [];
+      
+      // Helper function to compute event status based on dates
+      const computeEventStatus = (event: any): string => {
+        if (event.status === 'cancelled') return 'cancelled';
+        const now = new Date();
+        const startDate = new Date(event.startDate);
+        const endDate = new Date(event.endDate);
         
-        // Store previous states to detect changes
-        const prevRegisteredIds = new Set(this.registeredEventIds);
-        const prevPendingIds = new Set(this.pendingEventIds);
+        if (now < startDate) return 'upcoming';
+        if (now >= startDate && now <= endDate) return 'ongoing';
+        if (now > endDate) return 'completed';
+        return event.status || 'upcoming';
+      };
+      
+      // Split registrations based on status - PRESERVE ALL FIELDS including hasFeedback
+      const newRegisteredEvents = list.filter((ev: any) => 
+        ev.approvalStatus === 'approved' && ev.status !== 'cancelled'
+      ).map((e: any) => ({ 
+        ...e, 
+        status: computeEventStatus(e),
+        approvalStatus: e.approvalStatus,
+        hasFeedback: e.hasFeedback || false
+      }));
+      
+      const newPendingEvents = list.filter((ev: any) => 
+        ev.approvalStatus === 'pending' && ev.status !== 'cancelled'
+      ).map((e: any) => ({ 
+        ...e, 
+        status: computeEventStatus(e),
+        approvalStatus: e.approvalStatus,
+        hasFeedback: e.hasFeedback || false
+      }));
+
+      const newRejectedEvents = list.filter((ev: any) => 
+        ev.approvalStatus === 'rejected' && ev.status !== 'cancelled'
+      ).map((e: any) => ({ 
+        ...e, 
+        status: computeEventStatus(e),
+        approvalStatus: e.approvalStatus,
+        hasFeedback: e.hasFeedback || false
+      }));
+
+      // Track cancelled events separately
+      const newCancelledEvents = list.filter((ev: any) => 
+        ev.status === 'cancelled'
+      ).map((e: any) => ({ 
+        ...e, 
+        status: 'cancelled',
+        approvalStatus: e.approvalStatus,
+        hasFeedback: e.hasFeedback || false
+      }));
+
+      console.log('📊 Registration counts:', {
+        registered: newRegisteredEvents.length,
+        pending: newPendingEvents.length,
+        rejected: newRejectedEvents.length,
+        cancelled: newCancelledEvents.length
+      });
+      
+      // ✅ FIXED: Safely log feedback data
+      if (newRegisteredEvents && newRegisteredEvents.length > 0) {
+  console.log('📝 Events with feedback data:', newRegisteredEvents.map((e: any) => ({
+    title: e.title,
+    status: e.status,
+    approvalStatus: e.approvalStatus,
+    hasFeedback: e.hasFeedback
+  })));
+} else {
+  console.log('📝 No approved events found');
+}
+
+      // Check for newly cancelled events
+      if (list.length > 0 && (this.registeredEvents.length > 0 || this.pendingEvents.length > 0 || this.rejectedEvents.length > 0)) {
+        const allPrevEvents = [
+          ...this.registeredEvents,
+          ...this.pendingEvents,
+          ...this.rejectedEvents
+        ];
         
-        // Split registrations based on status
-        const newRegisteredEvents = list.filter((ev: any) => 
-          ev.approvalStatus === 'approved' && ev.status !== 'cancelled'
-        );
-        
-        const newPendingEvents = list.filter((ev: any) => 
-          ev.approvalStatus === 'pending' && ev.status !== 'cancelled'
-        );
-
-        const newRejectedEvents = list.filter((ev: any) => 
-          ev.approvalStatus === 'rejected' && ev.status !== 'cancelled'
-        );
-
-        // Track cancelled events separately
-        const newCancelledEvents = list.filter((ev: any) => 
-          ev.status === 'cancelled'
-        );
-
-        console.log('📊 Registration counts:', {
-          registered: newRegisteredEvents.length,
-          pending: newPendingEvents.length,
-          rejected: newRejectedEvents.length,
-          cancelled: newCancelledEvents.length
+        const newlyCancelled = allPrevEvents.filter(prev => {
+          const prevId = prev._id || prev.id;
+          return newCancelledEvents.some((cancelled: any) => {
+            const cancelledId = cancelled._id || cancelled.id;
+            return cancelledId === prevId;
+          });
         });
-
-        // Check for newly cancelled events
-        if (list.length > 0) {
-          const allPrevEvents = [
-            ...this.registeredEvents,
-            ...this.pendingEvents,
-            ...this.rejectedEvents
-          ];
+        
+        if (newlyCancelled.length > 0) {
+          console.log('🚫 Events cancelled by admin:', newlyCancelled);
           
-          const newlyCancelled = allPrevEvents.filter(prev => {
-            const prevId = prev._id || prev.id;
-            return newCancelledEvents.some((cancelled: any) => {
-              const cancelledId = cancelled._id || cancelled.id;
-              return cancelledId === prevId;
-            });
-          });
-          
-          if (newlyCancelled.length > 0) {
-            console.log('🚫 Events cancelled by admin:', newlyCancelled);
+          newlyCancelled.forEach((event: any) => {
+            const hadPayment = event.paymentAmount && event.paymentAmount > 0;
             
-            newlyCancelled.forEach((event: any) => {
-              // Check if there was a payment for refund
-              const hadPayment = event.paymentAmount && event.paymentAmount > 0;
-              
-              // Show alert for cancellation
-              alert(`🚫 The event "${event.title}" has been cancelled by the organizer.${hadPayment ? ' Your payment will be refunded.' : ''}`);
-              
-              // Add notification for cancellation
-              this.addNotification({
-                id: Date.now() + Math.random(),
-                icon: '🚫',
-                title: 'Event Cancelled',
-                message: `The event "${event.title}" has been cancelled by the organizer.${hadPayment ? ' Refund processed.' : ''}`,
-                time: 'Just now',
-                read: false,
-                type: 'cancellation',
-                data: { eventId: event._id || event.id, hadPayment }
-              });
-
-              // If there was a payment, refresh wallet balance
-              if (hadPayment) {
-                setTimeout(() => {
-                  this.authService.getWalletBalance().subscribe({ 
-                    next: (r: any) => { 
-                      this.walletBalance = r.walletBalance; 
-                      this.authService.updateWalletBalance(r.walletBalance); 
-                      alert(`💰 Refund of ₹${event.paymentAmount} has been credited to your wallet.`);
-                    } 
-                  });
-                }, 500);
-              }
-            });
-          }
-        }
-
-        // Check for newly rejected events
-        if (this.pendingEvents && this.pendingEvents.length > 0) {
-          const newlyRejected = this.pendingEvents.filter(pending => {
-            const pendingId = pending._id || pending.id;
-            return !newPendingEvents.some((ev: any) => {
-              const evId = ev._id || ev.id;
-              return evId === pendingId;
-            }) && newRejectedEvents.some((ev: any) => {
-              const evId = ev._id || ev.id;
-              return evId === pendingId;
-            });
-          });
-          
-          if (newlyRejected.length > 0) {
-            console.log('❌ New rejections detected:', newlyRejected);
+            alert(`🚫 The event "${event.title}" has been cancelled by the organizer.${hadPayment ? ' Your payment will be refunded.' : ''}`);
             
-            newlyRejected.forEach((event: any) => {
-              // Show alert for rejection
-              alert(`❌ Your registration for "${event.title}" was rejected.`);
-              
-              // Add notification for rejection
-              this.addNotification({
-                id: Date.now() + Math.random(),
-                icon: '❌',
-                title: 'Registration Rejected',
-                message: `Your registration for "${event.title}" was not approved.`,
-                time: 'Just now',
-                read: false,
-                type: 'rejection',
-                data: { eventId: event._id || event.id }
-              });
+            this.addNotification({
+              id: Date.now() + Math.random(),
+              icon: '🚫',
+              title: 'Event Cancelled',
+              message: `The event "${event.title}" has been cancelled by the organizer.${hadPayment ? ' Refund processed.' : ''}`,
+              time: 'Just now',
+              read: false,
+              type: 'cancellation',
+              data: { eventId: event._id || event.id, hadPayment }
             });
-          }
-        }
 
-        // Check for newly approved events
-        if (this.pendingEvents && this.pendingEvents.length > 0) {
-          const newlyApproved = this.pendingEvents.filter(pending => {
-            const pendingId = pending._id || pending.id;
-            return !newPendingEvents.some((ev: any) => {
-              const evId = ev._id || ev.id;
-              return evId === pendingId;
-            }) && newRegisteredEvents.some((ev: any) => {
-              const evId = ev._id || ev.id;
-              return evId === pendingId;
-            });
-          });
-          
-          if (newlyApproved.length > 0) {
-            console.log('✅ New approvals detected:', newlyApproved.length);
-            
-            // Show alert for first approval
-            if (newlyApproved.length === 1) {
-              alert(`✅ Your registration for "${newlyApproved[0].title}" has been approved!`);
-            } else {
-              alert(`✅ ${newlyApproved.length} of your registrations have been approved!`);
+            if (hadPayment) {
+              setTimeout(() => {
+                this.authService.getWalletBalance().subscribe({ 
+                  next: (r: any) => { 
+                    this.walletBalance = r.walletBalance; 
+                    this.authService.updateWalletBalance(r.walletBalance); 
+                    alert(`💰 Refund of ₹${event.paymentAmount} has been credited to your wallet.`);
+                  } 
+                });
+              }, 500);
             }
-            
-            // Add notification for each approval
-            newlyApproved.forEach((event: any) => {
-              this.addNotification({
-                id: Date.now() + Math.random(),
-                icon: '✅',
-                title: 'Registration Approved',
-                message: `Your registration for "${event.title}" has been approved!`,
-                time: 'Just now',
-                read: false,
-                type: 'approval',
-                data: { eventId: event._id || event.id }
-              });
-            });
-          }
+          });
         }
-        
-        // Update the arrays - ONLY include non-cancelled events in main lists
-        this.registeredEvents = newRegisteredEvents.map((e: any) => ({ 
-          ...e, 
-          status: this.eventService.computeStatus ? this.eventService.computeStatus(e) : e.status 
-        }));
-        
-        this.pendingEvents = newPendingEvents.map((e: any) => ({ 
-          ...e, 
-          status: this.eventService.computeStatus ? this.eventService.computeStatus(e) : e.status 
-        }));
+      }
 
-        this.rejectedEvents = newRejectedEvents.map((e: any) => ({ 
-          ...e, 
-          status: this.eventService.computeStatus ? this.eventService.computeStatus(e) : e.status 
-        }));
-
-        // Store cancelled events separately
-        this.cancelledEvents = newCancelledEvents.map((e: any) => ({ 
-          ...e, 
-          status: 'cancelled' 
-        }));
-
-        // Update ID sets
-        this.registeredEventIds = new Set(
-          this.registeredEvents.map((ev: any) => String(ev?._id || ev?.id))
-        );
-        
-        this.pendingEventIds = new Set(
-          this.pendingEvents.map((ev: any) => String(ev?._id || ev?.id))
-        );
-
-        this.rejectedEventIds = new Set(
-          this.rejectedEvents.map((ev: any) => String(ev?._id || ev?.id))
-        );
-
-        this.cancelledEventIds = new Set(
-          this.cancelledEvents.map((ev: any) => String(ev?._id || ev?.id))
-        );
-
-        // Update payments list
-        this.payments = list.filter((e: any) => (e.paymentAmount || 0) > 0).map((e: any) => ({
-          id: e.paymentTxnId || ('TXN-' + e.registrationId),
-          event: e.title,
-          amount: e.paymentAmount,
-          status: e.paymentStatus === 'paid' ? (e.status === 'cancelled' ? 'refunded' : 'success') : e.paymentStatus,
-          method: e.paymentMethod || '—',
-          date: e.registeredAt || e.createdAt
-        }));
-
-        console.log('✅ Final States:', {
-          registered: Array.from(this.registeredEventIds),
-          pending: Array.from(this.pendingEventIds),
-          rejected: Array.from(this.rejectedEventIds),
-          cancelled: Array.from(this.cancelledEventIds)
+      // Check for newly rejected events
+      if (this.pendingEvents && this.pendingEvents.length > 0 && newPendingEvents) {
+        const newlyRejected = this.pendingEvents.filter(pending => {
+          const pendingId = pending._id || pending.id;
+          return !newPendingEvents.some((ev: any) => {
+            const evId = ev._id || ev.id;
+            return evId === pendingId;
+          }) && newRejectedEvents.some((ev: any) => {
+            const evId = ev._id || ev.id;
+            return evId === pendingId;
+          });
         });
         
-        // Calculate points
-        this.calculateTotalPoints();
-      },
-      error: (err: any) => {
-        console.error('❌ Failed to load registrations:', err);
-        this.registeredEvents = [];
-        this.pendingEvents = [];
-        this.rejectedEvents = [];
-        this.cancelledEvents = [];
-        this.registeredEventIds = new Set();
-        this.pendingEventIds = new Set();
-        this.rejectedEventIds = new Set();
-        this.cancelledEventIds = new Set();
+        if (newlyRejected.length > 0) {
+          console.log('❌ New rejections detected:', newlyRejected);
+          
+          newlyRejected.forEach((event: any) => {
+            alert(`❌ Your registration for "${event.title}" was rejected.`);
+            
+            this.addNotification({
+              id: Date.now() + Math.random(),
+              icon: '❌',
+              title: 'Registration Rejected',
+              message: `Your registration for "${event.title}" was not approved.`,
+              time: 'Just now',
+              read: false,
+              type: 'rejection',
+              data: { eventId: event._id || event.id }
+            });
+          });
+        }
       }
-    });
-  }
 
-  // Load notifications from service
+      // Check for newly approved events
+      if (this.pendingEvents && this.pendingEvents.length > 0 && newPendingEvents) {
+        const newlyApproved = this.pendingEvents.filter(pending => {
+          const pendingId = pending._id || pending.id;
+          return !newPendingEvents.some((ev: any) => {
+            const evId = ev._id || ev.id;
+            return evId === pendingId;
+          }) && newRegisteredEvents.some((ev: any) => {
+            const evId = ev._id || ev.id;
+            return evId === pendingId;
+          });
+        });
+        
+        if (newlyApproved.length > 0) {
+          console.log('✅ New approvals detected:', newlyApproved.length);
+          
+          if (newlyApproved.length === 1) {
+            alert(`✅ Your registration for "${newlyApproved[0].title}" has been approved!`);
+          } else {
+            alert(`✅ ${newlyApproved.length} of your registrations have been approved!`);
+          }
+          
+          newlyApproved.forEach((event: any) => {
+            this.addNotification({
+              id: Date.now() + Math.random(),
+              icon: '✅',
+              title: 'Registration Approved',
+              message: `Your registration for "${event.title}" has been approved!`,
+              time: 'Just now',
+              read: false,
+              type: 'approval',
+              data: { eventId: event._id || event.id }
+            });
+          });
+        }
+      }
+      
+      // Update the arrays
+      this.registeredEvents = newRegisteredEvents || [];
+      this.pendingEvents = newPendingEvents || [];
+      this.rejectedEvents = newRejectedEvents || [];
+      this.cancelledEvents = newCancelledEvents || [];
+
+      // Update ID sets
+      this.registeredEventIds = new Set(
+        this.registeredEvents.map((ev: any) => String(ev?._id || ev?.id))
+      );
+      
+      this.pendingEventIds = new Set(
+        this.pendingEvents.map((ev: any) => String(ev?._id || ev?.id))
+      );
+
+      this.rejectedEventIds = new Set(
+        this.rejectedEvents.map((ev: any) => String(ev?._id || ev?.id))
+      );
+
+      this.cancelledEventIds = new Set(
+        this.cancelledEvents.map((ev: any) => String(ev?._id || ev?.id))
+      );
+
+      // Update payments list
+      this.payments = list.filter((e: any) => (e.paymentAmount || 0) > 0).map((e: any) => ({
+        id: e.paymentTxnId || ('TXN-' + e.registrationId),
+        event: e.title,
+        amount: e.paymentAmount,
+        status: e.paymentStatus === 'paid' ? (e.status === 'cancelled' ? 'refunded' : 'success') : e.paymentStatus,
+        method: e.paymentMethod || '—',
+        date: e.registeredAt || e.createdAt
+      }));
+
+      console.log('✅ Final States:', {
+        registered: Array.from(this.registeredEventIds),
+        pending: Array.from(this.pendingEventIds),
+        rejected: Array.from(this.rejectedEventIds),
+        cancelled: Array.from(this.cancelledEventIds)
+      });
+      
+      this.calculateTotalPoints();
+    },
+    error: (err: any) => {
+      console.error('❌ Failed to load registrations:', err);
+      this.registeredEvents = [];
+      this.pendingEvents = [];
+      this.rejectedEvents = [];
+      this.cancelledEvents = [];
+      this.registeredEventIds = new Set();
+      this.pendingEventIds = new Set();
+      this.rejectedEventIds = new Set();
+      this.cancelledEventIds = new Set();
+    }
+  });
+}
   loadNotifications() {
-    // Get notifications from the service
     this.notifications = this.notifService.notifications();
     console.log('📬 Notifications loaded:', this.notifications.length);
   }
 
   loadLeaderboard() {
-    // Mock leaderboard data - in production, this would come from an API
     this.leaderboard = [
       { rank: 1, name: 'Arjun Kumar', college: 'IIT Madras', events: 12, points: 2400, badges: ['🏆', '🎯', '⚡'] },
       { rank: 2, name: 'Priya Sharma', college: 'NIT Trichy', events: 10, points: 2100, badges: ['🥈', '🎨'] },
@@ -499,7 +511,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       { rank: 6, name: this.getFullName(), college: this.getCollege(), events: this.registeredEvents.length, points: this.totalPoints, badges: [] }
     ];
     
-    // Find my rank
     const myEntry = this.leaderboard.find(l => l.name === this.getFullName());
     this.myRank = myEntry ? myEntry.rank : 6;
   }
@@ -583,14 +594,33 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
            this.cancelledEvents.find(r => String(r._id || r.id) === String(eventId)) || null;
   }
 
+  // ✅ FIXED: Check if user can give feedback (now using computed status)
   canGiveFeedback(ev: any): boolean {
-    return ev.status === 'completed' && this.isRegistered(ev) &&
-           (this.getMyRegistration(ev._id)?.approvalStatus === 'approved') &&
-           !(this.getMyRegistration(ev._id)?.hasFeedback);
+    // Compute if event is completed by date
+    const isCompletedByDate = () => {
+      if (!ev.endDate) return false;
+      const now = new Date();
+      const endDate = new Date(ev.endDate);
+      return now > endDate;
+    };
+    
+    const isCompleted = ev.status === 'completed' || isCompletedByDate();
+    const isApproved = ev.approvalStatus === 'approved';
+    const hasNotGivenFeedback = !ev.hasFeedback;
+    
+    console.log('🔍 Feedback check for:', ev.title, {
+      status: ev.status,
+      isCompletedByDate: isCompletedByDate(),
+      isCompleted,
+      isApproved,
+      hasNotGivenFeedback
+    });
+    
+    return isCompleted && isApproved && hasNotGivenFeedback;
   }
 
   getPastEventsWithFeedback(): any[] {
-    return this.registeredEvents.filter(e => e.status === 'completed');
+    return this.registeredEvents.filter(e => this.canGiveFeedback(e));
   }
 
   getAllTestimonials(): any[] {
@@ -605,7 +635,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     return {
       registered: this.registeredEvents.length,
       upcoming: this.registeredEvents.filter(e => e.status === 'upcoming').length,
-      completed: this.registeredEvents.filter(e => e.status === 'completed').length,
+      completed: this.registeredEvents.filter(e => this.canGiveFeedback(e)).length,
       pending: this.pendingEvents?.length || 0,
       rejected: this.rejectedEvents?.length || 0,
       cancelled: this.cancelledEvents?.length || 0,
@@ -619,7 +649,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   }
 
   getUpcomingSchedule() {
-    // Combine both approved and pending registrations that are upcoming (exclude cancelled)
     const allUpcoming = [
       ...this.registeredEvents.filter((e: any) => e.status === 'upcoming'),
       ...this.pendingEvents.filter((e: any) => e.status === 'upcoming')
@@ -656,33 +685,31 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     this.notifService.markRead(n._id);
     n.read = true;
     
-    // If it's a rejection or approval notification, navigate appropriately
     if (n.type === 'rejection' && n.data?.eventId) {
       const event = this.events.find(e => (e._id || e.id) === n.data.eventId);
       if (event) {
         this.openEventModal(event);
       }
     } else if (n.type === 'approval' && n.data?.eventId) {
-      this.setView('registered'); // Go to My Events to see approved event
+      this.setView('registered');
     } else if (n.type === 'cancellation' && n.data?.eventId) {
-      this.setView('events'); // Go to browse events
+      this.setView('events');
       if (n.data?.hadPayment) {
         alert('💰 Refund has been processed to your wallet.');
       }
     } else if (n.type === 'refund' && n.data?.amount) {
-      // Show refund details
       alert(`💰 Refund of ₹${n.data.amount} has been credited to your wallet.`);
     }
   }
   
   markAllRead() { 
     this.notifService.markAllRead(); 
-    this.loadNotifications(); // Refresh notifications after marking all read
+    this.loadNotifications();
   }
   
   deleteNotification(n: any) { 
     this.notifService.delete(n._id); 
-    this.loadNotifications(); // Refresh after deletion
+    this.loadNotifications();
   }
   
   getNotifIcon(type: string): string {
@@ -704,7 +731,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   // ─── REGISTRATION FLOW ──────────────────────────────────────────────────────
 
   openEventModal(event: any) {
-    // Don't open modal for cancelled events
     if (event.status === 'cancelled') {
       alert('This event has been cancelled by the organizer.');
       return;
@@ -725,16 +751,13 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   startRegistration() {
     if (!this.selectedEvent) return;
     
-    // Check if event is cancelled
     if (this.selectedEvent.status === 'cancelled') {
       alert('This event has been cancelled by the organizer and is no longer available for registration.');
       return;
     }
     
-    // Check if already rejected
     if (this.isRejected(this.selectedEvent)) {
       alert('Your previous registration for this event was rejected. You can try registering again.');
-      // Proceed with registration anyway
     }
     
     if (this.selectedEvent.slots?.length > 0 && !this.selectedSlot) {
@@ -754,7 +777,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     this.doRegister();
   }
 
-  // ✅ FIXED: Proper payment handling with backend
   doRegister(paymentPayload?: { paymentMethod: string; paymentTxnId?: string; paymentAmount: number; useWallet?: boolean }) {
     if (!this.selectedEvent) return;
     
@@ -764,7 +786,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     
     const payload: any = { selectedSlot: this.selectedSlot };
     
-    // Add payment information if present
     if (paymentPayload) {
       payload.paymentMethod = paymentPayload.paymentMethod;
       payload.paymentAmount = paymentPayload.paymentAmount;
@@ -784,7 +805,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       next: (res: any) => {
         console.log('✅ Registration response:', res);
         
-        // Handle wallet balance update from backend
         if (res.walletBalance !== undefined) {
           this.walletBalance = res.walletBalance;
           this.authService.updateWalletBalance(res.walletBalance);
@@ -804,7 +824,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
             type: 'pending'
           });
         } else {
-          // Show payment success message based on response
           let paymentMsg = '';
           if (res.paymentStatus === 'paid') {
             if (payload.paymentMethod === 'wallet') {
@@ -842,7 +861,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       error: (err: any) => {
         console.error('Registration failed:', err);
         
-        // Check for specific error messages
         if (err.error?.message?.includes('already registered')) {
           this.errorMessage = 'You are already registered for this event.';
         } else if (err.error?.message?.includes('insufficient wallet balance')) {
@@ -859,7 +877,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ✅ FIXED: Cancel registration with refund handling
   cancelRegistration(ev: any) {
     const eventTitle = ev.title || 'this event';
     const eventId = ev._id || ev.id;
@@ -886,13 +903,11 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       next: (response: any) => {
         console.log('✅ Cancellation response:', response);
         
-        // Remove from all sets
         this.registeredEventIds.delete(String(eventId));
         this.pendingEventIds.delete(String(eventId));
         this.rejectedEventIds.delete(String(eventId));
         this.cancelledEventIds.delete(String(eventId));
         
-        // Remove from all arrays
         this.registeredEvents = this.registeredEvents.filter(e => 
           (e._id || e.id) !== eventId
         );
@@ -906,7 +921,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
           (e._id || e.id) !== eventId
         );
         
-        // Handle refund from backend response
         let refundMessage = `Successfully cancelled registration for "${eventTitle}".`;
         let notificationType = 'general';
         let notificationIcon = '🗑️';
@@ -917,7 +931,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
             notificationType = 'refund';
             notificationIcon = '💰';
             
-            // Add refund notification
             this.addNotification({
               id: Date.now(),
               icon: '💰',
@@ -932,7 +945,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
             refundMessage = `Registration cancelled. Refund of ₹${eventFee} will be processed within 5-7 business days.`;
           }
           
-          // Update wallet balance if refund was to wallet
           if (response?.walletBalance !== undefined) {
             this.walletBalance = response.walletBalance;
             this.authService.updateWalletBalance(response.walletBalance);
@@ -958,7 +970,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
           this.showEventModal = false;
         }
 
-        // Refresh wallet balance
         this.authService.getWalletBalance().subscribe({ 
           next: (r: any) => { 
             this.walletBalance = r.walletBalance; 
@@ -988,7 +999,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     this.pendingPaymentEvent = null; 
   }
 
-  // ✅ FIXED: Process payment - let backend handle the actual payment
   processPayment() {
     if (!this.pendingPaymentEvent) return;
     this.processingPayment = true;
@@ -996,7 +1006,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     const amount = this.pendingPaymentEvent.registrationFee;
     const method = this.selectedPaymentMethod;
 
-    // For wallet payments, check balance first (frontend validation only)
     if (method === 'wallet' && this.walletBalance < amount) {
       this.processingPayment = false;
       alert('Insufficient wallet balance. Please top up or choose another method.');
@@ -1005,23 +1014,18 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
     console.log(`💳 Processing ${method} payment of ₹${amount}...`);
     
-    // Simulate payment gateway delay (2 seconds)
-    // In production, this would be handled by the backend
     setTimeout(() => {
       this.processingPayment = false;
       this.paymentSuccess = true;
       
-      // Generate transaction ID
       const txnId = method.toUpperCase() + '-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
       
-      // Show payment processing message
       let methodName = method === 'upi' ? 'UPI' : 
                        method === 'card' ? 'Card' : 
                        method === 'netbanking' ? 'Net Banking' : 'Wallet';
       
       alert(`✅ Payment of ₹${amount} via ${methodName} successful! Completing registration...`);
       
-      // Wait a bit then complete registration
       setTimeout(() => {
         this.showPaymentModal = false;
         this.doRegister({ 
@@ -1051,7 +1055,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     if (!this.topUpAmount || this.topUpAmount < 1) return;
     this.topUpLoading = true;
     
-    // Call backend API to top up wallet
     this.authService.topUpWallet(this.topUpAmount).subscribe({
       next: (r: any) => {
         this.walletBalance = r.walletBalance;
@@ -1059,7 +1062,6 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         this.topUpLoading = false;
         this.topUpSuccess = true;
         
-        // Add notification for top-up
         this.addNotification({
           id: Date.now(),
           icon: '💰',
@@ -1085,9 +1087,9 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   }
 
   // ─── FEEDBACK ───────────────────────────────────────────────────────────────
-  // Commented out for now - will be implemented later
-  /*
+
   openFeedback(ev: any) {
+    console.log('🔵 Opening feedback for event:', ev);
     this.feedbackEvent = ev;
     this.feedbackRating = 0;
     this.feedbackComment = '';
@@ -1101,40 +1103,128 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   }
 
   setFeedbackRating(r: number) { 
+    console.log('⭐ Rating selected:', r);
     this.feedbackRating = r; 
   }
 
   submitFeedback() {
-    if (!this.feedbackRating) { 
-      this.feedbackError = 'Please select a star rating.'; 
-      return; 
-    }
-    if (!this.feedbackEvent) return;
-    
-    this.feedbackSubmitting = true;
-    this.feedbackError = '';
-    const eventId = this.feedbackEvent._id || this.feedbackEvent.id;
-    
-    this.eventService.submitFeedback(eventId, { 
-      rating: this.feedbackRating, 
-      comment: this.feedbackComment 
-    }).subscribe({
-      next: () => {
-        this.feedbackSubmitting = false;
-        // Mark hasFeedback locally
-        const reg = this.registeredEvents.find(r => String(r._id || r.id) === String(eventId));
-        if (reg) reg.hasFeedback = true;
-        this.closeFeedback();
-        this.loadEvents(); // refresh to get updated feedback
-      },
-      error: (err: any) => { 
-        this.feedbackError = err?.error?.message || 'Failed to submit feedback.'; 
-        this.feedbackSubmitting = false; 
-      }
-    });
+  console.log('📝 Submitting feedback...');
+  console.log('Rating:', this.feedbackRating);
+  console.log('Comment:', this.feedbackComment);
+  console.log('Event:', this.feedbackEvent);
+  
+  if (!this.feedbackRating) { 
+    this.feedbackError = 'Please select a star rating.'; 
+    return; 
   }
-  */
-
+  if (!this.feedbackEvent) {
+    this.feedbackError = 'No event selected.';
+    return;
+  }
+  
+  // Check if event is actually completed before submitting
+  const isEventCompleted = () => {
+    if (!this.feedbackEvent.endDate) return false;
+    const now = new Date();
+    const endDate = new Date(this.feedbackEvent.endDate);
+    return now > endDate;
+  };
+  
+  console.log('Event completion check:', {
+    eventId: this.feedbackEvent._id,
+    title: this.feedbackEvent.title,
+    status: this.feedbackEvent.status,
+    endDate: this.feedbackEvent.endDate,
+    currentDate: new Date(),
+    isCompletedByDate: isEventCompleted(),
+    isCompleted: this.feedbackEvent.status === 'completed' || isEventCompleted()
+  });
+  
+  if (!isEventCompleted() && this.feedbackEvent.status !== 'completed') {
+    this.feedbackError = 'Feedback can only be given after the event is completed.';
+    alert(this.feedbackError);
+    return;
+  }
+  
+  // Check registration
+  const eventId = this.feedbackEvent._id || this.feedbackEvent.id;
+  const registration = this.getMyRegistration(eventId);
+  console.log('Registration check:', {
+    eventId,
+    hasRegistration: !!registration,
+    approvalStatus: registration?.approvalStatus,
+    hasFeedback: registration?.hasFeedback,
+    status: registration?.status
+  });
+  
+  if (!registration || registration.approvalStatus !== 'approved') {
+    this.feedbackError = 'Only approved registrants can give feedback.';
+    alert(this.feedbackError);
+    return;
+  }
+  
+  if (registration.hasFeedback) {
+    this.feedbackError = 'You have already given feedback for this event.';
+    alert(this.feedbackError);
+    return;
+  }
+  
+  this.feedbackSubmitting = true;
+  this.feedbackError = '';
+  
+  const payload = { 
+    rating: this.feedbackRating, 
+    comment: this.feedbackComment 
+  };
+  
+  console.log('📤 Sending feedback to backend:', {
+    url: `${this.eventService['apiUrl']}/${eventId}/feedback`,
+    payload: payload
+  });
+  
+  this.eventService.submitFeedback(eventId, payload).subscribe({
+    next: (response: any) => {
+      console.log('✅ Feedback submitted successfully:', response);
+      this.feedbackSubmitting = false;
+      
+      // Mark hasFeedback locally
+      if (registration) registration.hasFeedback = true;
+      
+      this.closeFeedback();
+      this.loadEvents(); // refresh to get updated feedback
+      this.loadMyRegistrations(); // refresh registrations
+      
+      alert('⭐ Thank you for your feedback!');
+      
+      // Add notification for feedback submitted
+      this.addNotification({
+        id: Date.now(),
+        icon: '⭐',
+        title: 'Feedback Submitted',
+        message: `Your feedback for "${this.feedbackEvent.title}" has been submitted.`,
+        time: 'Just now',
+        read: false,
+        type: 'general'
+      });
+    },
+    error: (err: any) => { 
+      console.error('❌ Feedback submission failed:', err);
+      // Try to get the actual error message from backend
+      if (err.error) {
+        console.error('Backend error response:', err.error);
+        if (typeof err.error === 'object') {
+          this.feedbackError = err.error.message || JSON.stringify(err.error);
+        } else {
+          this.feedbackError = err.error;
+        }
+      } else {
+        this.feedbackError = 'Failed to submit feedback. Please try again.';
+      }
+      alert(this.feedbackError);
+      this.feedbackSubmitting = false;
+    }
+  });
+}
   // ─── PROFILE MODAL ──────────────────────────────────────────────────────────
 
   openProfileModal() { 

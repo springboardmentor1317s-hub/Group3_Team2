@@ -492,7 +492,7 @@
                   <th>Fee</th>
                   <th>Status</th>
                   <th>Actions</th>
-                </tr>
+                 </tr>
               </thead>
               <tbody>
                 @for (ev of filteredEvents; track ev._id) {
@@ -521,12 +521,14 @@
                   <td class="actions-cell">
                     <button class="icon-btn" title="Edit" (click)="openEdit(ev)">✏️</button>
                     <button class="icon-btn" title="Participants" (click)="openParticipants(ev)">👥</button>
-                    @if (ev.status==='completed') {
-                      <button class="icon-btn" title="Feedback" (click)="openFeedback(ev)">⭐</button>
+                    <!-- ✅ Feedback button for completed events - shows star icon -->
+                    @if (ev.status === 'completed') {
+                      <button class="icon-btn" title="View Feedback" (click)="openFeedback(ev)">⭐</button>
                     }
-                    @if (ev.status!=='cancelled') {
+                    @if (ev.status !== 'cancelled') {
                       <button class="icon-btn danger" title="Cancel" (click)="cancelEvent(ev)">🚫</button>
                     }
+                    <button class="icon-btn danger" title="Delete" (click)="deleteEvent(ev)">🗑️</button>
                   </td>
                 </tr>
                 } @empty {
@@ -810,9 +812,6 @@
 <!-- ═══════════════════════════════════════════════════════════
      CREATE EVENT MODAL
 ═══════════════════════════════════════════════════════════ -->
-<!-- ═══════════════════════════════════════════════════════════
-     CREATE EVENT MODAL
-═══════════════════════════════════════════════════════════ -->
 @if (showCreateModal) {
 <div class="modal-overlay" (click)="closeCreate()">
   <div class="modal-box wide" (click)="$event.stopPropagation()">
@@ -822,6 +821,7 @@
     </div>
     <div class="modal-body">
       <form [formGroup]="eventForm" (ngSubmit)="submitCreate()">
+        <!-- Form fields (same as before) -->
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Event Title *</label>
@@ -893,26 +893,18 @@
           </div>
         </div>
 
-        <!-- FIXED: Image upload section with proper binding -->
         <div class="form-group">
           <label class="form-label">Event Image</label>
           <div class="image-upload-container">
-            <!-- Image Preview -->
             @if (imagePreviewUrl) {
               <div class="image-preview-container">
                 <img [src]="imagePreviewUrl" class="image-preview" alt="Preview">
                 <button type="button" class="btn-remove-image" (click)="clearImage()">✕</button>
               </div>
             }
-            
-            <!-- File Input (hidden when preview exists) -->
             @if (!imagePreviewUrl) {
               <div class="file-input-wrapper">
-                <input 
-                  type="file" 
-                  accept="image/jpeg,image/png,image/gif,image/webp"
-                  (change)="onImageSelected($event)"
-                  class="file-input">
+                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" (change)="onImageSelected($event)" class="file-input">
                 <span class="file-input-hint">Click to upload (max 5 MB)</span>
               </div>
             } @else {
@@ -947,6 +939,7 @@
     </div>
     <div class="modal-body">
       <form [formGroup]="eventForm" (ngSubmit)="submitEdit()">
+        <!-- Similar form fields as create modal -->
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Event Title *</label>
@@ -1017,11 +1010,9 @@
           </div>
         </div>
 
-        <!-- FIXED: Image upload section with proper styling -->
         <div class="form-group">
           <label class="form-label">Event Image</label>
           <div class="image-upload-container">
-            <!-- Image Preview -->
             @if (imagePreviewUrl) {
               <div class="image-preview-container">
                 <img [src]="imagePreviewUrl" class="image-preview" alt="Preview">
@@ -1031,15 +1022,9 @@
                 <button type="button" class="btn btn-secondary btn-sm" (click)="clearImage()">Change Image</button>
               </div>
             }
-            
-            <!-- File Input (hidden when preview exists) -->
             @if (!imagePreviewUrl) {
               <div class="file-input-wrapper">
-                <input 
-                  type="file" 
-                  accept="image/jpeg,image/png,image/gif,image/webp"
-                  (change)="onImageSelected($event)"
-                  class="file-input">
+                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" (change)="onImageSelected($event)" class="file-input">
                 <span class="file-input-hint">Click to upload new image (max 5 MB)</span>
                 <small class="form-hint">Leave blank to keep the existing image.</small>
               </div>
@@ -1058,8 +1043,9 @@
   </div>
 </div>
 }
+
 <!-- ═══════════════════════════════════════════════════════════
-     FEEDBACK MODAL
+     FEEDBACK MODAL - Admin views student feedback
 ═══════════════════════════════════════════════════════════ -->
 @if (showFeedbackModal) {
 <div class="modal-overlay" (click)="closeFeedback()">
@@ -1069,6 +1055,7 @@
       <button class="modal-close" (click)="closeFeedback()">✕</button>
     </div>
     <div class="modal-body">
+      <!-- Average Rating Display -->
       <div class="feedback-summary">
         <div class="feedback-avg">
           <span class="avg-number">{{ averageRating | number:'1.1-1' }}</span>
@@ -1076,9 +1063,14 @@
           <span class="avg-label">{{ selectedEventFeedback.length }} review(s)</span>
         </div>
       </div>
+      
       @if (selectedEventFeedback.length === 0) {
-        <div class="empty-state"><p>No feedback yet for this event.</p></div>
+        <div class="empty-state">
+          <p>No feedback yet for this event.</p>
+        </div>
       }
+      
+      <!-- Individual Feedback List -->
       @for (fb of selectedEventFeedback; track $index) {
       <div class="feedback-item">
         <div class="feedback-author">
@@ -1137,7 +1129,7 @@
       <div class="table-wrap">
         <table class="data-table">
           <thead>
-            <tr>
+             <tr>
               <th><input type="checkbox" [checked]="isAllSelected()" (change)="toggleSelectAll()"></th>
               <th>Name</th>
               <th>Email</th>
@@ -1145,7 +1137,7 @@
               <th>Slot</th>
               <th>Status</th>
               <th>Actions</th>
-            </tr>
+             </tr>
           </thead>
           <tbody>
             @for (p of participants; track p.registrationId) {

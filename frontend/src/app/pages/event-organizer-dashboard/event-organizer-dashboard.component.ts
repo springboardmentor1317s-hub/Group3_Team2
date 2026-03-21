@@ -13,7 +13,7 @@ interface ApiEvent {
   maxParticipants: number; currentParticipants: number; registrationFee: number;
   organizer: string; contactEmail: string; status: string; createdBy?: string;
   imageUrl?: string;
-  feedback?: { userId: any; rating: number; comment?: string; createdAt: Date; }[];
+  feedback?: { userId: any; rating: number; comment?: string; createdAt: Date; fullName?: string; college?: string; }[];
 }
 interface Participant {
   registrationId: string;
@@ -100,7 +100,7 @@ export class EventOrganizerDashboardComponent implements OnInit {
   notificationFilter: string = 'all';
   filteredNotifications: any[] = [];
   pendingApprovals: number = 0;
-  notificationList: any[] = []; // Local copy for notifications
+  notificationList: any[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -225,50 +225,30 @@ export class EventOrganizerDashboardComponent implements OnInit {
   // ── IMAGE ────────────────────────────────────────────────────────────────
   onImageSelected(event: any) {
     const file: File = event.target.files[0];
-    console.log('📸 File selected:', file?.name);
-    
-    if (!file) {
-      console.log('❌ No file');
-      return;
-    }
-    
+    if (!file) return;
     const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowed.includes(file.type)) {
       this.formError = 'Only JPEG, PNG, GIF or WebP.';
-      console.log('❌ Invalid type:', file.type);
       return;
     }
-    
     if (file.size > 5 * 1024 * 1024) {
       this.formError = 'Image must be < 5 MB.';
-      console.log('❌ Too large:', file.size);
       return;
     }
-    
     this.selectedImageFile = file;
     this.formError = '';
-    
     const reader = new FileReader();
-    reader.onload = (e: any) => { 
-      console.log('✅ Image loaded, preview created');
-      this.imagePreviewUrl = e.target.result; 
-    };
-    reader.onerror = (err) => {
-      console.log('❌ FileReader error:', err);
-    };
+    reader.onload = (e: any) => { this.imagePreviewUrl = e.target.result; };
     reader.readAsDataURL(file);
   }
 
   clearImage() {
-    console.log('🗑️ Clearing image');
     this.selectedImageFile = null;
     this.imagePreviewUrl = '';
   }
 
   private buildPayload(): FormData | any {
     const v = this.eventForm.value;
-    console.log('📝 Building payload, image present:', !!this.selectedImageFile);
-    
     const fields: Record<string, string> = {
       title: v.title,
       description: v.description,
@@ -283,25 +263,17 @@ export class EventOrganizerDashboardComponent implements OnInit {
       organizer: v.organizer,
       contactEmail: v.contactEmail
     };
-    
-    console.log('Fields prepared:', Object.keys(fields));
-    
     if (this.selectedImageFile) {
-      console.log('📸 Creating FormData with image:', this.selectedImageFile.name);
       const fd = new FormData();
       Object.entries(fields).forEach(([k, val]) => fd.append(k, val));
       fd.append('image', this.selectedImageFile);
-      console.log('📤 FormData created with image');
       return fd;
     }
-    
-    console.log('📤 Sending JSON without image');
     return fields;
   }
 
   // ── CREATE ───────────────────────────────────────────────────────────────
   openCreate() {
-    console.log('🔵 Opening create modal');
     this.eventForm = this.buildForm();
     this.formError = '';
     this.clearImage();
@@ -309,116 +281,65 @@ export class EventOrganizerDashboardComponent implements OnInit {
   }
 
   closeCreate() {
-    console.log('🔵 Closing create modal');
     this.showCreateModal = false;
     this.clearImage();
   }
 
   submitCreate() {
-    console.log('🔵 Submit Create called');
-    console.log('Form valid:', this.eventForm.valid);
-    console.log('Form value:', this.eventForm.value);
-    
     if (this.eventForm.invalid) {
-      console.log('❌ Form invalid, marking all as touched');
       this.eventForm.markAllAsTouched();
-      
-      // Log individual field errors
-      Object.keys(this.eventForm.controls).forEach(key => {
-        const control = this.eventForm.get(key);
-        if (control?.errors) {
-          console.log(`Field ${key} errors:`, control.errors);
-        }
-      });
       return;
     }
-    
     this.isSubmitting = true;
     this.formError = '';
-    
-    const payload = this.buildPayload();
-    console.log('📤 Payload:', payload);
-    
-    this.eventService.createEvent(payload).subscribe({
-      next: (response) => {
-        console.log('✅ Event created successfully:', response);
+    this.eventService.createEvent(this.buildPayload()).subscribe({
+      next: () => {
         this.showCreateModal = false;
         this.clearImage();
         this.loadEvents();
-        this.isSubmitting = false;
       },
       error: (err) => {
-        console.error('❌ Create event error:', err);
         this.formError = err.error?.message || 'Failed to create event';
         this.isSubmitting = false;
       },
-      complete: () => {
-        console.log('🏁 Create event complete');
-        this.isSubmitting = false;
-      }
+      complete: () => this.isSubmitting = false
     });
   }
 
   // ── EDIT ─────────────────────────────────────────────────────────────────
   openEdit(event: ApiEvent) {
-    console.log('🔵 Opening edit for event:', event);
-    
     this.selectedEvent = event;
     this.eventForm = this.buildForm(event);
     this.formError = '';
     this.selectedImageFile = null;
-    
-    // ✅ FIX: Set the image preview URL from the existing event
-    if (event.imageUrl) {
-      console.log('📸 Setting image preview from event:', event.imageUrl);
-      this.imagePreviewUrl = event.imageUrl;
-    } else {
-      this.imagePreviewUrl = '';
-    }
-    
+    this.imagePreviewUrl = event.imageUrl || '';
     this.showEditModal = true;
-    console.log('✅ Edit modal opened, imagePreviewUrl:', this.imagePreviewUrl);
   }
 
   closeEdit() {
-    console.log('🔵 Closing edit modal');
     this.showEditModal = false;
     this.selectedEvent = null;
     this.clearImage();
   }
 
   submitEdit() {
-    console.log('🔵 Submit Edit called');
-    
     if (!this.selectedEvent || this.eventForm.invalid) {
-      console.log('❌ Form invalid or no selected event');
       this.eventForm.markAllAsTouched();
       return;
     }
-    
     this.isSubmitting = true;
     this.formError = '';
-    
-    const payload = this.buildPayload();
-    console.log('📤 Edit payload:', payload);
-    
-    this.eventService.updateEvent(this.selectedEvent._id, payload).subscribe({
-      next: (response) => {
-        console.log('✅ Event updated successfully:', response);
+    this.eventService.updateEvent(this.selectedEvent._id, this.buildPayload()).subscribe({
+      next: () => {
         this.showEditModal = false;
         this.clearImage();
         this.loadEvents();
-        this.isSubmitting = false;
       },
       error: (err) => {
-        console.error('❌ Update event error:', err);
         this.formError = err.error?.message || 'Failed to update event';
         this.isSubmitting = false;
       },
-      complete: () => {
-        console.log('🏁 Update event complete');
-        this.isSubmitting = false;
-      }
+      complete: () => this.isSubmitting = false
     });
   }
 
@@ -439,18 +360,33 @@ export class EventOrganizerDashboardComponent implements OnInit {
     });
   }
 
-  // ── FEEDBACK ─────────────────────────────────────────────────────────────
+  // ─── FEEDBACK ─────────────────────────────────────────────────────────────
+  // ✅ FIXED: This method now properly loads feedback data from the event
   openFeedback(event: ApiEvent) {
+    console.log('🔵 Opening feedback modal for:', event.title);
     this.selectedEventName = event.title;
-    this.selectedEventFeedback = event.feedback || [];
+    
+    // Map feedback to include user details if available
+    this.selectedEventFeedback = (event.feedback || []).map(fb => ({
+      ...fb,
+      fullName: fb.fullName || 'Anonymous Student',
+      college: fb.college || '—',
+      rating: fb.rating || 0,
+      comment: fb.comment || '',
+      createdAt: fb.createdAt || new Date()
+    }));
+    
     this.averageRating = this.selectedEventFeedback.length
-      ? this.selectedEventFeedback.reduce((s, f) => s + f.rating, 0) / this.selectedEventFeedback.length
+      ? this.selectedEventFeedback.reduce((s, f) => s + (f.rating || 0), 0) / this.selectedEventFeedback.length
       : 0;
+    
+    console.log(`📊 Loaded ${this.selectedEventFeedback.length} feedback entries, Average rating: ${this.averageRating}`);
     this.showFeedbackModal = true;
   }
 
   closeFeedback() {
     this.showFeedbackModal = false;
+    this.selectedEventFeedback = [];
   }
 
   // ── PARTICIPANTS MODAL ────────────────────────────────────────────────────
@@ -828,25 +764,16 @@ export class EventOrganizerDashboardComponent implements OnInit {
   }
 
   loadNotifications() {
-    // Get notifications from the service
     const notifications = this.notifService.notifications();
-    
-    // Store in local array
     this.notificationList = notifications;
-    
-    // Update counts
     this.pendingApprovals = notifications.filter(
       (n: any) => n.type === 'new-registration' && !n.read
     ).length;
-    
-    // Apply current filter
     this.filterNotifications(this.notificationFilter);
   }
 
   filterNotifications(filter: string) {
     this.notificationFilter = filter;
-    
-    // Get fresh notifications
     const notifications = this.notifService.notifications();
     
     if (!notifications || notifications.length === 0) {
@@ -880,7 +807,6 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   refreshNotifications() {
     this.notifService.reload();
-    // Wait a bit for the service to update
     setTimeout(() => {
       this.loadNotifications();
     }, 100);

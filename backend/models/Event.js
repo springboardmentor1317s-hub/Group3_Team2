@@ -18,14 +18,25 @@ const EventSchema = new mongoose.Schema({
   status:               { type: String, enum: ['upcoming','ongoing','completed','cancelled'], default: 'upcoming' },
   imageUrl:             { type: String, default: '' },
   createdBy:            { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  feedback: [{
-    userId:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    fullName: { type: String, default: '' },
-    college:  { type: String, default: '' },
-    rating:   { type: Number, min: 1, max: 5 },
-    comment:  { type: String, default: '' },
-    createdAt:{ type: Date, default: Date.now }
-  }]
+  
+  // ✅ ADDED: registeredUsers array (for backwards compatibility)
+  registeredUsers: {
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    default: []
+  },
+  
+  // ✅ UPDATED: feedback array with proper defaults
+  feedback: {
+    type: [{
+      userId:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      fullName: { type: String, default: '' },
+      college:  { type: String, default: '' },
+      rating:   { type: Number, min: 1, max: 5 },
+      comment:  { type: String, default: '' },
+      createdAt:{ type: Date, default: Date.now }
+    }],
+    default: []
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Event', EventSchema);

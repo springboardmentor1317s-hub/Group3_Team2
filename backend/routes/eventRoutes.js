@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Event = require('../models/Event');
 const User = require('../models/User');
+const Registration = require('../models/Registration');
 const jwt = require('jsonwebtoken');
 const upload = require('../middleware/upload');
 
@@ -177,29 +178,106 @@ router.get('/:id/registrations', authMiddleware, adminMiddleware, async (req, re
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
-// ─── SUBMIT FEEDBACK ──────────────────────────────────────────────────────────
+// ─── SUBMIT FEEDBACK (FIXED: Check by date as well) ──────────────────────────
+// ─── SUBMIT FEEDBACK (FIXED: Check Registration model) ──────────────────────────
 router.post('/:id/feedback', authMiddleware, async (req, res) => {
   try {
     const { rating, comment } = req.body;
     if (!rating || rating < 1 || rating > 5)
       return res.status(400).json({ message: 'Rating must be 1–5' });
+    
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ message: 'Event not found' });
-    if (event.status !== 'completed')
-      return res.status(400).json({ message: 'Feedback only for completed events' });
-    if (!event.registeredUsers.map(String).includes(String(req.userId)))
-      return res.status(403).json({ message: 'Only registered users can submit feedback' });
     
-    // Check if already submitted
+    // ✅ Check if event is completed by date OR status
+    const now = new Date();
+    const endDate = new Date(event.endDate);
+    const isCompletedByDate = now > endDate;
+    const isCompleted = event.status === 'completed' || isCompletedByDate;
+    
+    console.log('Feedback - Event completion check:', {
+      eventId: event._id,
+      title: event.title,
+      status: event.status,
+      endDate: event.endDate,
+      now: now,
+      isCompletedByDate: isCompletedByDate,
+      isCompleted: isCompleted
+    });
+    
+    if (!isCompleted) {
+      return res.status(400).json({ 
+        message: 'Feedback only for completed events',
+        eventStatus: event.status,
+        endDate: event.endDate,
+        currentDate: now
+      });
+    }
+    
+    // If the event is completed by date but status is not 'completed', update it
+    if (isCompletedByDate && event.status !== 'completed') {
+      event.status = 'completed';
+      await event.save();
+      console.log(`✅ Updated event "${event.title}" status to completed`);
+    }
+    
+    // ✅ FIX: Check Registration model instead of event.registeredUsers
+    const Registration = require('../models/Registration');
+    
+    const registration = await Registration.findOne({ 
+      eventId: event._id, 
+      userId: req.userId,
+      approvalStatus: 'approved'  // Only approved registrations can give feedback
+    });
+    
+    console.log('Registration check:', {
+      eventId: event._id,
+      userId: req.userId,
+      hasRegistration: !!registration,
+      approvalStatus: registration?.approvalStatus
+    });
+    
+    if (!registration) {
+      return res.status(403).json({ 
+        message: 'Only registered and approved users can submit feedback',
+        hasRegistration: false
+      });
+    }
+    
+    // Check if feedback already submitted
     const alreadySubmitted = event.feedback?.some(f => String(f.userId) === String(req.userId));
-    if (alreadySubmitted)
+    
+    if (alreadySubmitted) {
       return res.status(400).json({ message: 'Feedback already submitted' });
+    }
+    
+    // Add feedback with user details from registration
+    const user = await User.findById(req.userId);
     
     if (!event.feedback) event.feedback = [];
-    event.feedback.push({ userId: req.userId, rating, comment, createdAt: new Date() });
+    event.feedback.push({ 
+      userId: req.userId, 
+      fullName: user?.fullName || '',
+      college: user?.college || '',
+      rating: rating, 
+      comment: comment || '', 
+      createdAt: new Date() 
+    });
     await event.save();
-    res.json({ message: 'Feedback submitted successfully' });
-  } catch (err) { res.status(500).json({ message: err.message }); }
+    
+    // Also update registration to mark feedback given
+    registration.hasFeedback = true;
+    await registration.save();
+    
+    res.json({ 
+      message: 'Feedback submitted successfully',
+      eventStatus: event.status
+    });
+    
+  } catch (err) {
+    console.error('Feedback error:', err);
+    res.status(500).json({ message: err.message });
+  }
 });
 
 module.exports = router;
