@@ -1,37 +1,20 @@
 const mongoose = require('mongoose');
 
-const registrationSchema = new mongoose.Schema({
-    id: {
-        type: String,
-        unique: true
-    },
-    event_id: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Event',
-        required: true
-    },
-    user_id: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
-    status: {
-        type: String,
-        enum: ['pending', 'confirmed', 'cancelled'],
-        default: 'pending'
-    },
-    timestamp: {
-        type: Date,
-        default: Date.now
-    }
-});
+const RegistrationSchema = new mongoose.Schema({
+  eventId:         { type: mongoose.Schema.Types.ObjectId, ref: 'Event', required: true },
+  userId:          { type: mongoose.Schema.Types.ObjectId, ref: 'User',  required: true },
+  approvalStatus:  { type: String, enum: ['pending','approved','rejected'], default: 'pending' },
+  rejectionReason: { type: String, default: '' },
+  selectedSlot:    { type: String, default: '' },
+  paymentStatus:   { type: String, enum: ['free','pending','paid','failed'], default: 'free' },
+  paymentMethod:   { type: String, default: '' },
+  paymentTxnId:    { type: String, default: '' },
+  paymentAmount:   { type: Number, default: 0 },
+  hasFeedback:     { type: Boolean, default: false },
+  registeredAt:    { type: Date, default: Date.now }
+}, { timestamps: true });
 
-// Pre-save hook to generate a unique string ID if not provided
-registrationSchema.pre('save', function (next) {
-    if (!this.id) {
-        this.id = 'REG-' + new mongoose.Types.ObjectId().toString().slice(-6).toUpperCase() + '-' + Date.now().toString().slice(-4);
-    }
-    next();
-});
+// One registration per user per event
+RegistrationSchema.index({ eventId: 1, userId: 1 }, { unique: true });
 
-module.exports = mongoose.model('Registration', registrationSchema);
+module.exports = mongoose.model('Registration', RegistrationSchema);
