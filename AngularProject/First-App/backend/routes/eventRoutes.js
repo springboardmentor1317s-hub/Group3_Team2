@@ -17,7 +17,7 @@ const authMiddleware = (req, res, next) => {
     req.userRole = decoded.role;
     next();
   } catch (err) {
-    res.status(401).json({ message: 'Invalid token' });
+    res.status(401).json({ message: 'Invalid token' , error:err.message });
   }
 };
 

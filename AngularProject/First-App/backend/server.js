@@ -5,8 +5,7 @@ const cors = require('cors');
 const path = require('path');
 const mongoose = require('mongoose');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
-const userRoutes = require('./routes/userRoutes');
-const roleRoute = require('./routes/role');
+
 
 const app = express();
 
@@ -61,9 +60,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/chat', chatRoutes);
 
-//app.use('/api/role',require('./routes/role'));
-app.use('/api/users', userRoutes);
-app.use("/api/role", roleRoute);
 
 
 // ─── Test Route ─────────────────────────────────
