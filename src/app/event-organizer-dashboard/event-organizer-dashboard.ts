@@ -1,25 +1,7 @@
-<<<<<<< HEAD:src/app/event-organizer-dashboard/event-organizer-dashboard.ts
-import { AuthService } from '../services/auth.service';
-import { Component, OnInit, signal } from '@angular/core';
-=======
 import { Component, OnInit, signal, effect } from '@angular/core';
->>>>>>> Tasmiya:frontend/src/app/pages/event-organizer-dashboard/event-organizer-dashboard.component.ts
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-<<<<<<< HEAD:src/app/event-organizer-dashboard/event-organizer-dashboard.ts
-
-interface Event {
-  id: number;
-  name: string;
-  date: Date;
-  status: 'active' | 'upcoming' | 'completed' | 'cancelled';
-  registrations: number;
-  capacity: number;
-  averageParticipants?: number;
-  location?: string;
-  category?: string;
-=======
 import { AuthService } from '../../services/auth.service';
 import { EventService, Event } from '../../services/event.service';
 import { ChatService } from '../../services/chat.service';
@@ -44,7 +26,6 @@ interface Participant {
   paymentMethod?: string;
   paymentStatus?: string;
   rejectionReason?: string;
->>>>>>> Tasmiya:frontend/src/app/pages/event-organizer-dashboard/event-organizer-dashboard.component.ts
 }
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&q=80';
@@ -53,20 +34,11 @@ const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1501281668745-f7f57925c
   selector: 'app-event-organizer-dashboard',
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule],
-<<<<<<< HEAD:src/app/event-organizer-dashboard/event-organizer-dashboard.ts
-  templateUrl: './event-organizer-dashboard.html',
-  styleUrls: ['./event-organizer-dashboard.css']
-})
-export class EventOrganizerDashboard implements OnInit {
-  // ========== VIEW STATE (NEW) ==========
-  currentView = signal<'overview' | 'events' | 'registrations' | 'payments' | 'reports' | 'settings'>('overview');
-=======
   templateUrl: './event-organizer-dashboard.component.html',
   styleUrls: ['./event-organizer-dashboard.component.css']
 })
 export class EventOrganizerDashboardComponent implements OnInit {
   currentView = signal<'overview' | 'events' | 'reports' | 'notifications' | 'analytics' | 'settings'>('overview');
->>>>>>> Tasmiya:frontend/src/app/pages/event-organizer-dashboard/event-organizer-dashboard.component.ts
 
   totalEvents = 0;
   activeEvents = 0;
@@ -84,13 +56,6 @@ export class EventOrganizerDashboardComponent implements OnInit {
   startDateFilter = '';
   endDateFilter = '';
 
-<<<<<<< HEAD:src/app/event-organizer-dashboard/event-organizer-dashboard.ts
-  // ========== FILTERS ==========
-  eventSearchTerm: string = '';
-  eventStatusFilter: string = 'all';
-  searchTerm: string = '';
-  selectedStatus: string = 'all';
-=======
   // Modals
   showCreateModal = false;
   showEditModal = false;
@@ -99,7 +64,6 @@ export class EventOrganizerDashboardComponent implements OnInit {
   showRejectModal = false;
   showProfileModal = false;
   showNotifDropdown = false;
->>>>>>> Tasmiya:frontend/src/app/pages/event-organizer-dashboard/event-organizer-dashboard.component.ts
 
   selectedEvent: ApiEvent | null = null;
   selectedEventFeedback: any[] = [];
@@ -129,39 +93,6 @@ export class EventOrganizerDashboardComponent implements OnInit {
   selectedImageFile: File | null = null;
   imagePreviewUrl = '';
 
-<<<<<<< HEAD:src/app/event-organizer-dashboard/event-organizer-dashboard.ts
-  // ========== OPTIONS ==========
-  statusOptions = ['all', 'active', 'upcoming', 'completed', 'cancelled'];
-  categoryOptions = ['Conference', 'Workshop', 'Seminar', 'Meetup', 'Webinar', 'Networking'];
-  exportFormatOptions = ['csv', 'excel', 'pdf'];
-
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService,
-    private router: Router
-  ) {
-    // Initialize form
-    this.createEventForm = this.fb.group({
-      name: ['', [Validators.required, Validators.minLength(3)]],
-      date: ['', Validators.required],
-      time: ['', Validators.required],
-      location: ['', Validators.required],
-      category: ['', Validators.required],
-      capacity: ['', [Validators.required, Validators.min(1)]],
-      description: ['', Validators.required],
-      ticketTypes: this.fb.group({
-        regular: ['', Validators.min(0)],
-        vip: ['', Validators.min(0)],
-        earlyBird: ['', Validators.min(0)]
-      })
-    });
-  }
-
-  ngOnInit(): void {
-    // Check if user is authorized (college admin)
-    const role = this.authService.getRole();
-    if (!this.authService.isLoggedIn() || (role !== 'college_admin' && role !== 'admin')) {
-=======
   typeOptions = ['technical', 'cultural', 'sports', 'workshop', 'seminar'];
   categoryOptions = ['college', 'inter-college'];
 
@@ -192,7 +123,6 @@ export class EventOrganizerDashboardComponent implements OnInit {
   ngOnInit() {
     if (!this.authService.isLoggedIn() || !this.authService.isAuthorized(['college-admin', 'superadmin'])) {
       this.authService.logout();
->>>>>>> Tasmiya:frontend/src/app/pages/event-organizer-dashboard/event-organizer-dashboard.component.ts
       this.router.navigate(['/login']);
       return;
     }
@@ -201,11 +131,6 @@ export class EventOrganizerDashboardComponent implements OnInit {
     this.loadNotifications();
   }
 
-<<<<<<< HEAD:src/app/event-organizer-dashboard/event-organizer-dashboard.ts
-  // ========== VIEW SWITCHING (NEW) ==========
-  setView(view: 'overview' | 'events' | 'registrations' | 'payments' | 'reports' | 'settings'): void {
-    this.currentView.set(view);
-=======
   // ── FORM ──────────────────────────────────────────────────────────────────
   private buildForm(data?: Partial<ApiEvent>): FormGroup {
     return this.fb.group({
@@ -222,7 +147,6 @@ export class EventOrganizerDashboardComponent implements OnInit {
       organizer: [data?.organizer || this.authService.getFullName() || '', Validators.required],
       contactEmail: [data?.contactEmail || this.authService.getEmail() || '', [Validators.required, Validators.email]]
     });
->>>>>>> Tasmiya:frontend/src/app/pages/event-organizer-dashboard/event-organizer-dashboard.component.ts
   }
 
   private toDatetimeLocal(d: Date): string {
@@ -241,151 +165,6 @@ export class EventOrganizerDashboardComponent implements OnInit {
     this.router.navigate(['/login']);
   }
 
-<<<<<<< HEAD:src/app/event-organizer-dashboard/event-organizer-dashboard.ts
-  // ========== DATA LOADING ==========
-  private loadDashboardData(): void {
-    // Mock events data
-    this.events = [
-      { id: 1, name: 'Tech Conference 2024', date: new Date('2024-06-15'), status: 'active', registrations: 245, capacity: 300, averageParticipants: 235, location: 'Convention Center', category: 'Conference' },
-      { id: 2, name: 'Start Up', date: new Date('2024-07-20'), status: 'upcoming', registrations: 75, capacity: 100, averageParticipants: 70, location: 'Tech Hub', category: 'Workshop' },
-      { id: 3, name: 'Cultural Fest', date: new Date('2024-05-10'), status: 'completed', registrations: 120, capacity: 150, averageParticipants: 115, location: 'City Lounge', category: 'Networking' },
-      { id: 4, name: 'AI Summit', date: new Date('2024-08-05'), status: 'active', registrations: 180, capacity: 250, averageParticipants: 175, location: 'Innovation Center', category: 'Conference' },
-      { id: 5, name: 'Hackathon', date: new Date('2024-06-30'), status: 'upcoming', registrations: 45, capacity: 60, averageParticipants: 40, location: 'Creative Studio', category: 'Workshop' },
-    ];
-
-    // Mock registrations data
-    this.registrations = [
-      { id: 1, eventId: 1, eventName: 'Tech Conference', attendeeName: 'Sneha M', email: 'sneha123@example.com', registrationDate: new Date('2024-05-01'), status: 'confirmed', ticketType: 'VIP' },
-      { id: 2, eventId: 1, eventName: 'Cultural Fest', attendeeName: 'Riya Jane', email: 'jane@example.com', registrationDate: new Date('2024-05-02'), status: 'confirmed', ticketType: 'Regular' },
-      { id: 3, eventId: 2, eventName: 'Start Up', attendeeName: 'Suzy Dsouza', email: 'suzy@example.com', registrationDate: new Date('2024-05-03'), status: 'pending', ticketType: 'Early Bird' },
-      { id: 4, eventId: 1, eventName: 'Tech Conference', attendeeName: 'Alice Williams', email: 'alice@example.com', registrationDate: new Date('2024-05-04'), status: 'confirmed', ticketType: 'Regular' },
-      { id: 5, eventId: 3, eventName: 'Networking Mixer', attendeeName: 'Chris Brown', email: 'chris701@example.com', registrationDate: new Date('2024-04-15'), status: 'confirmed', ticketType: 'Regular' },
-      { id: 6, eventId: 4, eventName: 'AI Summit', attendeeName: 'Diana Prisley', email: 'diana@example.com', registrationDate: new Date('2024-05-10'), status: 'pending', ticketType: 'VIP' },
-      { id: 7, eventId: 2, eventName: 'Hackathon', attendeeName: 'Evan Jain', email: 'evan@example.com', registrationDate: new Date('2024-05-11'), status: 'cancelled', ticketType: 'Regular' },
-    ];
-
-    this.filteredEvents = [...this.events];
-    this.filteredRegistrations = [...this.registrations];
-    this.calculateStatistics();
-  }
-
-  private calculateStatistics(): void {
-    this.totalEvents = this.events.length;
-    this.activeEvents = this.events.filter(e => e.status === 'active').length;
-    this.totalRegistrations = this.events.reduce((sum, event) => sum + event.registrations, 0);
-    this.averageParticipants = Math.round(
-      this.events.reduce((sum, event) => sum + (event.averageParticipants || 0), 0) / this.events.length
-    );
-  }
-
-  private initializeCharts(): void {
-    this.registrationTrendData = {
-      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-      datasets: [
-        {
-          label: 'Registrations',
-          data: [65, 85, 120, 145, 180, 245],
-          fill: false,
-          borderColor: '#4CAF50',
-          tension: 0.4
-        }
-      ]
-    };
-
-    this.eventCategoryData = {
-      labels: ['Conference', 'Workshop', 'Seminar', 'Meetup', 'Webinar', 'Networking'],
-      datasets: [
-        {
-          data: [35, 25, 15, 10, 8, 7],
-          backgroundColor: ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0', '#F44336', '#009688']
-        }
-      ]
-    };
-  }
-
-  // ========== EVENT METHODS ==========
-  openCreateEventModal(): void {
-    this.showCreateEventModal = true;
-  }
-
-  closeCreateEventModal(): void {
-    this.showCreateEventModal = false;
-    this.createEventForm.reset();
-  }
-
-  createEvent(): void {
-    if (this.createEventForm.valid) {
-      const formValue = this.createEventForm.value;
-      const newEvent: Event = {
-        id: this.events.length + 1,
-        name: formValue.name,
-        date: new Date(formValue.date),
-        status: 'upcoming',
-        registrations: 0,
-        capacity: formValue.capacity,
-        averageParticipants: 0,
-        location: formValue.location,
-        category: formValue.category
-      };
-
-      this.events.push(newEvent);
-      this.filteredEvents = [...this.events];
-      this.calculateStatistics();
-      this.closeCreateEventModal();
-      alert('Event created successfully!');
-    }
-  }
-
-  duplicateEvent(eventId: number): void {
-    const event = this.events.find(e => e.id === eventId);
-    if (event) {
-      const duplicatedEvent: Event = {
-        ...event,
-        id: this.events.length + 1,
-        name: `${event.name} (Copy)`,
-        status: 'upcoming',
-        registrations: 0,
-        averageParticipants: 0
-      };
-      this.events.push(duplicatedEvent);
-      this.filteredEvents = [...this.events];
-      this.calculateStatistics();
-      alert('Event duplicated successfully!');
-    }
-  }
-
-  cancelEvent(eventId: number): void {
-    const event = this.events.find(e => e.id === eventId);
-    if (event && confirm('Are you sure you want to cancel this event?')) {
-      event.status = 'cancelled';
-      this.filteredEvents = [...this.events];
-      this.calculateStatistics();
-      alert('Event cancelled successfully!');
-    }
-  }
-
-  viewEventDetails(eventId: number): void {
-    alert(`Viewing details for event ID: ${eventId}`);
-  }
-
-  // ========== FILTER METHODS ==========
-  onStatusFilterChange(event: any): void {
-    this.eventStatusFilter = event.target.value;
-    this.filterEvents();
-  }
-
-  onEventSearch(event: any): void {
-    this.eventSearchTerm = event.target.value;
-    this.filterEvents();
-  }
-
-  filterEvents(): void {
-    this.filteredEvents = this.events.filter(event => {
-      const matchesStatus = this.eventStatusFilter === 'all' || event.status === this.eventStatusFilter;
-      const matchesSearch = this.eventSearchTerm === '' ||
-        event.name.toLowerCase().includes(this.eventSearchTerm.toLowerCase());
-      return matchesStatus && matchesSearch;
-=======
   // ── LOAD & FILTER ────────────────────────────────────────────────────────
   loadEvents() {
     const filters: any = {};
@@ -696,7 +475,6 @@ export class EventOrganizerDashboardComponent implements OnInit {
         setTimeout(() => this.bulkActionStatus = null, 3000);
       },
       error: (err) => alert(err.error?.message || 'Failed to reject')
->>>>>>> Tasmiya:frontend/src/app/pages/event-organizer-dashboard/event-organizer-dashboard.component.ts
     });
   }
 
