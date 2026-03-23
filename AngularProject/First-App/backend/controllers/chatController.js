@@ -1,10 +1,10 @@
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Default key or placeholder
 const apiKey = process.env.GEMINI_API_KEY || 'AIzaSy_YOUR_API_KEY_HERE';
 
 // Standard initialization for the new SDK
-const ai = new GoogleGenAI({ apiKey: apiKey });
+const ai = new GoogleGenerativeAI(apiKey);
 
 exports.askGemini = async (req, res) => {
     try {

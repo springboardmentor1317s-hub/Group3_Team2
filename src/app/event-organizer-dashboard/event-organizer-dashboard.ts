@@ -14,6 +14,7 @@ interface ApiEvent {
   organizer: string; contactEmail: string; status: string; createdBy?: string;
   imageUrl?: string;
   feedback?: { userId: any; rating: number; comment?: string; createdAt: Date; fullName?: string; college?: string; }[];
+  comments?: any[];
 }
 interface Participant {
   registrationId: string;
@@ -64,6 +65,17 @@ export class EventOrganizerDashboardComponent implements OnInit {
   showRejectModal = false;
   showProfileModal = false;
   showNotifDropdown = false;
+  // Discussion Forum
+  showForumModal = false;
+  forumEvent: any = null;
+  forumComments: any[] = [];
+  forumLoading = false;
+  forumError = '';
+  newCommentText = '';
+  postingComment = false;
+  forumCommentFilter = 'pinned-first';
+  // Feedback filter
+  feedbackFilter = 'all';
 
   selectedEvent: ApiEvent | null = null;
   selectedEventFeedback: any[] = [];
@@ -129,6 +141,21 @@ export class EventOrganizerDashboardComponent implements OnInit {
     this.loadEvents();
     this.notifService.reload();
     this.loadNotifications();
+    this.syncUserProfile();
+  }
+
+  // Sync latest user data from server into localStorage (fixes college showing —)
+  syncUserProfile() {
+    this.authService.getMe().subscribe({
+      next: (user: any) => {
+        const current = this.authService.getUser();
+        if (current && user?.college) {
+          current.college = user.college;
+          localStorage.setItem('user', JSON.stringify(current));
+        }
+      },
+      error: () => {} // silent fail - not critical
+    });
   }
 
   // ── FORM ──────────────────────────────────────────────────────────────────
@@ -627,7 +654,11 @@ export class EventOrganizerDashboardComponent implements OnInit {
   }
 
   getCollege(): string {
-    return (this.authService.getUser() as any)?.college || '—';
+    const stored = (this.authService.getUser() as any)?.college;
+    if (stored && stored.trim()) return stored;
+    // Fallback: fetch fresh from server and update localStorage
+    this.authService.getWalletBalance().subscribe(); // keeps token alive
+    return '—';
   }
 
   // ── CSV ───────────────────────────────────────────────────────────────────
@@ -845,5 +876,123 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   backupData() {
     alert('Backup feature coming soon!');
+  }
+
+  // ── Feedback Filter ───────────────────────────────────
+  get filteredFeedback(): any[] {
+    let list = [...this.selectedEventFeedback];
+    if (this.feedbackFilter === 'positive')  list = list.filter(f => f.rating >= 4);
+    else if (this.feedbackFilter === 'neutral')  list = list.filter(f => f.rating === 3);
+    else if (this.feedbackFilter === 'negative') list = list.filter(f => f.rating <= 2);
+    if (this.feedbackFilter === 'recent') list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return list;
+  }
+
+  setFeedbackFilter(f: string) { this.feedbackFilter = f; }
+
+  // ── Discussion Forum ──────────────────────────────────
+  openForum(event: any) {
+    this.forumEvent = event;
+    this.forumComments = [];
+    this.forumError = '';
+    this.newCommentText = '';
+    this.forumCommentFilter = 'pinned-first';
+    this.showForumModal = true;
+    this.loadForumComments();
+  }
+
+  closeForum() {
+    this.showForumModal = false;
+    this.forumEvent = null;
+    this.forumComments = [];
+  }
+
+  loadForumComments() {
+    if (!this.forumEvent) return;
+    this.forumLoading = true;
+    this.forumError = '';
+    this.eventService.getComments(this.forumEvent._id).subscribe({
+      next: (res: any) => {
+        this.forumComments = res.comments || [];
+        this.forumLoading = false;
+        this.sortForumComments();
+      },
+      error: (err: any) => {
+        this.forumError = err?.error?.message || 'Failed to load comments';
+        this.forumLoading = false;
+      }
+    });
+  }
+
+  sortForumComments() {
+    const arr = [...this.forumComments];
+    if (this.forumCommentFilter === 'pinned-first') {
+      arr.sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+    } else if (this.forumCommentFilter === 'most-recent') {
+      arr.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (this.forumCommentFilter === 'most-upvoted') {
+      arr.sort((a, b) => b.upvotes - a.upvotes);
+    }
+    this.forumComments = arr;
+  }
+
+  setForumFilter(f: string) {
+    this.forumCommentFilter = f;
+    this.sortForumComments();
+  }
+
+  submitForumComment() {
+    if (!this.newCommentText.trim() || !this.forumEvent) return;
+    this.postingComment = true;
+    this.eventService.postComment(this.forumEvent._id, this.newCommentText.trim()).subscribe({
+      next: (res: any) => {
+        if (res.comment) this.forumComments.unshift(res.comment);
+        this.newCommentText = '';
+        this.postingComment = false;
+        this.sortForumComments();
+      },
+      error: (err: any) => {
+        this.forumError = err?.error?.message || 'Failed to post comment';
+        this.postingComment = false;
+      }
+    });
+  }
+
+  deleteForumComment(commentId: string) {
+    if (!this.forumEvent) return;
+    this.eventService.deleteComment(this.forumEvent._id, commentId).subscribe({
+      next: () => { this.forumComments = this.forumComments.filter(c => c._id !== commentId); },
+      error: (err: any) => { this.forumError = err?.error?.message || 'Failed to delete comment'; }
+    });
+  }
+
+  upvoteForumComment(comment: any) {
+    if (!this.forumEvent) return;
+    this.eventService.upvoteComment(this.forumEvent._id, comment._id).subscribe({
+      next: (res: any) => { comment.upvotes = res.upvotes; comment.upvoted = res.upvoted; }
+    });
+  }
+
+  getForumUserInitial(): string {
+    return this.authService.getFullName()?.charAt(0)?.toUpperCase() || 'A';
+  }
+
+  formatForumTime(date: any): string {
+    if (!date) return '';
+    const d = new Date(date);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1)  return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24)  return hrs + 'h ago';
+    const days = Math.floor(hrs / 24);
+    if (days < 7)  return days + 'd ago';
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   }
 }

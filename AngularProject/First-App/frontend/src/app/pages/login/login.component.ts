@@ -55,13 +55,15 @@ export class LoginComponent {
           this.errorMessage = 'Invalid server response.';
           return;
         }
-        // ✅ FIX: also save userId (_id) from the response so guards and chat work correctly
+
         this.authService.saveUserData(
           res.token,
           res.role,
           res.fullName,
           this.email.trim(),
-          res._id || res.userId || undefined
+          res._id || res.userId || undefined,
+          res.college || '',
+          res.walletBalance || 0
         );
         this.redirectBasedOnRole(res.role);
       },

@@ -6,7 +6,11 @@ const RegistrationSchema = new mongoose.Schema({
   approvalStatus:  { type: String, enum: ['pending','approved','rejected'], default: 'pending' },
   rejectionReason: { type: String, default: '' },
   selectedSlot:    { type: String, default: '' },
-  paymentStatus:   { type: String, enum: ['free','pending','paid','failed'], default: 'free' },
+  paymentStatus:   {
+    type: String,
+    enum: ['free','pending','paid','failed','refunded','payment_pending'],
+    default: 'free'
+  },
   paymentMethod:   { type: String, default: '' },
   paymentTxnId:    { type: String, default: '' },
   paymentAmount:   { type: Number, default: 0 },
@@ -14,7 +18,6 @@ const RegistrationSchema = new mongoose.Schema({
   registeredAt:    { type: Date, default: Date.now }
 }, { timestamps: true });
 
-// One registration per user per event
 RegistrationSchema.index({ eventId: 1, userId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Registration', RegistrationSchema);

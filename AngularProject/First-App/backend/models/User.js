@@ -6,8 +6,9 @@ const UserSchema = new mongoose.Schema({
   password:      { type: String, required: true },
   college:       { type: String, default: '' },
   role:          { type: String, enum: ['student', 'college-admin', 'superadmin'], default: 'student' },
-  walletBalance: { type: Number, default: 500 },   // students start with ₹500 demo wallet
+  walletBalance: { type: Number, default: 500 },
+  status:        { type: String, enum: ['active', 'suspended'], default: 'active' },
   createdAt:     { type: Date, default: Date.now }
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);
