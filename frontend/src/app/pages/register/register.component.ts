@@ -152,7 +152,7 @@ export class RegisterComponent {
     
     const routes: any = {
       student: '/student-dashboard',
-      'college-admin': '/college-admin-dashboard',
+      'college-admin': '/admin-dashboard',
       superadmin: '/super-admin-dashboard'
     };
 
@@ -167,7 +167,6 @@ export class RegisterComponent {
     this.router.navigate(['/login']);
   }
 
-  // ✅ Optional: Add password strength checker
   getPasswordStrength(): string {
     if (!this.password) return '';
     
