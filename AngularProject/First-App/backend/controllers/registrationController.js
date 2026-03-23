@@ -12,7 +12,7 @@ async function notify(userId, type, title, message, eventId = null) {
 // ── POST /:eventId/register ───────────────────────────────
 exports.registerForEvent = async (req, res) => {
   try {
-    const { id } = req.params;   // eventId
+    const id = req.params.id;   // eventId
     const { selectedSlot, paymentMethod, paymentTxnId, paymentAmount, useWallet } = req.body;
     const userId = req.userId;
 
