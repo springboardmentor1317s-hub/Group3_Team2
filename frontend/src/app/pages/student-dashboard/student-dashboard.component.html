@@ -413,13 +413,17 @@
               }
             </div>
             <div class="mev-actions">
-              <!--: Feedback button for completed events -->
+              <!-- Feedback button for completed events -->
               @if (ev.status === 'completed' && ev.approvalStatus === 'approved') {
                 @if (!ev.hasFeedback) {
                 <button class="btn-feedback" (click)="openFeedback(ev)">⭐ Give Feedback</button>
                 } @else {
                 <span class="feedback-done">✅ Reviewed</span>
                 }
+              }
+              <!-- Forum button for approved upcoming/ongoing events -->
+              @if (ev.approvalStatus === 'approved') {
+                <button class="btn-forum" (click)="openStudentForum(ev)">💬 Forum</button>
               }
               @if (ev.status === 'upcoming' || ev.status === 'ongoing') {
               <button class="btn-cancel-sm" (click)="cancelRegistration(ev)">Cancel</button>
@@ -452,11 +456,10 @@
                   <span>🏷 {{ ev.type | titlecase }}</span>
                   @if (ev.selectedSlot) { <span>🕐 {{ ev.selectedSlot }}</span> }
                 </div>
-                <p class="rejected-message">❌ Your registration was rejected. You can try registering again.</p>
+                <p class="rejected-message">Your registration was rejected by the organizer.</p>
               </div>
               <div class="mev-actions">
-                <button class="btn-primary" (click)="openEventModal(ev)">View Details</button>
-                <button class="btn-primary" (click)="openEventModal(ev)">Register Again</button>
+                <button class="btn-secondary-sm" (click)="openEventModal(ev)">View Details</button>
               </div>
             </div>
             }
@@ -558,12 +561,12 @@
             <tbody>
               @for (s of leaderboard; track s.rank) {
               <tr>
-                <td class="rank-cell">{{ s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : s.rank === 3 ? '🥉' : '#' + s.rank }}倒
-                <td><strong>{{ s.name }}</strong>倒
-                <td>{{ s.college }}倒
-                <td>{{ s.events }}倒
-                <td class="points-cell">{{ s.points }}倒
-                <td><span class="badge-list">@for (b of s.badges; track b) { <span>{{ b }}</span> }</span>倒
+                <td class="rank-cell">{{ s.rank === 1 ? '🥇' : s.rank === 2 ? '🥈' : s.rank === 3 ? '🥉' : '#' + s.rank }}
+                <td><strong>{{ s.name }}</strong>
+                <td>{{ s.college }}
+                <td>{{ s.events }}
+                <td class="points-cell">{{ s.points }}
+                <td><span class="badge-list">@for (b of s.badges; track b) { <span>{{ b }}</span> }</span>
               </tr>
               }
             </tbody>
@@ -716,7 +719,7 @@
           <button class="btn-cancel-ev" (click)="cancelFromModal()">Cancel Request</button>
         } @else if (isRejected(selectedEvent)) {
           <button class="btn-registered rejected" disabled>❌ Rejected</button>
-          <button class="btn-register-ev" (click)="startRegistration()">Register Again</button>
+          <p class="rejection-final-note">The organizer has rejected your registration. Try contacting them to accept your request or explore more events</p>
         } @else if (isFull(selectedEvent)) {
           <button class="btn-disabled-ev" disabled>Event Full</button>
         } @else if (selectedEvent.status === 'completed' || selectedEvent.status === 'cancelled') {
@@ -898,6 +901,106 @@
       <div class="pg-item"><label>❌ Rejected</label><span>{{ rejectedEvents.length || 0 }}</span></div>
     </div>
     <button class="btn-topup-big" (click)="closeProfileModal(); openTopUp()">+ Top Up Wallet</button>
+  </div>
+</div>
+}
+
+
+
+<!-- ══ STUDENT DISCUSSION FORUM MODAL ═══════════════════════════════════════ -->
+@if (showStudentForumModal && studentForumEvent) {
+<div class="modal-backdrop" (click)="closeStudentForum()">
+  <div class="student-forum-modal" (click)="$event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="sfm-header">
+      <div class="sfm-title-wrap">
+        <span class="sfm-icon">💬</span>
+        <div>
+          <h3 class="sfm-title">Discussion Forum</h3>
+          <p class="sfm-subtitle">{{ studentForumEvent.title }}</p>
+        </div>
+      </div>
+      <button class="evm-close" (click)="closeStudentForum()">✕</button>
+    </div>
+
+    <!-- Sort Chips -->
+    <div class="sfm-filter-row">
+      <button class="sfm-chip" [class.active]="studentForumFilter === 'pinned-first'" (click)="setStudentForumFilter('pinned-first')">📌 Admin First</button>
+      <button class="sfm-chip" [class.active]="studentForumFilter === 'most-recent'"  (click)="setStudentForumFilter('most-recent')">🕐 Most Recent</button>
+      <button class="sfm-chip" [class.active]="studentForumFilter === 'most-upvoted'" (click)="setStudentForumFilter('most-upvoted')">👍 Most Upvoted</button>
+    </div>
+
+    <!-- Compose -->
+    <div class="sfm-compose">
+      <div class="sfm-compose-avatar">{{ getInitial() }}</div>
+      <div class="sfm-compose-inner">
+        <textarea
+          class="sfm-textarea"
+          [(ngModel)]="studentNewComment"
+          placeholder="Share your thoughts about this event..."
+          rows="2"
+          (keydown.enter)="$event.preventDefault(); submitStudentComment()"
+        ></textarea>
+        <div class="sfm-compose-foot">
+          <span class="sfm-hint">↵ Enter to post</span>
+          <button class="sfm-post-btn" (click)="submitStudentComment()" [disabled]="studentPostingComment || !studentNewComment.trim()">
+            @if (studentPostingComment) { Posting... } @else { 📨 Post }
+          </button>
+        </div>
+      </div>
+    </div>
+
+    @if (studentForumError) {
+      <div class="sfm-error">{{ studentForumError }}</div>
+    }
+
+    <!-- Comments -->
+    <div class="sfm-comments-body">
+      @if (studentForumLoading) {
+        <div class="sfm-loading">Loading messages...</div>
+      } @else if (studentForumComments.length === 0) {
+        <div class="sfm-empty">
+          <p>💬 No messages yet — be the first to share!</p>
+        </div>
+      } @else {
+        @for (cm of studentForumComments; track cm._id) {
+        <div class="sfm-comment" [class.sfm-pinned]="cm.isPinned" [class.sfm-admin]="cm.isAdmin">
+          @if (cm.isPinned) {
+            <span class="sfm-pin-badge">📌 Organizer</span>
+          }
+          <div class="sfm-comment-row">
+            <div class="sfm-avatar" [class.sfm-admin-av]="cm.isAdmin">
+              {{ (cm.fullName || 'U').charAt(0) }}
+            </div>
+            <div class="sfm-comment-body">
+              <div class="sfm-comment-meta">
+                <span class="sfm-name">{{ cm.fullName }}</span>
+                @if (cm.isAdmin) { <span class="sfm-org-tag">🏛 Organizer</span> }
+                @if (!cm.isAdmin && cm.college) { <span class="sfm-college">{{ cm.college }}</span> }
+                <span class="sfm-time">{{ formatForumTime(cm.createdAt) }}</span>
+              </div>
+              <p class="sfm-text">{{ cm.text }}</p>
+              <div class="sfm-actions">
+                <button class="sfm-upvote" [class.upvoted]="cm.upvoted" (click)="upvoteStudentComment(cm)">
+                  👍 {{ cm.upvotes }}
+                </button>
+                @if (isMyComment(cm)) {
+                  <button class="sfm-delete" (click)="deleteStudentComment(cm._id)">🗑 Delete</button>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+        }
+      }
+    </div>
+
+    <div class="sfm-footer">
+      <span class="sfm-count">{{ studentForumComments.length }} message(s)</span>
+      <button class="btn-secondary-sm" (click)="closeStudentForum()">Close</button>
+    </div>
+
   </div>
 </div>
 }
