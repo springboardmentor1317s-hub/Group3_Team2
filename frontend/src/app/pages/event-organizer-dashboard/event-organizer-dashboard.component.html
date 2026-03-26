@@ -1,6 +1,6 @@
 <div class="dash-layout">
   <!-- ─── Sidebar ─────────────────────────────────────────────────────── -->
-  <aside class="dash-sidebar">
+  <aside class="dash-sidebar glass-panel">
     <div class="sidebar-brand">
       <div class="brand-icon">🎓</div>
       <div class="brand-text">
@@ -74,7 +74,7 @@
   <main class="dash-main">
 
     <!-- ─── Top Bar ────────────────────────────────────────────────────── -->
-    <header class="dash-topbar">
+    <header class="dash-topbar glass-panel">
       <div class="topbar-title">
         @if (currentView() === 'overview') {
         <h1>Dashboard Overview</h1>
@@ -183,8 +183,10 @@
         <!-- Welcome Banner -->
         <div class="welcome-banner">
           <div class="welcome-text">
-            <h2>Good {{ getTimeOfDay() }}, {{ getFullName().split(' ')[0] }}! 👋</h2>
-            <p>{{ getCurrentDate() }} · {{ getCollege() }}</p>
+            <h2>Good Evening, {{ authService.getFullName() }}! 👋</h2>
+            <p>{{ today | date:'fullDate' }} · {{ authService.getCollege() || 'No College' }}</p>
+            <!-- DEBUG INFO -->
+            <p style="font-size: 10px; opacity: 0.5;">ID: {{ authService.getUserId() }} | Role: {{ authService.getRole() }}</p>
           </div>
           <div class="welcome-actions">
             <button class="btn btn-outline" (click)="openCreate()">
@@ -280,6 +282,13 @@
               <div class="action-info">
                 <h4>Export Data</h4>
                 <p>Download reports as CSV</p>
+              </div>
+            </div>
+            <div class="action-card highlight" (click)="navigateToScan()">
+              <div class="action-icon">🎟️</div>
+              <div class="action-info">
+                <h4>Scan & Check-in</h4>
+                <p>Process QR tickets for entry</p>
               </div>
             </div>
           </div>
@@ -462,7 +471,7 @@
         </div>
 
         <!-- Filters Bar -->
-        <div class="filters-bar">
+        <div class="filters-bar glass-panel">
           <div class="search-box">
             <span class="search-icon">🔍</span>
             <input type="text" placeholder="Search events..." [(ngModel)]="eventSearchTerm" (input)="onSearch()">
@@ -489,7 +498,7 @@
         </div>
 
         <!-- Events Table -->
-        <div class="section-card">
+        <div class="section-card glass-card">
           <div class="table-wrap">
             <table class="data-table">
               <thead>
@@ -508,7 +517,7 @@
                 <tr>
                   <td>
                     <div class="event-cell">
-                      <img [src]="ev.imageUrl || getDefaultImage()" class="event-thumb" alt="">
+                    <img [src]="getImageUrl(ev.imageUrl)" class="event-thumb" alt="">
                       <div>
                         <div class="event-cell-title">{{ ev.title }}</div>
                         <div class="event-cell-sub">{{ ev.type }} · {{ ev.category }}</div>
@@ -686,22 +695,22 @@
 
         <!-- Additional Stats -->
         <div class="stats-grid" style="margin-top:24px;">
-          <div class="stat-card">
+          <div class="stat-card glass-card">
             <div class="stat-icon-box icon-indigo">📅</div>
             <div class="stat-number">{{ totalEvents }}</div>
             <div class="stat-label">Total Events</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card glass-card">
             <div class="stat-icon-box icon-teal">👥</div>
             <div class="stat-number">{{ totalRegistrations }}</div>
             <div class="stat-label">Total Registrations</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card glass-card">
             <div class="stat-icon-box icon-amber">🟢</div>
             <div class="stat-number">{{ activeEvents }}</div>
             <div class="stat-label">Active Events</div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card glass-card">
             <div class="stat-icon-box icon-violet">📊</div>
             <div class="stat-number">{{ avgParticipants }}</div>
             <div class="stat-label">Avg Participants</div>
@@ -913,7 +922,7 @@
           <div class="image-upload-container">
             @if (imagePreviewUrl) {
             <div class="image-preview-container">
-              <img [src]="imagePreviewUrl" class="image-preview" alt="Preview">
+              <img [src]="getImageUrl(imagePreviewUrl)" class="image-preview" alt="Preview">
               <button type="button" class="btn-remove-image" (click)="clearImage()">✕</button>
             </div>
             }
@@ -1031,7 +1040,7 @@
           <div class="image-upload-container">
             @if (imagePreviewUrl) {
             <div class="image-preview-container">
-              <img [src]="imagePreviewUrl" class="image-preview" alt="Preview">
+              <img [src]="getImageUrl(imagePreviewUrl)" class="image-preview" alt="Preview">
               <button type="button" class="btn-remove-image" (click)="clearImage()" title="Remove image">✕</button>
             </div>
             <div class="change-image-btn">
@@ -1280,7 +1289,9 @@
               <th>Email</th>
               <th>College</th>
               <th>Slot</th>
-              <th>Status</th>
+              <th>Approval</th>
+              <th>Attendance</th>
+              <th>Reg. Time</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -1302,6 +1313,20 @@
                 @if (p.approvalStatus === 'rejected' && p.rejectionReason) {
                 <div class="rejection-note">{{ p.rejectionReason }}</div>
                 }
+              </td>
+              <td>
+                <span class="attendance-pill" [class.present]="p.attendanceStatus === 'present'"
+                  (click)="p.attendanceStatus !== 'present' && markAsPresent(p.registrationId)"
+                  [style.cursor]="p.attendanceStatus !== 'present' ? 'pointer' : 'default'"
+                  [title]="p.attendanceStatus !== 'present' ? 'Click to mark as present' : ''">
+                  {{ p.attendanceStatus === 'present' ? '✅ Present' : '⚪ Absent' }}
+                </span>
+                @if (p.checkedInAt) {
+                  <div class="checkin-time">{{ p.checkedInAt | date:'shortTime' }}</div>
+                }
+              </td>
+              <td>
+                <div class="reg-time-cell">{{ formatDateTime(p.registeredAt) }}</div>
               </td>
               <td class="actions-cell">
                 @if (p.approvalStatus !== 'approved') {

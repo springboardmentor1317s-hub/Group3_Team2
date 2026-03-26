@@ -1,7 +1,7 @@
 <div class="sdash" [class.collapsed]="sidebarCollapsed">
 
   <!-- ══ SIDEBAR ══════════════════════════════════════════════════════════ -->
-  <aside class="sidebar" [class.mobile-open]="mobileSidebarOpen">
+  <aside class="sidebar glass-panel" [class.mobile-open]="mobileSidebarOpen">
     <div class="sb-brand">
       <div class="sb-logo">🎓</div>
       <span class="sb-title">CampusHub</span>
@@ -66,7 +66,7 @@
   <div class="main">
 
     <!-- Top bar -->
-    <header class="topbar">
+    <header class="topbar glass-panel">
       <button class="hamburger" (click)="toggleMobileSidebar()">☰</button>
       <div class="topbar-right">
         
@@ -124,28 +124,28 @@
 
         <!-- Stats -->
         <div class="stats-row">
-          <div class="stat-card blue">
+          <div class="stat-card glass-card blue">
             <div class="stat-icon">📅</div>
             <div class="stat-body">
               <h4>Registered</h4>
               <p>{{ getDashboardStats().registered }}</p>
             </div>
           </div>
-          <div class="stat-card green">
+          <div class="stat-card glass-card green">
             <div class="stat-icon">✅</div>
             <div class="stat-body">
               <h4>Approved</h4>
               <p>{{ getDashboardStats().approved }}</p>
             </div>
           </div>
-          <div class="stat-card amber">
+          <div class="stat-card glass-card amber">
             <div class="stat-icon">⏳</div>
             <div class="stat-body">
               <h4>Pending</h4>
               <p>{{ getDashboardStats().pending }}</p>
             </div>
           </div>
-          <div class="stat-card violet">
+          <div class="stat-card glass-card violet">
             <div class="stat-icon">🏆</div>
             <div class="stat-body">
               <h4>Points</h4>
@@ -164,7 +164,7 @@
             @for (ev of getTrendingEvents(); track ev._id) {
             <div class="ev-card" (click)="openEventModal(ev)">
               <div class="ev-card-img">
-                <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="ev.title">
+                <img [src]="getImageUrl(ev.imageUrl)" [alt]="ev.title">
                 <span class="ev-badge" [ngClass]="ev.status">{{ ev.status }}</span>
                 @if ((ev.registrationFee||0) > 0) { <span class="ev-fee">₹{{ ev.registrationFee }}</span> }
                 @if (isRegistered(ev)) { <span class="ev-registered-chip">✓ Registered</span> }
@@ -173,10 +173,15 @@
               </div>
               <div class="ev-card-body">
                 <h3>{{ ev.title }}</h3>
+                <div class="ev-card-rating" *ngIf="getReviewCount(ev) > 0">
+                  <span class="star-rating">⭐ {{ getAverageRating(ev) }}</span>
+                  <span class="review-count">({{ getReviewCount(ev) }} reviews)</span>
+                </div>
                 <p class="ev-meta"><span>📍 {{ ev.venue }}</span><span>{{ ev.type | titlecase }}</span></p>
                 <p class="ev-date">📅 {{ formatDate(ev.startDate) }}</p>
                 <div class="ev-footer">
                   <span class="spots" [class.urgent]="isSpotsUrgent(ev)">{{ getSpotsLeft(ev) }} spots left</span>
+                  <button class="btn-forum" (click)="$event.stopPropagation(); openStudentForum(ev)">💬 Discuss</button>
                   @if (isRegistered(ev)) {
                     <span class="approval-mini approved">✓ Registered</span>
                   } @else if (isPendingApproval(ev)) {
@@ -197,7 +202,7 @@
 
         <!-- Two-column: Schedule + Notifications -->
         <div class="two-col-grid">
-          <div class="info-card">
+          <div class="info-card glass-card">
             <div class="info-card-head">
               <h3>📋 Upcoming Schedule</h3>
               <button class="link-btn" (click)="setView('schedule')">See All →</button>
@@ -221,7 +226,7 @@
             </div>
           </div>
 
-          <div class="info-card">
+          <div class="info-card glass-card">
             <div class="info-card-head">
               <h3>🔔 Recent Notifications</h3>
               <button class="link-btn" (click)="setView('notifications')">See All →</button>
@@ -248,7 +253,7 @@
           <div class="section-head"><h2>💬 Student Testimonials</h2></div>
           <div class="testimonials-grid">
             @for (t of getAllTestimonials(); track $index) {
-            <div class="testimonial-card">
+            <div class="testimonial-card glass-card">
               <div class="t-stars">{{ getStars(t.rating) }}</div>
               <p class="t-comment">"{{ t.comment || 'Great event!' }}"</p>
               <div class="t-author">
@@ -303,7 +308,7 @@
           @for (ev of filteredEvents; track ev._id) {
           <div class="ev-card" (click)="openEventModal(ev)">
             <div class="ev-card-img">
-              <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&q=70'" [alt]="ev.title">
+              <img [src]="getImageUrl(ev.imageUrl)" [alt]="ev.title">
               <span class="ev-badge" [ngClass]="ev.status">{{ ev.status }}</span>
               @if ((ev.registrationFee||0) > 0) { <span class="ev-fee">₹{{ ev.registrationFee }}</span> }
               @if (isRegistered(ev)) { <span class="ev-registered-chip">✓ Registered</span> }
@@ -313,10 +318,15 @@
             <div class="ev-card-body">
               <div class="ev-type-chip">{{ ev.type | titlecase }}</div>
               <h3>{{ ev.title }}</h3>
+              <div class="ev-card-rating" *ngIf="getReviewCount(ev) > 0">
+                <span class="star-rating">⭐ {{ getAverageRating(ev) }}</span>
+                <span class="review-count">({{ getReviewCount(ev) }} reviews)</span>
+              </div>
               <p class="ev-meta"><span>📍 {{ ev.venue }}</span></p>
               <p class="ev-date">📅 {{ formatDate(ev.startDate) }}</p>
               <div class="ev-footer">
                 <span class="spots" [class.urgent]="isSpotsUrgent(ev)">{{ getSpotsLeft(ev) }} spots</span>
+                <button class="btn-forum" (click)="$event.stopPropagation(); openStudentForum(ev)">💬 Discuss</button>
                 @if (isRegistered(ev)) {
                   <span class="approval-mini approved">✓ Registered</span>
                 } @else if (isPendingApproval(ev)) {
@@ -357,7 +367,7 @@
             @for (ev of pendingEvents; track ev._id) {
             <div class="my-ev-card border-pending">
               <div class="mev-img">
-                <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=200&q=70'" [alt]="ev.title">
+                <img [src]="getImageUrl(ev.imageUrl)" [alt]="ev.title">
                 <span class="mev-status-badge" [ngClass]="ev.status">{{ ev.status }}</span>
               </div>
               <div class="mev-body">
@@ -389,7 +399,7 @@
           @for (ev of registeredEvents; track ev._id) {
           <div class="my-ev-card border-approved">
             <div class="mev-img">
-              <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=200&q=70'" [alt]="ev.title">
+              <img [src]="getImageUrl(ev.imageUrl)" [alt]="ev.title">
               <span class="mev-status-badge" [ngClass]="ev.status">{{ ev.status }}</span>
             </div>
             <div class="mev-body">
@@ -403,6 +413,15 @@
                 <span>🏷 {{ ev.type | titlecase }}</span>
                 @if (ev.selectedSlot) { <span>🕐 {{ ev.selectedSlot }}</span> }
               </div>
+              <div class="attendance-status">
+                <span class="attendance-pill" [class.present]="ev.attendanceStatus === 'present'">
+                  {{ ev.attendanceStatus === 'present' ? '✅ Present' : '⚪ Absent' }}
+                </span>
+                @if (ev.checkedInAt) {
+                  <span class="checkin-time-mini">at {{ ev.checkedInAt | date:'shortTime' }}</span>
+                }
+              </div>
+
               @if ((ev.paymentAmount || 0) > 0) {
               <div class="mev-payment">
                 <span class="pay-label">Payment:</span>
@@ -424,6 +443,7 @@
               <!-- Forum button for approved upcoming/ongoing events -->
               @if (ev.approvalStatus === 'approved') {
                 <button class="btn-forum" (click)="openStudentForum(ev)">💬 Forum</button>
+                <button class="btn-ticket" (click)="openTicketModal(ev)">🎟️ View Ticket</button>
               }
               @if (ev.status === 'upcoming' || ev.status === 'ongoing') {
               <button class="btn-cancel-sm" (click)="cancelRegistration(ev)">Cancel</button>
@@ -442,7 +462,7 @@
             @for (ev of rejectedEvents; track ev._id) {
             <div class="my-ev-card border-rejected">
               <div class="mev-img">
-                <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=200&q=70'" [alt]="ev.title">
+                <img [src]="getImageUrl(ev.imageUrl)" [alt]="ev.title">
                 <span class="mev-status-badge" [ngClass]="ev.status">{{ ev.status }}</span>
               </div>
               <div class="mev-body">
@@ -466,6 +486,46 @@
           </div>
         </div>
         }
+
+        <!-- Combined Registration History (All Status) -->
+        <div class="history-section" style="margin-top: 3rem; padding-top: 2rem; border-top: 2px dashed #eee;">
+          <h2 class="section-subtitle">📋 My Registration History (All)</h2>
+          <div class="table-card" style="background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+            <table class="data-tbl">
+              <thead>
+                <tr style="background: rgba(0,0,0,0.03);">
+                  <th style="padding: 1rem;">Event</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Reg ID</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (reg of allMyRegistrations; track reg._id || reg.id) {
+                <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
+                  <td style="padding: 1rem;"><strong>{{ reg.title }}</strong></td>
+                  <td>{{ formatDateTime(reg.registeredAt || reg.createdAt) }}</td>
+                  <td>
+                    <span class="status-pill" [ngClass]="reg.approvalStatus">
+                      {{ reg.regStatusDescription }}
+                    </span>
+                  </td>
+                  <td><code>{{ reg.registrationId || reg.registration?.id || '—' }}</code></td>
+                  <td>
+                    <button class="btn-icon" (click)="copyToClipboard(reg.registrationId || reg.registration?.id)" title="Copy ID">📋</button>
+                    @if (reg.approvalStatus === 'approved') {
+                      <button class="btn-text-sm" (click)="openTicketModal(reg)">🎟️ Ticket</button>
+                    }
+                  </td>
+                </tr>
+                } @empty {
+                <tr><td colspan="5" class="empty-cell" style="padding: 2rem; text-align: center; color: #666;">No history found.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         <!-- Empty State -->
         @if (registeredEvents.length === 0 && pendingEvents.length === 0 && rejectedEvents.length === 0) {
@@ -623,12 +683,88 @@
   </div><!-- /main -->
 </div><!-- /sdash -->
 
+<!-- ══ TICKET MODAL ═══════════════════════════════════════════════════════ -->
+@if (showTicketModal) {
+<div class="modal-backdrop" (click)="closeTicketModal()">
+  <div class="ticket-modal" (click)="$event.stopPropagation()">
+    <div class="tm-header">
+      <h2>🎟️ Event Ticket</h2>
+      <button class="tm-close" (click)="closeTicketModal()">✕</button>
+    </div>
+    
+    <div class="tm-body">
+      @if (ticketLoading) {
+        <div class="tm-loading">
+          <div class="spinner"></div>
+          <p>Generating your ticket...</p>
+        </div>
+      } @else if (ticketError) {
+        <div class="tm-error">
+          <p>⚠️ {{ ticketError }}</p>
+          <button class="btn-primary" (click)="closeTicketModal()">Close</button>
+        </div>
+      } @else if (ticketData) {
+        <div class="ticket-card">
+          <div class="tc-event-info">
+            <h3 class="tc-title">{{ ticketData.event.title }}</h3>
+            <p class="tc-org">🏛️ {{ ticketData.event.organizer }}</p>
+            <div class="tc-details">
+              <div class="tc-detail">
+                <span class="tc-label">Date & Time</span>
+                <span class="tc-value">{{ formatDateTime(ticketData.event.startDate) }}</span>
+              </div>
+              <div class="tc-detail">
+                <span class="tc-label">Venue</span>
+                <span class="tc-value">{{ ticketData.event.venue }}</span>
+              </div>
+              @if (ticketData.registration.slot) {
+              <div class="tc-detail">
+                <span class="tc-label">Slot</span>
+                <span class="tc-value">{{ ticketData.registration.slot }}</span>
+              </div>
+              }
+            </div>
+          </div>
+          
+          <div class="tc-divider">
+            <div class="tc-dot left"></div>
+            <div class="tc-line"></div>
+            <div class="tc-dot right"></div>
+          </div>
+          
+          <div class="tc-user-info">
+            <div class="tc-user-details">
+              <h4>{{ ticketData.user.fullName }}</h4>
+              <p>{{ ticketData.user.college }}</p>
+            </div>
+            <div class="tc-qr-container">
+              <img [src]="ticketData.qrCode" alt="QR Code" class="tc-qr">
+              <p class="tc-qr-hint">Scan at entry</p>
+            </div>
+          </div>
+          
+          <div class="tc-footer">
+            <p class="tc-id">Reg ID: {{ ticketData.registration.id }}</p>
+            <button class="btn-copy-sm" (click)="copyToClipboard(ticketData.registration.id)">📋 Copy Registration ID</button>
+          </div>
+        </div>
+        
+        <div class="tm-actions">
+          <button class="btn-print" (click)="printTicket()">🖨️ Print Ticket</button>
+          <p class="tm-hint">Please show this QR code at the event entrance.</p>
+        </div>
+      }
+    </div>
+  </div>
+</div>
+}
+
 <!-- ══ EVENT DETAIL MODAL ══════════════════════════════════════════════════ -->
 @if (showEventModal && selectedEvent) {
 <div class="modal-backdrop" (click)="closeEventModal()">
   <div class="ev-modal" (click)="$event.stopPropagation()">
     <div class="evm-hero">
-      <img [src]="selectedEvent.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80'" [alt]="selectedEvent.title">
+      <img [src]="getImageUrl(selectedEvent.imageUrl)" [alt]="selectedEvent.title">
       <button class="evm-close" (click)="closeEventModal()">✕</button>
       <div class="evm-hero-badges">
         <span class="hbadge type">{{ selectedEvent.type | titlecase }}</span>
@@ -646,10 +782,37 @@
       <p class="evm-org">🏛️ {{ selectedEvent.organizer }} · 📍 {{ selectedEvent.venue }}</p>
 
       <div class="evm-tabs">
-        <button [class.active]="activeTab()==='details'" (click)="setTab('details')">Details</button>
-        <button [class.active]="activeTab()==='description'" (click)="setTab('description')">About</button>
+        <button [class.active]="activeTab() === 'details'" (click)="setTab('details')">Details</button>
+        <button [class.active]="activeTab() === 'description'" (click)="setTab('description')">Description</button>
+        <button [class.active]="activeTab() === 'reviews'" (click)="setTab('reviews')">
+          Reviews ({{ getReviewCount(selectedEvent) }})
+        </button>
         @if ((selectedEvent.registrationFee||0) > 0) {
         <button [class.active]="activeTab()==='payment'" (click)="setTab('payment')">💳 Payment</button>
+        }
+      </div>
+
+      <div class="evm-tab-pane" *ngIf="activeTab() === 'reviews'">
+        @if (selectedEvent.feedback?.length > 0) {
+          <div class="reviews-scroll">
+            @for (f of selectedEvent.feedback; track $index) {
+              <div class="review-item">
+                <div class="review-head">
+                  <div class="review-avatar" [style.background]="getAvatarColor(f.fullName)">
+                    {{ (f.fullName || 'S').charAt(0) }}
+                  </div>
+                  <div class="review-meta">
+                    <span class="review-name">{{ f.fullName }}</span>
+                    <span class="review-stars">{{ getStars(f.rating) }}</span>
+                  </div>
+                  <span class="review-date">{{ formatDate(f.createdAt) }}</span>
+                </div>
+                <p class="review-text">"{{ f.comment || 'Great event!' }}"</p>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="empty-text">No reviews yet for this event.</p>
         }
       </div>
 
@@ -924,11 +1087,16 @@
       <button class="evm-close" (click)="closeStudentForum()">✕</button>
     </div>
 
-    <!-- Sort Chips -->
+    <!-- Filters & Search -->
     <div class="sfm-filter-row">
-      <button class="sfm-chip" [class.active]="studentForumFilter === 'pinned-first'" (click)="setStudentForumFilter('pinned-first')">📌 Admin First</button>
-      <button class="sfm-chip" [class.active]="studentForumFilter === 'most-recent'"  (click)="setStudentForumFilter('most-recent')">🕐 Most Recent</button>
-      <button class="sfm-chip" [class.active]="studentForumFilter === 'most-upvoted'" (click)="setStudentForumFilter('most-upvoted')">👍 Most Upvoted</button>
+      <div class="sfm-search-box">
+        <input type="text" [(ngModel)]="studentForumSearch" placeholder="Search discussion...">
+      </div>
+      <div class="sfm-chips-wrap">
+        <button class="sfm-chip" [class.active]="studentForumFilter==='pinned-first'" (click)="setStudentForumFilter('pinned-first')">📌 Pinned First</button>
+        <button class="sfm-chip" [class.active]="studentForumFilter==='most-recent'" (click)="setStudentForumFilter('most-recent')">🕒 Most Recent</button>
+        <button class="sfm-chip" [class.active]="studentForumFilter==='most-upvoted'" (click)="setStudentForumFilter('most-upvoted')">🔥 Popular</button>
+      </div>
     </div>
 
     <!-- Compose -->

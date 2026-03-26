@@ -2,6 +2,7 @@ const Registration = require('../models/Registration');
 const Event        = require('../models/Event');
 const User         = require('../models/User');
 const Notification = require('../models/Notification');
+const qrService    = require('../services/qrService');
 
 // ── Helper: create notification ──────────────────────────
 async function notify(userId, type, title, message, eventId = null) {
@@ -249,7 +250,7 @@ exports.payForRegistration = async (req, res) => {
 exports.getEventRegistrations = async (req, res) => {
   try {
     const registrations = await Registration.find({ eventId: req.params.id })
-      .populate('userId', 'fullName email college walletBalance')
+      .populate('userId', 'fullName email college walletBalance role')
       .sort({ registeredAt: -1 });
 
     const formatted = registrations.map(r => ({
@@ -258,6 +259,8 @@ exports.getEventRegistrations = async (req, res) => {
       fullName:        r.userId?.fullName  || 'Unknown',
       email:           r.userId?.email     || '',
       college:         r.userId?.college   || '',
+      role:            r.userId?.role      || 'student',
+
       walletBalance:   r.userId?.walletBalance || 0,
       selectedSlot:    r.selectedSlot      || '',
       approvalStatus:  r.approvalStatus,
@@ -271,6 +274,8 @@ exports.getEventRegistrations = async (req, res) => {
     res.json({ registrations: formatted });
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
+
+
 
 // ── GET /my/registrations ─────────────────────────────────
 exports.getMyRegistrations = async (req, res) => {
@@ -302,7 +307,9 @@ exports.getMyRegistrations = async (req, res) => {
         paymentMethod:   r.paymentMethod,
         paymentTxnId:    r.paymentTxnId,
         paymentAmount:   r.paymentAmount,
-        hasFeedback:     r.hasFeedback || false
+        hasFeedback:     r.hasFeedback || false,
+        attendanceStatus: r.attendanceStatus || 'absent',
+        checkedInAt:      r.checkedInAt || null
       };
     }).filter(Boolean);
 
@@ -484,6 +491,104 @@ exports.unregisterFromEvent = async (req, res) => {
     });
   } catch (err) {
     console.error('unregisterFromEvent error:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * GET /:id/ticket
+ * returns ticket details + QR code for an approved registration
+ */
+exports.getTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    const reg = await Registration.findOne({ _id: id, userId })
+      .populate("eventId")
+      .populate("userId", "fullName email college");
+
+    if (!reg) return res.status(404).json({ message: "Registration not found" });
+    if (reg.approvalStatus !== "approved") {
+      return res.status(403).json({ message: "Tickets are only available for approved registrations" });
+    }
+
+    const event = reg.eventId;
+    if (!event) return res.status(404).json({ message: "Event details not found" });
+
+    // Data to be encoded in QR code
+    const qrData = {
+      registrationId: reg._id,
+      eventId:        event._id,
+      eventTitle:    event.title,
+      userName:       reg.userId?.fullName,
+      userEmail:      reg.userId?.email,
+      timestamp:      new Date()
+    };
+
+    const qrCodeDataUrl = await qrService.generateQR(qrData);
+
+    res.json({
+      registration: {
+        id:           reg._id,
+        slot:         reg.selectedSlot,
+        date:         reg.registeredAt
+      },
+      event: {
+        title:        event.title,
+        venue:        event.venue,
+        startDate:    event.startDate,
+        organizer:    event.organizer
+      },
+      user: {
+        fullName:     reg.userId?.fullName,
+        college:      reg.userId?.college
+      },
+      qrCode:         qrCodeDataUrl
+    });
+  } catch (err) {
+    console.error("getTicket error:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * POST /:id/check-in
+ * Marks a student as present for an event.
+ */
+exports.checkIn = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reg = await Registration.findById(id).populate("eventId");
+    if (!reg) return res.status(404).json({ message: "Registration not found" });
+
+    if (reg.approvalStatus !== "approved") {
+      return res.status(400).json({ message: "Cannot check-in. Registration is not approved." });
+    }
+
+    if (reg.attendanceStatus === "present") {
+      return res.status(400).json({ message: "Student is already checked-in." });
+    }
+
+    reg.attendanceStatus = "present";
+    reg.checkedInAt = new Date();
+    await reg.save();
+
+    // Helper function notify is defined at the top of this file
+    await notify(reg.userId, "general", "Checked In!", 
+      `You have been successfully checked into "${reg.eventId?.title || 'the event'}". Enjoy!`, 
+      reg.eventId?._id);
+
+    res.json({
+      message: "Check-in successful!",
+      registration: {
+        id: reg._id,
+        attendanceStatus: reg.attendanceStatus,
+        checkedInAt: reg.checkedInAt
+      }
+    });
+  } catch (err) {
+    console.error("checkIn error:", err.message);
     res.status(500).json({ message: err.message });
   }
 };

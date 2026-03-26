@@ -3,12 +3,12 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
 
 export interface UserData {
-  token: string; 
-  role: string; 
+  token: string;
+  role: string;
   fullName: string;
-  email: string; 
-  userId?: string; 
-  college?: string; 
+  email: string;
+  userId?: string;
+  college?: string;
   walletBalance?: number;
 }
 
@@ -19,13 +19,13 @@ export class AuthService {
 
   constructor(private http: HttpClient) {}
 
-  // ===== AUTHENTICATION =====
-  register(data: any): Observable<any> { 
-    return this.http.post(`${this.apiUrl}/register`, data); 
+  // ── Authentication ───────────────────────────────────────
+  register(data: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/register`, data);
   }
-  
-  login(data: any): Observable<any> {    
-    return this.http.post(`${this.apiUrl}/login`, data); 
+
+  login(data: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/login`, data);
   }
 
   logout() {
@@ -37,7 +37,7 @@ export class AuthService {
     this.loginEvent$.next();
   }
 
-  // ===== USER DATA MANAGEMENT =====
+  // ── User Data ────────────────────────────────────────────
   saveUserData(token: string, role: string, fullName: string, email: string, userId?: string, college?: string, walletBalance?: number) {
     const user: UserData = { token, role, fullName, email, userId, college, walletBalance };
     localStorage.setItem('token', token);
@@ -50,40 +50,20 @@ export class AuthService {
 
   getUser(): UserData | null {
     try {
-      const userStr = localStorage.getItem('user');
-      return userStr ? JSON.parse(userStr) : null;
-    } catch {
-      return null;
-    }
+      const s = localStorage.getItem('user');
+      return s ? JSON.parse(s) : null;
+    } catch { return null; }
   }
 
-  getToken(): string | null {
-    return localStorage.getItem('token');
-  }
-
-  getRole(): string | null { 
-    return this.getUser()?.role || localStorage.getItem('role') || null; 
-  }
-  
-  getFullName(): string | null { 
-    return this.getUser()?.fullName || localStorage.getItem('fullName') || null; 
-  }
-  
-  getEmail(): string | null { 
-    return this.getUser()?.email || localStorage.getItem('email') || null; 
-  }
-  
-  getUserId(): string | null { 
-    return this.getUser()?.userId || null; 
-  }
-
-  getCollege(): string | null {
-    return this.getUser()?.college || null;
-  }
+  getToken():    string | null { return localStorage.getItem('token'); }
+  getRole():     string | null { return this.getUser()?.role     || localStorage.getItem('role')     || null; }
+  getFullName(): string | null { return this.getUser()?.fullName || localStorage.getItem('fullName') || null; }
+  getEmail():    string | null { return this.getUser()?.email    || localStorage.getItem('email')    || null; }
+  getUserId():   string | null { return this.getUser()?.userId   || null; }
+  getCollege():  string | null { return this.getUser()?.college  || null; }
 
   getWallet(): number {
-    const user = this.getUser();
-    return user?.walletBalance || 0;
+    return this.getUser()?.walletBalance || 0;
   }
 
   updateWalletBalance(balance: number) {
@@ -94,9 +74,7 @@ export class AuthService {
     }
   }
 
-  isLoggedIn(): boolean { 
-    return !!this.getToken(); 
-  }
+  isLoggedIn(): boolean { return !!this.getToken(); }
 
   isAuthorized(expectedRole: string | string[]): boolean {
     const role = this.getRole();
@@ -105,27 +83,41 @@ export class AuthService {
     return allowed.includes(role);
   }
 
-  // ===== WALLET =====
-  getWalletBalance(): Observable<any> { 
-    return this.http.get(`${this.apiUrl}/wallet`); 
-  }
-  
-  topUpWallet(amount: number): Observable<any> { 
-    return this.http.post(`${this.apiUrl}/wallet/topup`, { amount }); 
+  // ── Wallet ───────────────────────────────────────────────
+  getWalletBalance(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/wallet`);
   }
 
-  // ===== USER MANAGEMENT (for Super Admin) =====
- /**
-   * Get user by ID
-   */
+  topUpWallet(amount: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/wallet/topup`, { amount });
+  }
+
+  // ── User Management ──────────────────────────────────────
+  getMe(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/me`);
+  }
+
   getUserById(id: string): Observable<any> {
     return this.http.get(`${this.apiUrl}/users/${id}`);
   }
 
-  /**
-   * Update user role
-   */
   updateUserRole(id: string, role: string): Observable<any> {
     return this.http.patch(`${this.apiUrl}/users/${id}/role`, { role });
+  }
+
+  // ── Super Admin ──────────────────────────────────────────
+  getAllUsers(role?: string, search?: string): Observable<any> {
+    let params = new HttpParams();
+    if (role   && role   !== 'all') params = params.set('role',   role);
+    if (search && search.trim())    params = params.set('search', search.trim());
+    return this.http.get(`${this.apiUrl}/users`, { params });
+  }
+
+  updateUserStatus(id: string, status: string): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/users/${id}/status`, { status });
+  }
+
+  getPlatformAnalytics(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/analytics`);
   }
 }

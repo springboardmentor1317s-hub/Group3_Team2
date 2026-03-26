@@ -46,19 +46,88 @@ router.get('/stats', authMiddleware, async (req, res) => {
 // ─── GET ALL EVENTS ──────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
-    const { startDate, endDate, status, type, category, organizer } = req.query;
-    let query = {};
-    if (status   && status   !== 'all') query.status   = status;
-    if (type     && type     !== 'all') query.type     = { $regex: '^' + type     + '$', $options: 'i' };
-    if (category && category !== 'all') query.category = { $regex: '^' + category + '$', $options: 'i' };
-    if (organizer) query.organizer = { $regex: organizer, $options: 'i' };
-    if (startDate || endDate) {
-      query.startDate = {};
-      if (startDate) query.startDate.$gte = new Date(startDate);
-      if (endDate) { const e = new Date(endDate); e.setHours(23,59,59,999); query.startDate.$lte = e; }
+    const { startDate, endDate, status, type, category, organizer, college, createdBy } = req.query;
+    let match = {};
+    if (status   && status   !== 'all') match.status   = status;
+    if (type     && type     !== 'all') match.type     = { $regex: '^' + type     + '$', $options: 'i' };
+    if (category && category !== 'all') match.category = { $regex: '^' + category + '$', $options: 'i' };
+    if (organizer) match.organizer = { $regex: organizer, $options: 'i' };
+    
+    // College-based filtering for admins
+    if (college) {
+      // If we have a college, we want all events from that college
+      // But we need to check the creator's college.
+      // For now, let's assume we filter by a new 'college' field on Event if it exists,
+      // or we'll need a more complex lookup.
+      // Let's implement it via lookup for now.
+      match.college = college; 
     }
-    const events = await Event.find(query).sort({ startDate: 1 });
+    
+    if (createdBy) match.createdBy = new mongoose.Types.ObjectId(createdBy);
+
+    if (startDate || endDate) {
+      match.startDate = {};
+      if (startDate) match.startDate.$gte = new Date(startDate);
+      if (endDate) { 
+        const e = new Date(endDate); 
+        e.setHours(23,59,59,999); 
+        match.startDate.$lte = e; 
+      }
+    }
+
+    const events = await Event.aggregate([
+      { $match: match },
+      {
+        $lookup: {
+          from: 'registrations',
+          localField: '_id',
+          foreignField: 'eventId',
+          as: 'regs'
+        }
+      },
+      {
+        $addFields: {
+          pendingCount: {
+            $size: {
+              $filter: {
+                input: '$regs',
+                as: 'r',
+                cond: { $eq: ['$$r.approvalStatus', 'pending'] }
+              }
+            }
+          }
+        }
+      },
+      { $project: { regs: 0 } },
+      { $sort: { startDate: 1 } }
+    ]);
+
+    console.log(`📡 Events Aggregation: Found ${events.length} events for match:`, JSON.stringify(match));
     res.json(events);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+// ─── GET ALL PLATFORM FEEDBACK ─────────────────────────────
+router.get('/all-feedback', async (req, res) => {
+  try {
+    const feedback = await Event.aggregate([
+      { $unwind: '$feedback' },
+      { $sort: { 'feedback.createdAt': -1 } },
+      { $limit: 10 },
+      {
+        $project: {
+          _id: 0,
+          eventId: '$_id',
+          eventTitle: '$title',
+          fullName: '$feedback.fullName',
+          college: '$feedback.college',
+          rating: '$feedback.rating',
+          comment: '$feedback.comment',
+          createdAt: '$feedback.createdAt'
+        }
+      }
+    ]);
+    res.json(feedback);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
@@ -83,8 +152,14 @@ router.post('/', authMiddleware, adminMiddleware, upload.single('image'), async 
     if (req.file) imageUrl = `/uploads/${req.file.filename}`;
     else if (req.body.imageUrl?.trim()) imageUrl = req.body.imageUrl.trim();
 
+    const user = await User.findById(req.userId).select('college');
+    const college = user?.college || '';
+
     const event = new Event({
-      ...req.body, imageUrl, createdBy: req.userId,
+      ...req.body, 
+      imageUrl, 
+      college,
+      createdBy: req.userId,
       isPaid: Number(req.body.registrationFee) > 0,
       currentParticipants: 0, status: 'upcoming'
     });
@@ -187,9 +262,9 @@ router.get('/:id/comments', authMiddleware, async (req, res) => {
       eventId: req.params.id, userId: req.userId, approvalStatus: 'approved'
     });
 
-    if (!isAdmin && !isCreator && !reg) {
-      return res.status(403).json({ message: 'Only approved participants and organizers can view the forum' });
-    }
+    // Access: any authenticated user can view the forum
+    // (Filtering/checks for posting are handled in the POST route)
+    // Removed strict check: if (!isAdmin && !isCreator && !reg) { ... }
 
     const comments = (event.comments || []).map(c => ({
       _id:       c._id.toString(),

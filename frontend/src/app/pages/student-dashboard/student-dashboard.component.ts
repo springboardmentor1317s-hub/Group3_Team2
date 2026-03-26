@@ -30,6 +30,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   pendingEvents: any[] = [];
   rejectedEvents: any[] = [];
   cancelledEvents: any[] = [];
+  allMyRegistrations: any[] = []; // NEW: Combined list for history view
 
   notifications: any[] = [];
   payments: any[] = [];
@@ -87,14 +88,21 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   studentForumComments: any[] = [];
   studentForumLoading = false;
   studentForumError = '';
-  studentNewComment = '';
+  studentForumFilter: string = 'pinned-first';
+  studentForumSearch: string = '';
+  studentNewComment: string = '';
   studentPostingComment = false;
-  studentForumFilter = 'pinned-first';
 
   showProfileModal = false;
   private navSub!: Subscription | undefined;
 
   showPassword = false;
+
+  // Ticket modal
+  showTicketModal = false;
+  ticketData: any = null;
+  ticketLoading = false;
+  ticketError = '';
 
   constructor(
     public authService: AuthService,
@@ -459,6 +467,16 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       this.pendingEvents = newPendingEvents || [];
       this.rejectedEvents = newRejectedEvents || [];
       this.cancelledEvents = newCancelledEvents || [];
+      
+      // NEW: Combined history list (sorted by date)
+      this.allMyRegistrations = [...list]
+        .filter((ev: any) => ev.status !== 'cancelled')
+        .map((e: any) => ({
+          ...e,
+          status: computeEventStatus(e),
+          regStatusDescription: e.approvalStatus === 'approved' ? 'Approved' : e.approvalStatus === 'rejected' ? 'Rejected' : 'Pending'
+        }))
+        .sort((a: any, b: any) => new Date(b.registeredAt || b.createdAt).getTime() - new Date(a.registeredAt || a.createdAt).getTime());
 
       // Update ID sets
       this.registeredEventIds = new Set(
@@ -686,6 +704,33 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   
   getStars(r: number): string { 
     return '★'.repeat(Math.round(r || 0)) + '☆'.repeat(5 - Math.round(r || 0)); 
+  }
+
+  // ─── HELPERS ───────────────────────────────────────────────────────────────
+
+  getImageUrl(url?: string): string {
+    return this.eventService.resolveImageUrl(url);
+  }
+
+  copyToClipboard(text: string) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      alert('📋 Registration ID copied to clipboard!');
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+      // Fallback
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        alert('📋 Registration ID copied to clipboard!');
+      } catch (err) {
+        alert('❌ Failed to copy. Please select and copy manually.');
+      }
+      document.body.removeChild(textArea);
+    });
   }
 
   // ─── NOTIFICATIONS ──────────────────────────────────────────────────────────
@@ -1303,6 +1348,38 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     this.studentForumComments = [];
   }
 
+  // ─── TICKET MODAL ───────────────────────────────────────────────────────────
+
+  openTicketModal(ev: any) {
+    this.ticketLoading = true;
+    this.ticketError = '';
+    this.ticketData = null;
+    this.showTicketModal = true;
+
+    const regId = ev.registrationId || ev._id;
+    this.eventService.getTicket(regId).subscribe({
+      next: (data: any) => {
+        this.ticketData = data;
+        this.ticketLoading = false;
+        console.log('🎟️ Ticket details loaded:', data);
+      },
+      error: (err: any) => {
+        console.error('❌ Failed to load ticket:', err);
+        this.ticketError = err?.error?.message || 'Failed to load ticket. Please try again.';
+        this.ticketLoading = false;
+      }
+    });
+  }
+
+  closeTicketModal() {
+    this.showTicketModal = false;
+    this.ticketData = null;
+  }
+
+  printTicket() {
+    window.print();
+  }
+
   loadStudentForumComments() {
     if (!this.studentForumEvent) return;
     this.studentForumLoading = true;
@@ -1387,6 +1464,36 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         this.studentForumError = err?.error?.message || 'Failed to delete comment';
       }
     });
+  }
+
+  // ── Analytics & Helpers ─────────────────────────────────
+  getAverageRating(ev: any): number {
+    if (!ev.feedback || ev.feedback.length === 0) return 0;
+    const sum = ev.feedback.reduce((acc: number, f: any) => acc + f.rating, 0);
+    return Math.round((sum / ev.feedback.length) * 10) / 10;
+  }
+
+  getReviewCount(ev: any): number {
+    return ev.feedback ? ev.feedback.length : 0;
+  }
+
+  getAvatarColor(name: string): string {
+    if (!name) return '#6c47ff';
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const h = Math.abs(hash % 360);
+    return `hsl(${h}, 65%, 45%)`;
+  }
+
+  getForumSearchComments() {
+    let list = [...this.studentForumComments];
+    if (this.studentForumSearch.trim()) {
+      const q = this.studentForumSearch.toLowerCase();
+      list = list.filter(c => c.text.toLowerCase().includes(q) || c.fullName.toLowerCase().includes(q));
+    }
+    return list;
   }
 
   formatForumTime(date: any): string {

@@ -12,7 +12,7 @@ interface ApiEvent {
   venue: string; startDate: Date; endDate: Date; registrationDeadline: Date;
   maxParticipants: number; currentParticipants: number; registrationFee: number;
   organizer: string; contactEmail: string; status: string; createdBy?: string;
-  imageUrl?: string;
+  imageUrl?: string; college?: string; pendingCount?: number;
   feedback?: { userId: any; rating: number; comment?: string; createdAt: Date; fullName?: string; college?: string; }[];
   comments?: any[];
 }
@@ -21,12 +21,16 @@ interface Participant {
   fullName: string;
   email: string;
   college: string;
+  role?: string;
   selectedSlot?: string;
   approvalStatus: 'pending' | 'approved' | 'rejected';
   paymentAmount?: number;
   paymentMethod?: string;
   paymentStatus?: string;
   rejectionReason?: string;
+  attendanceStatus?: 'absent' | 'present';
+  checkedInAt?: Date;
+  registeredAt?: Date;
 }
 
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&q=80';
@@ -107,12 +111,17 @@ export class EventOrganizerDashboardComponent implements OnInit {
 
   typeOptions = ['technical', 'cultural', 'sports', 'workshop', 'seminar'];
   categoryOptions = ['college', 'inter-college'];
+  today: Date = new Date();
 
   // NEW PROPERTIES
   notificationFilter: string = 'all';
   filteredNotifications: any[] = [];
   pendingApprovals: number = 0;
   notificationList: any[] = [];
+
+  navigateToScan() {
+    this.router.navigate(['/admin-dashboard/scan']);
+  }
 
   constructor(
     private fb: FormBuilder,
@@ -201,12 +210,38 @@ export class EventOrganizerDashboardComponent implements OnInit {
     if (this.eventTypeFilter !== 'all') filters.type = this.eventTypeFilter;
     if (this.eventCategoryFilter !== 'all') filters.category = this.eventCategoryFilter;
 
+    // Add college filter for non-superadmins
+    const role = this.authService.getRole();
+    const userCollege = this.authService.getUser()?.college;
+    if (role === 'college-admin' && userCollege) {
+      filters.college = userCollege;
+    }
+
     this.eventService.getAllEvents(filters).subscribe({
       next: (evts: any[]) => {
         const userId = this.authService.getUserId();
+        const role = this.authService.getRole();
+        console.log('DEBUG DASHBOARD:', { userId, role, totalReceived: evts.length, userCollege });
+        
+        // Final sanity check on first event if exists
+        if (evts.length > 0) {
+           const e0 = evts[0];
+           console.log('DEBUG FIRST EVENT:', { title: e0.title, createdBy: e0.createdBy, eventCollege: e0.college });
+        }
+
         this.events = (evts as ApiEvent[])
-          .filter(e => this.authService.getRole() === 'superadmin' || String(e.createdBy) === String(userId))
+          .filter(e => {
+            if (role === 'superadmin') return true;
+            // Admin sees events from their own college
+            if (role === 'college-admin') {
+              return (e.college && e.college === userCollege) || (String(e.createdBy) === String(userId));
+            }
+            return String(e.createdBy) === String(userId);
+          })
           .map(e => ({ ...e, status: this.eventService.computeStatus ? this.eventService.computeStatus(e) : e.status }));
+        
+        console.log('DEBUG FILTERED:', { filteredCount: this.events.length });
+
         this.applyLocalFilters();
         this.calcStats();
       },
@@ -247,6 +282,9 @@ export class EventOrganizerDashboardComponent implements OnInit {
     this.activeEvents = this.events.filter(e => e.status === 'upcoming' || e.status === 'ongoing').length;
     this.totalRegistrations = this.events.reduce((s, e) => s + (e.currentParticipants || 0), 0);
     this.avgParticipants = this.totalEvents > 0 ? Math.round(this.totalRegistrations / this.totalEvents) : 0;
+    
+    // NEW: Calculate pending approvals from the event's pendingCount
+    this.pendingApprovals = this.events.reduce((s, e) => s + (e.pendingCount || 0), 0);
   }
 
   // ── IMAGE ────────────────────────────────────────────────────────────────
@@ -429,10 +467,12 @@ export class EventOrganizerDashboardComponent implements OnInit {
     this.eventService.getEventRegistrations(event._id).subscribe({
       next: (data: any) => {
         const raw = data.registrations || [];
-        this.participants = raw.map((p: any) => ({
-          ...p,
-          registrationId: String(p.registrationId || p._id || '')
-        }));
+        this.participants = raw
+          .filter((p: any) => p.role === 'student' || !p.role) // Show students or unknown (default to student)
+          .map((p: any) => ({
+            ...p,
+            registrationId: String(p.registrationId || p._id || '')
+          }));
         this.loadingParticipants = false;
       },
       error: (err: any) => {
@@ -464,6 +504,23 @@ export class EventOrganizerDashboardComponent implements OnInit {
         setTimeout(() => this.bulkActionStatus = null, 3000);
       },
       error: (err) => alert(err.error?.message || 'Failed to approve')
+    });
+  }
+
+  markAsPresent(regId: string) {
+    if (!regId || regId === 'undefined') return;
+    this.eventService.checkIn(regId).subscribe({
+      next: () => {
+        const p = this.participants.find(p => String(p.registrationId) === String(regId));
+        if (p) {
+          p.attendanceStatus = 'present';
+          p.checkedInAt = new Date();
+        }
+        this.bulkActionStatus = 'success';
+        this.bulkActionMessage = 'Checked in successfully!';
+        setTimeout(() => this.bulkActionStatus = null, 3000);
+      },
+      error: (err) => alert(err.error?.message || 'Failed to check-in')
     });
   }
 
@@ -758,6 +815,10 @@ export class EventOrganizerDashboardComponent implements OnInit {
       'general': '🔔'
     };
     return map[type] || '🔔';
+  }
+
+  getImageUrl(url?: string): string {
+    return this.eventService.resolveImageUrl(url);
   }
 
   // ✅ ===== NEW METHODS FOR ENHANCED DASHBOARD =====

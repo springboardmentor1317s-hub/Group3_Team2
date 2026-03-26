@@ -216,6 +216,19 @@
     </div>
 
     <div class="testimonials-grid">
+      @for (fb of testimonials; track $index) {
+      <div class="testimonial-card">
+        <div class="testimonial-rating">{{ getStars(fb.rating) }}</div>
+        <p class="testimonial-text">"{{ fb.comment || 'Excellent event!' }}"</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">{{ getInitial(fb.fullName) }}</div>
+          <div class="author-info">
+            <h4>{{ fb.fullName }}</h4>
+            <p>{{ fb.college }} · {{ fb.eventTitle }}</p>
+          </div>
+        </div>
+      </div>
+      } @empty {
       <div class="testimonial-card">
         <div class="testimonial-rating">★★★★★</div>
         <p class="testimonial-text">"CampusEventHub helped me discover so many technical events I never knew existed. Won 2 hackathons already!"</p>
@@ -251,6 +264,7 @@
           </div>
         </div>
       </div>
+      }
     </div>
   </section>
 

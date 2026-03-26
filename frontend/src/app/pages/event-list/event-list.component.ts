@@ -5,11 +5,12 @@ import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
+import { CommentSectionComponent } from '../../components/comment-section/comment-section.component';
 
 @Component({
   selector: 'app-event-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule],
+  imports: [CommonModule, FormsModule, HttpClientModule, CommentSectionComponent],
   template: `
     <div style="padding: 20px;">
       <!-- Header -->
@@ -125,6 +126,54 @@ import { HttpClientModule } from '@angular/common/http';
                style="text-align: center; color: #999; font-size: 13px; margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
               Login as a student to register
             </p>
+
+            <!-- Interaction Buttons (Comments & Feedback) -->
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+              <button (click)="toggleComments(event._id!)"
+                      style="flex: 1; padding: 8px; background: #f1f2f6; color: #2f3542; border: 1px solid #dfe4ea; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s;"
+                      onmouseover="this.style.background='#dfe4ea'"
+                      onmouseout="this.style.background='#f1f2f6'">
+                💬 {{ showComments[event._id!] ? 'Hide' : 'Show' }} Comments
+              </button>
+
+              <button *ngIf="isRegistered(event._id!) && event.status === 'completed'"
+                      (click)="toggleFeedback(event._id!)"
+                      style="flex: 1; padding: 8px; background: #fff2cc; color: #d4a100; border: 1px solid #ffe699; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s;"
+                      onmouseover="this.style.background='#ffe699'"
+                      onmouseout="this.style.background='#fff2cc'">
+                ⭐ Feedback
+              </button>
+            </div>
+
+            <!-- Comment Section UI -->
+            <div *ngIf="showComments[event._id!]" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+              <app-comment-section [eventId]="event._id!" [currentUser]="authService.getUser()"></app-comment-section>
+            </div>
+
+            <!-- Feedback Section UI -->
+            <div *ngIf="showFeedback[event._id!]" style="margin-top: 15px; background: #fffcf2; padding: 15px; border-radius: 8px; border: 1px solid #ffe699;">
+              <h4 style="margin: 0 0 10px; color: #d4a100;">Rate this event</h4>
+              
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 600;">Rating (1-5)</label>
+                <select [(ngModel)]="feedbackData[event._id!].rating" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                  <option [value]="5">5 - Excellent</option>
+                  <option [value]="4">4 - Good</option>
+                  <option [value]="3">3 - Average</option>
+                  <option [value]="2">2 - Poor</option>
+                  <option [value]="1">1 - Terrible</option>
+                </select>
+              </div>
+
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 600;">Review</label>
+                <textarea [(ngModel)]="feedbackData[event._id!].comment" rows="2" placeholder="Tell us what you thought..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+              </div>
+
+              <button (click)="submitFeedback(event._id!)" style="width: 100%; padding: 8px; background: #f1c40f; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                Submit Feedback
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -141,6 +190,10 @@ export class EventListComponent implements OnInit {
     type: 'all',
     organizer: ''
   };
+
+  showComments: { [eventId: string]: boolean } = {};
+  showFeedback: { [eventId: string]: boolean } = {};
+  feedbackData: { [eventId: string]: { rating: number; comment: string } } = {};
 
   private searchTimeout: any;
 
@@ -220,6 +273,33 @@ export class EventListComponent implements OnInit {
     this.eventService.createEvent(testEvent).subscribe({
       next: () => this.loadEvents(),
       error: (err) => console.error('Error:', err)
+    });
+  }
+
+  toggleComments(eventId: string) {
+    this.showComments[eventId] = !this.showComments[eventId];
+  }
+
+  toggleFeedback(eventId: string) {
+    this.showFeedback[eventId] = !this.showFeedback[eventId];
+    if (this.showFeedback[eventId] && !this.feedbackData[eventId]) {
+      this.feedbackData[eventId] = { rating: 5, comment: '' };
+    }
+  }
+
+  submitFeedback(eventId: string) {
+    const data = this.feedbackData[eventId];
+    if (!data) return;
+
+    this.eventService.submitFeedback(eventId, data).subscribe({
+      next: (res) => {
+        alert('Feedback submitted successfully!');
+        this.showFeedback[eventId] = false;
+        this.loadEvents();
+      },
+      error: (err) => {
+        alert(err.error?.message || 'Failed to submit feedback.');
+      }
     });
   }
 

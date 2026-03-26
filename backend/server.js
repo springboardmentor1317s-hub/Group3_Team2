@@ -20,7 +20,6 @@ const authRoutes         = require('./routes/authRoutes');
 const eventRoutes        = require('./routes/eventRoutes');
 const registrationRoutes = require('./routes/registrationRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
-
 // ── Mount Routes ───────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
@@ -64,13 +63,136 @@ const connectDB = async () => {
   }
 };
 
+<<<<<<< Updated upstream
 // ── Test Routes ───────────────────────────────────────
+=======
+// ─── Routes ─────────────────────────────────────
+const authRoutes = require('./routes/authRoutes');
+const eventRoutes = require('./routes/eventRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const registrationRoutes = require('./routes/registrationRoutes');
+
+app.use('/api/auth', authRoutes);
+app.use('/api/events', registrationRoutes); // Intercepts specific registration routes
+app.use('/api/events', eventRoutes);
+app.use('/api/chat', chatRoutes);
+
+// ─── Test Route ─────────────────────────────────
+>>>>>>> Stashed changes
 app.get('/api/test', (req, res) => {
   res.json({
     message: 'Backend working!',
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     dbName: mongoose.connection.name
   });
+});
+
+app.get('/api/seed', async (req, res) => {
+  try {
+    const Event = mongoose.model('Event');
+    const User = mongoose.model('User');
+    
+    let admin = await User.findOne({ email: 'rio@gmail.com' });
+    if (!admin) admin = await User.findOne({ email: 'SampleAdmin@gmail.com' });
+    if (!admin) admin = await User.findOne({ role: 'college-admin' });
+    if (!admin) admin = await User.findOne({ role: 'superadmin' });
+
+    if (!admin) return res.status(404).json({ message: 'No admin found to seed events' });
+
+    const seedData = [
+      {
+        title: 'Global Tech Innovation Summit 2026',
+        description: 'Join industry leaders and innovators for a three-day summit exploring the future of AI, Quantum Computing, and Sustainable Technology.',
+        type: 'technical',
+        category: 'inter-college',
+        venue: 'Main Auditorium, Block A',
+        startDate: new Date('2026-05-15T09:00:00'),
+        endDate: new Date('2026-05-17T18:00:00'),
+        registrationDeadline: new Date('2026-05-10T23:59:59'),
+        maxParticipants: 500,
+        registrationFee: 299,
+        organizer: 'Dept of Computer Science',
+        contactEmail: 'tech.summit@college.edu',
+        imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80',
+        status: 'upcoming',
+        createdBy: admin._id
+      },
+      {
+        title: 'Harmony Cultural Festival',
+        description: 'A celebration of diversity through music, dance, and art. Experience performances from various cultures.',
+        type: 'cultural',
+        category: 'college',
+        venue: 'Open Air Theatre (OAT)',
+        startDate: new Date('2026-04-10T10:00:00'),
+        endDate: new Date('2026-04-12T22:00:00'),
+        registrationDeadline: new Date('2026-04-05T23:59:59'),
+        maxParticipants: 1000,
+        registrationFee: 0,
+        organizer: 'Cultural Committee',
+        contactEmail: 'harmony@college.edu',
+        imageUrl: 'https://images.unsplash.com/photo-1514525253361-bee438d59174?w=800&q=80',
+        status: 'upcoming',
+        createdBy: admin._id
+      },
+      {
+        title: 'Inter-College Hackathon: Code for Change',
+        description: 'A 24-hour hackathon to build solutions for real-world social problems.',
+        type: 'technical',
+        category: 'inter-college',
+        venue: 'Innovation Hub, Floor 2',
+        startDate: new Date('2026-06-20T10:00:00'),
+        endDate: new Date('2026-06-21T10:00:00'),
+        registrationDeadline: new Date('2026-06-15T23:59:59'),
+        maxParticipants: 200,
+        registrationFee: 150,
+        organizer: 'Coding Club',
+        contactEmail: 'hackathon@college.edu',
+        imageUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&q=80',
+        status: 'upcoming',
+        createdBy: admin._id
+      },
+      {
+        title: 'Annual Sports Meet 2026',
+        description: 'Ultimate showcase of athleticism. Events include Track and Field, Swimming, Football, and Basketball.',
+        type: 'sports',
+        category: 'college',
+        venue: 'Sports Stadium & Ground',
+        startDate: new Date('2026-03-28T08:00:00'),
+        endDate: new Date('2026-03-30T17:00:00'),
+        registrationDeadline: new Date('2026-03-20T23:59:59'),
+        maxParticipants: 2000,
+        registrationFee: 0,
+        organizer: 'Physical Education Dept',
+        contactEmail: 'sports@college.edu',
+        imageUrl: 'https://images.unsplash.com/photo-1461896756993-7f733b79b5c3?w=800&q=80',
+        status: 'upcoming',
+        createdBy: admin._id
+      },
+      {
+        title: 'UI/UX Design Workshop',
+        description: 'Learn the principles of modern design and user experience. Tools covered: Figma, Adobe XD.',
+        type: 'workshop',
+        category: 'college',
+        venue: 'Design Lab, Room 302',
+        startDate: new Date('2026-04-20T14:00:00'),
+        endDate: new Date('2026-04-20T17:00:00'),
+        registrationDeadline: new Date('2026-04-18T23:59:59'),
+        maxParticipants: 50,
+        registrationFee: 50,
+        organizer: 'Creative Pixels Club',
+        contactEmail: 'design@college.edu',
+        imageUrl: 'https://images.unsplash.com/photo-1586717791821-3f44a563eb4c?w=800&q=80',
+        status: 'upcoming',
+        createdBy: admin._id
+      }
+    ];
+
+    await Event.deleteMany({});
+    await Event.insertMany(seedData);
+    res.json({ message: 'Seeding successful!', count: seedData.length, admin: admin.email });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/', (req, res) => {
