@@ -13,3 +13,6 @@ api/.env.example
 
 # Logs
 *.log
+
+# Uploads
+backend/uploads/

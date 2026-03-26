@@ -15,18 +15,19 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ── Import Routes First ────────────────────────────────
+// ── Import Routes ────────────────────────────────
 const authRoutes         = require('./routes/authRoutes');
 const eventRoutes        = require('./routes/eventRoutes');
 const registrationRoutes = require('./routes/registrationRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const chatRoutes         = require('./routes/chatRoutes');
+
 // ── Mount Routes ───────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/registrations', registrationRoutes);
 app.use('/api/notifications', notificationRoutes);
-
-console.log("Routes loaded");
+app.use('/api/chat', chatRoutes);
 
 // ── MongoDB Connection ─────────────────────────────────
 const connectDB = async () => {
@@ -63,22 +64,7 @@ const connectDB = async () => {
   }
 };
 
-<<<<<<< Updated upstream
-// ── Test Routes ───────────────────────────────────────
-=======
-// ─── Routes ─────────────────────────────────────
-const authRoutes = require('./routes/authRoutes');
-const eventRoutes = require('./routes/eventRoutes');
-const chatRoutes = require('./routes/chatRoutes');
-const registrationRoutes = require('./routes/registrationRoutes');
-
-app.use('/api/auth', authRoutes);
-app.use('/api/events', registrationRoutes); // Intercepts specific registration routes
-app.use('/api/events', eventRoutes);
-app.use('/api/chat', chatRoutes);
-
-// ─── Test Route ─────────────────────────────────
->>>>>>> Stashed changes
+console.log("Routes loaded");
 app.get('/api/test', (req, res) => {
   res.json({
     message: 'Backend working!',
