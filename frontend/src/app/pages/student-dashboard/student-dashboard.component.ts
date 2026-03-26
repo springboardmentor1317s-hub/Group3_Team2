@@ -81,6 +81,16 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   feedbackSubmitting = false;
   feedbackError = '';
 
+  // Discussion Forum (Student)
+  showStudentForumModal = false;
+  studentForumEvent: any = null;
+  studentForumComments: any[] = [];
+  studentForumLoading = false;
+  studentForumError = '';
+  studentNewComment = '';
+  studentPostingComment = false;
+  studentForumFilter = 'pinned-first';
+
   showProfileModal = false;
   private navSub!: Subscription | undefined;
 
@@ -120,6 +130,9 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     
     // Load notifications from service
     this.loadNotifications();
+
+    // Sync user profile from server (fixes college — on existing sessions)
+    this.syncUserProfile();
     
     // Sync wallet from server
     this.authService.getWalletBalance().subscribe({
@@ -769,8 +782,10 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
       return;
     }
     
+    // ✅ FIX: Rejection is FINAL — block re-registration
     if (this.isRejected(this.selectedEvent)) {
-      alert('Your previous registration for this event was rejected. You can try registering again.');
+      this.errorMessage = '❌ Your registration was rejected by the organizer. This decision is final — you cannot re-register for this event.';
+      return;
     }
     
     if (this.selectedEvent.slots?.length > 0 && !this.selectedSlot) {
@@ -1262,6 +1277,144 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     if (s === 'pending') return 'badge-warning';
     if (s === 'refunded') return 'badge-info';
     return 'badge-info';
+  }
+
+
+
+  // ── Sync user profile from server ────────────────────────────────────────
+  syncUserProfile() {
+    this.authService.getMe().subscribe({
+      next: (user: any) => {
+        const current = this.authService.getUser();
+        if (current && user) {
+          if (user.college)       { current.college = user.college; }
+          if (user.walletBalance !== undefined) { current.walletBalance = user.walletBalance; }
+          localStorage.setItem('user', JSON.stringify(current));
+          this.user = { ...this.user, ...current };
+          this.walletBalance = current.walletBalance || this.walletBalance;
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  // ─── DISCUSSION FORUM (STUDENT) ──────────────────────────────────────────────
+
+  openStudentForum(ev: any) {
+    this.studentForumEvent = ev;
+    this.studentForumComments = [];
+    this.studentForumError = '';
+    this.studentNewComment = '';
+    this.studentForumFilter = 'pinned-first';
+    this.showStudentForumModal = true;
+    this.loadStudentForumComments();
+  }
+
+  closeStudentForum() {
+    this.showStudentForumModal = false;
+    this.studentForumEvent = null;
+    this.studentForumComments = [];
+  }
+
+  loadStudentForumComments() {
+    if (!this.studentForumEvent) return;
+    this.studentForumLoading = true;
+    this.studentForumError = '';
+    const id = this.studentForumEvent._id || this.studentForumEvent.id;
+    this.eventService.getComments(id).subscribe({
+      next: (res: any) => {
+        this.studentForumComments = res.comments || [];
+        this.studentForumLoading = false;
+        this.sortStudentForumComments();
+      },
+      error: (err: any) => {
+        this.studentForumError = err?.error?.message || 'Failed to load comments';
+        this.studentForumLoading = false;
+      }
+    });
+  }
+
+  sortStudentForumComments() {
+    const arr = [...this.studentForumComments];
+    if (this.studentForumFilter === 'pinned-first') {
+      arr.sort((a: any, b: any) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+    } else if (this.studentForumFilter === 'most-recent') {
+      arr.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (this.studentForumFilter === 'most-upvoted') {
+      arr.sort((a: any, b: any) => b.upvotes - a.upvotes);
+    }
+    this.studentForumComments = arr;
+  }
+
+  setStudentForumFilter(f: string) {
+    this.studentForumFilter = f;
+    this.sortStudentForumComments();
+  }
+
+  submitStudentComment() {
+    if (!this.studentNewComment.trim() || !this.studentForumEvent) return;
+    this.studentPostingComment = true;
+    const id = this.studentForumEvent._id || this.studentForumEvent.id;
+    this.eventService.postComment(id, this.studentNewComment.trim()).subscribe({
+      next: (res: any) => {
+        if (res.comment) this.studentForumComments.unshift(res.comment);
+        this.studentNewComment = '';
+        this.studentPostingComment = false;
+        this.sortStudentForumComments();
+      },
+      error: (err: any) => {
+        this.studentForumError = err?.error?.message || 'Failed to post comment';
+        this.studentPostingComment = false;
+      }
+    });
+  }
+
+  upvoteStudentComment(comment: any) {
+    if (!this.studentForumEvent) return;
+    const id = this.studentForumEvent._id || this.studentForumEvent.id;
+    this.eventService.upvoteComment(id, comment._id).subscribe({
+      next: (res: any) => {
+        comment.upvotes = res.upvotes;
+        comment.upvoted = res.upvoted;
+      }
+    });
+  }
+
+  isMyComment(comment: any): boolean {
+    const user = this.authService.getUser() as any;
+    return user?.userId && String(comment.userId) === String(user.userId);
+  }
+
+  deleteStudentComment(commentId: string) {
+    if (!this.studentForumEvent) return;
+    const id = this.studentForumEvent._id || this.studentForumEvent.id;
+    this.eventService.deleteComment(id, commentId).subscribe({
+      next: () => {
+        this.studentForumComments = this.studentForumComments.filter((cm: any) => cm._id !== commentId);
+      },
+      error: (err: any) => {
+        this.studentForumError = err?.error?.message || 'Failed to delete comment';
+      }
+    });
+  }
+
+  formatForumTime(date: any): string {
+    if (!date) return '';
+    const d = new Date(date);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1)   return 'just now';
+    if (mins < 60)  return mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24)   return hrs + 'h ago';
+    const days = Math.floor(hrs / 24);
+    if (days < 7)   return days + 'd ago';
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   }
 
   // ─── AUTH ───────────────────────────────────────────────────────────────────

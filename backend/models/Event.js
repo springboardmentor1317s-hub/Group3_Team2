@@ -18,22 +18,35 @@ const EventSchema = new mongoose.Schema({
   status:               { type: String, enum: ['upcoming','ongoing','completed','cancelled'], default: 'upcoming' },
   imageUrl:             { type: String, default: '' },
   createdBy:            { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  
-  // ✅ ADDED: registeredUsers array (for backwards compatibility)
+
   registeredUsers: {
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     default: []
   },
-  
-  // ✅ UPDATED: feedback array with proper defaults
+
   feedback: {
     type: [{
-      userId:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-      fullName: { type: String, default: '' },
-      college:  { type: String, default: '' },
-      rating:   { type: Number, min: 1, max: 5 },
-      comment:  { type: String, default: '' },
-      createdAt:{ type: Date, default: Date.now }
+      userId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      fullName:  { type: String, default: '' },
+      college:   { type: String, default: '' },
+      rating:    { type: Number, min: 1, max: 5 },
+      comment:   { type: String, default: '' },
+      createdAt: { type: Date, default: Date.now }
+    }],
+    default: []
+  },
+
+  // ✅ NEW: Discussion forum comments for each event
+  comments: {
+    type: [{
+      userId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      fullName:  { type: String, default: '' },
+      college:   { type: String, default: '' },
+      role:      { type: String, enum: ['student','college-admin','superadmin'], default: 'student' },
+      text:      { type: String, required: true },
+      upvotes:   { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+      isPinned:  { type: Boolean, default: false },
+      createdAt: { type: Date, default: Date.now }
     }],
     default: []
   }

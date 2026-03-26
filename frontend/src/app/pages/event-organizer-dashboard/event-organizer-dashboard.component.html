@@ -43,11 +43,12 @@
         <span class="nav-label">Events</span>
         <span class="nav-badge">{{ totalEvents }}</span>
       </button>
-      <button class="nav-item" [class.active]="currentView()==='notifications'" (click)="setView('notifications'); loadNotifications()">
+      <button class="nav-item" [class.active]="currentView()==='notifications'"
+        (click)="setView('notifications'); loadNotifications()">
         <span class="nav-icon">🔔</span>
         <span class="nav-label">Notifications</span>
         @if (getUnreadCount() > 0) {
-          <span class="nav-badge danger">{{ getUnreadCount() }}</span>
+        <span class="nav-badge danger">{{ getUnreadCount() }}</span>
         }
       </button>
       <button class="nav-item" [class.active]="currentView()==='analytics'" (click)="setView('analytics')">
@@ -75,29 +76,29 @@
     <!-- ─── Top Bar ────────────────────────────────────────────────────── -->
     <header class="dash-topbar">
       <div class="topbar-title">
-        @if (currentView() === 'overview') { 
-          <h1>Dashboard Overview</h1>
-          <p>Welcome back, {{ getFullName() }}! Here's what's happening today.</p>
+        @if (currentView() === 'overview') {
+        <h1>Dashboard Overview</h1>
+        <p>Welcome back, {{ getFullName() }}! Here's what's happening today.</p>
         }
-        @if (currentView() === 'events') { 
-          <h1>Event Management</h1>
-          <p>Create, edit and manage your college events</p>
+        @if (currentView() === 'events') {
+        <h1>Event Management</h1>
+        <p>Create, edit and manage your college events</p>
         }
-        @if (currentView() === 'notifications') { 
-          <h1>Notifications Center</h1>
-          <p>Stay updated with all activities</p>
+        @if (currentView() === 'notifications') {
+        <h1>Notifications Center</h1>
+        <p>Stay updated with all activities</p>
         }
-        @if (currentView() === 'analytics') { 
-          <h1>Analytics Dashboard</h1>
-          <p>Track performance and engagement metrics</p>
+        @if (currentView() === 'analytics') {
+        <h1>Analytics Dashboard</h1>
+        <p>Track performance and engagement metrics</p>
         }
-        @if (currentView() === 'reports') { 
-          <h1>Reports & Exports</h1>
-          <p>Generate and download detailed reports</p>
+        @if (currentView() === 'reports') {
+        <h1>Reports & Exports</h1>
+        <p>Generate and download detailed reports</p>
         }
-        @if (currentView() === 'settings') { 
-          <h1>Settings</h1>
-          <p>Configure your dashboard preferences</p>
+        @if (currentView() === 'settings') {
+        <h1>Settings</h1>
+        <p>Configure your dashboard preferences</p>
         }
       </div>
       <div class="topbar-actions">
@@ -106,10 +107,10 @@
           <button class="notif-bell-btn" (click)="toggleNotifDropdown()" title="Notifications">
             <span class="bell-icon">🔔</span>
             @if (getUnreadCount() > 0) {
-              <span class="notif-count-badge">{{ getUnreadCount() }}</span>
+            <span class="notif-count-badge">{{ getUnreadCount() }}</span>
             }
           </button>
-          
+
           <!-- Notification Dropdown -->
           @if (showNotifDropdown) {
           <div class="notif-dropdown" (click)="$event.stopPropagation()">
@@ -117,21 +118,22 @@
               <div class="header-title">
                 <h4>Notifications</h4>
                 @if (getUnreadCount() > 0) {
-                  <span class="unread-badge">{{ getUnreadCount() }} new</span>
+                <span class="unread-badge">{{ getUnreadCount() }} new</span>
                 }
               </div>
-              <button class="btn-mark-all" (click)="markAllNotifsRead()" title="Mark all as read">✓ Mark all read</button>
+              <button class="btn-mark-all" (click)="markAllNotifsRead()" title="Mark all as read">✓ Mark all
+                read</button>
             </div>
-            
+
             <div class="notif-list">
               @if (notificationList.length === 0) {
-                <div class="notif-empty-state">
-                  <div class="empty-icon">🔕</div>
-                  <p>No notifications yet</p>
-                  <small>You're all caught up!</small>
-                </div>
+              <div class="notif-empty-state">
+                <div class="empty-icon">🔕</div>
+                <p>No notifications yet</p>
+                <small>You're all caught up!</small>
+              </div>
               }
-              
+
               @for (n of notificationList.slice(0, 8); track n._id) {
               <div class="notif-item" [class.unread]="!n.read" (click)="markNotifRead(n); handleNotificationClick(n)">
                 <div class="notif-icon" [ngClass]="n.type">
@@ -144,14 +146,14 @@
                   </div>
                   <p class="notif-message">{{ n.message }}</p>
                   @if (n.data?.eventTitle) {
-                    <span class="notif-event">{{ n.data.eventTitle }}</span>
+                  <span class="notif-event">{{ n.data.eventTitle }}</span>
                   }
                 </div>
                 <button class="notif-close" (click)="$event.stopPropagation(); deleteNotif(n)" title="Delete">✕</button>
               </div>
               }
             </div>
-            
+
             @if (notificationList.length > 8) {
             <div class="notif-footer">
               <button class="view-all-btn" (click)="setView('notifications'); closeNotifDropdown()">
@@ -242,7 +244,7 @@
             </div>
             <div class="stat-trend">
               @if (pendingApprovals > 0) {
-                <span class="warning">Needs attention</span>
+              <span class="warning">Needs attention</span>
               }
             </div>
           </div>
@@ -293,25 +295,25 @@
             </div>
             <div class="card-body">
               @if (filteredEvents.length === 0) {
-                <div class="empty-state-mini">
-                  <p>No events yet. Create your first event!</p>
-                </div>
+              <div class="empty-state-mini">
+                <p>No events yet. Create your first event!</p>
+              </div>
               } @else {
-                <div class="event-list">
-                  @for (ev of filteredEvents.slice(0, 5); track ev._id) {
-                  <div class="event-list-item" (click)="openEdit(ev)">
-                    <div class="event-status-dot" [ngClass]="ev.status"></div>
-                    <div class="event-info">
-                      <h4>{{ ev.title }}</h4>
-                      <p class="event-meta">
-                        <span>📅 {{ formatDate(ev.startDate) }}</span>
-                        <span>👥 {{ ev.currentParticipants || 0 }}/{{ ev.maxParticipants }}</span>
-                      </p>
-                    </div>
-                    <span class="event-badge" [ngClass]="ev.status">{{ ev.status }}</span>
+              <div class="event-list">
+                @for (ev of filteredEvents.slice(0, 5); track ev._id) {
+                <div class="event-list-item" (click)="openEdit(ev)">
+                  <div class="event-status-dot" [ngClass]="ev.status"></div>
+                  <div class="event-info">
+                    <h4>{{ ev.title }}</h4>
+                    <p class="event-meta">
+                      <span>📅 {{ formatDate(ev.startDate) }}</span>
+                      <span>👥 {{ ev.currentParticipants || 0 }}/{{ ev.maxParticipants }}</span>
+                    </p>
                   </div>
-                  }
+                  <span class="event-badge" [ngClass]="ev.status">{{ ev.status }}</span>
                 </div>
+                }
+              </div>
               }
             </div>
           </div>
@@ -324,22 +326,23 @@
             </div>
             <div class="card-body">
               @if (notificationList.length === 0) {
-                <div class="empty-state-mini">
-                  <p>No recent activity</p>
-                </div>
+              <div class="empty-state-mini">
+                <p>No recent activity</p>
+              </div>
               } @else {
-                <div class="activity-list">
-                  @for (n of notificationList.slice(0, 5); track n._id) {
-                  <div class="activity-item" [class.unread]="!n.read" (click)="markNotifRead(n); handleNotificationClick(n)">
-                    <div class="activity-icon" [ngClass]="n.type">{{ getNotifIcon(n.type) }}</div>
-                    <div class="activity-content">
-                      <p class="activity-title">{{ n.title }}</p>
-                      <p class="activity-message">{{ n.message }}</p>
-                      <span class="activity-time">{{ getTimeAgo(n.createdAt) }}</span>
-                    </div>
+              <div class="activity-list">
+                @for (n of notificationList.slice(0, 5); track n._id) {
+                <div class="activity-item" [class.unread]="!n.read"
+                  (click)="markNotifRead(n); handleNotificationClick(n)">
+                  <div class="activity-icon" [ngClass]="n.type">{{ getNotifIcon(n.type) }}</div>
+                  <div class="activity-content">
+                    <p class="activity-title">{{ n.title }}</p>
+                    <p class="activity-message">{{ n.message }}</p>
+                    <span class="activity-time">{{ getTimeAgo(n.createdAt) }}</span>
                   </div>
-                  }
                 </div>
+                }
+              </div>
               }
             </div>
           </div>
@@ -367,21 +370,26 @@
 
         <!-- Notification Filters -->
         <div class="notification-filters">
-          <button class="filter-chip" [class.active]="notificationFilter === 'all'" (click)="filterNotifications('all')">
+          <button class="filter-chip" [class.active]="notificationFilter === 'all'"
+            (click)="filterNotifications('all')">
             All
             <span class="count">{{ getNotificationList().length }}</span>
           </button>
-          <button class="filter-chip" [class.active]="notificationFilter === 'unread'" (click)="filterNotifications('unread')">
+          <button class="filter-chip" [class.active]="notificationFilter === 'unread'"
+            (click)="filterNotifications('unread')">
             Unread
             <span class="count">{{ getUnreadCount() }}</span>
           </button>
-          <button class="filter-chip" [class.active]="notificationFilter === 'registrations'" (click)="filterNotifications('registrations')">
+          <button class="filter-chip" [class.active]="notificationFilter === 'registrations'"
+            (click)="filterNotifications('registrations')">
             Registrations
           </button>
-          <button class="filter-chip" [class.active]="notificationFilter === 'events'" (click)="filterNotifications('events')">
+          <button class="filter-chip" [class.active]="notificationFilter === 'events'"
+            (click)="filterNotifications('events')">
             Events
           </button>
-          <button class="filter-chip" [class.active]="notificationFilter === 'system'" (click)="filterNotifications('system')">
+          <button class="filter-chip" [class.active]="notificationFilter === 'system'"
+            (click)="filterNotifications('system')">
             System
           </button>
         </div>
@@ -389,53 +397,54 @@
         <!-- Notifications List -->
         <div class="notifications-list-full">
           @if (filteredNotifications.length === 0) {
-            <div class="empty-state-full">
-              <div class="empty-icon">🔕</div>
-              <h3>No notifications</h3>
-              <p>You're all caught up! Check back later for updates.</p>
-            </div>
+          <div class="empty-state-full">
+            <div class="empty-icon">🔕</div>
+            <h3>No notifications</h3>
+            <p>You're all caught up! Check back later for updates.</p>
+          </div>
           } @else {
-            @for (n of filteredNotifications; track n._id) {
-            <div class="notification-card-full" [class.unread]="!n.read">
-              <div class="notification-card-left">
-                <div class="notification-icon-large" [ngClass]="n.type">
-                  {{ getNotifIcon(n.type) }}
+          @for (n of filteredNotifications; track n._id) {
+          <div class="notification-card-full" [class.unread]="!n.read">
+            <div class="notification-card-left">
+              <div class="notification-icon-large" [ngClass]="n.type">
+                {{ getNotifIcon(n.type) }}
+              </div>
+              <div class="notification-content">
+                <div class="notification-header">
+                  <h4>{{ n.title }}</h4>
+                  <span class="notification-time">{{ formatDateTime(n.createdAt) }}</span>
                 </div>
-                <div class="notification-content">
-                  <div class="notification-header">
-                    <h4>{{ n.title }}</h4>
-                    <span class="notification-time">{{ formatDateTime(n.createdAt) }}</span>
-                  </div>
-                  <p class="notification-message">{{ n.message }}</p>
-                  @if (n.data?.eventTitle) {
-                    <div class="notification-event">
-                      <span>📅 {{ n.data.eventTitle }}</span>
-                      @if (n.data?.studentName) {
-                        <span>👤 {{ n.data.studentName }}</span>
-                      }
-                    </div>
+                <p class="notification-message">{{ n.message }}</p>
+                @if (n.data?.eventTitle) {
+                <div class="notification-event">
+                  <span>📅 {{ n.data.eventTitle }}</span>
+                  @if (n.data?.studentName) {
+                  <span>👤 {{ n.data.studentName }}</span>
                   }
-                  @if (n.data?.rejectionReason) {
-                    <div class="notification-reason">
-                      <strong>Reason:</strong> {{ n.data.rejectionReason }}
-                    </div>
-                  }
-                  <div class="notification-footer">
-                    <span class="notification-time-mobile">{{ getTimeAgo(n.createdAt) }}</span>
-                    <div class="notification-actions">
-                      @if (!n.read) {
-                        <button class="btn-icon" (click)="markNotifRead(n)" title="Mark as read">✓</button>
-                      }
-                      @if (n.type === 'new-registration' && n.data?.eventId) {
-                        <button class="btn-icon" (click)="openParticipantsFromNotif(n.data.eventId)" title="View registrations">👥</button>
-                      }
-                      <button class="btn-icon danger" (click)="deleteNotif(n)" title="Delete">🗑️</button>
-                    </div>
+                </div>
+                }
+                @if (n.data?.rejectionReason) {
+                <div class="notification-reason">
+                  <strong>Reason:</strong> {{ n.data.rejectionReason }}
+                </div>
+                }
+                <div class="notification-footer">
+                  <span class="notification-time-mobile">{{ getTimeAgo(n.createdAt) }}</span>
+                  <div class="notification-actions">
+                    @if (!n.read) {
+                    <button class="btn-icon" (click)="markNotifRead(n)" title="Mark as read">✓</button>
+                    }
+                    @if (n.type === 'new-registration' && n.data?.eventId) {
+                    <button class="btn-icon" (click)="openParticipantsFromNotif(n.data.eventId)"
+                      title="View registrations">👥</button>
+                    }
+                    <button class="btn-icon danger" (click)="deleteNotif(n)" title="Delete">🗑️</button>
                   </div>
                 </div>
               </div>
             </div>
-            }
+          </div>
+          }
           }
         </div>
       </div>
@@ -492,7 +501,7 @@
                   <th>Fee</th>
                   <th>Status</th>
                   <th>Actions</th>
-                 </tr>
+                </tr>
               </thead>
               <tbody>
                 @for (ev of filteredEvents; track ev._id) {
@@ -512,7 +521,8 @@
                     <div class="progress-wrap">
                       <span>{{ ev.currentParticipants }}/{{ ev.maxParticipants }}</span>
                       <div class="progress-bar">
-                        <div class="progress-fill" [style.width.%]="(ev.currentParticipants/ev.maxParticipants)*100"></div>
+                        <div class="progress-fill" [style.width.%]="(ev.currentParticipants/ev.maxParticipants)*100">
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -523,10 +533,13 @@
                     <button class="icon-btn" title="Participants" (click)="openParticipants(ev)">👥</button>
                     <!-- ✅ Feedback button for completed events - shows star icon -->
                     @if (ev.status === 'completed') {
-                      <button class="icon-btn" title="View Feedback" (click)="openFeedback(ev)">⭐</button>
+                    <button class="icon-btn" title="View Feedback" (click)="openFeedback(ev)">⭐</button>
                     }
                     @if (ev.status !== 'cancelled') {
-                      <button class="icon-btn danger" title="Cancel" (click)="cancelEvent(ev)">🚫</button>
+                    <button class="icon-btn forum-btn" title="Discussion Forum" (click)="openForum(ev)">💬</button>
+                    }
+                    @if (ev.status !== 'cancelled') {
+                    <button class="icon-btn danger" title="Cancel" (click)="cancelEvent(ev)">🚫</button>
                     }
                     <button class="icon-btn danger" title="Delete" (click)="deleteEvent(ev)">🗑️</button>
                   </td>
@@ -837,7 +850,8 @@
 
         <div class="form-group">
           <label class="form-label">Description *</label>
-          <textarea formControlName="description" class="form-control" rows="3" placeholder="Describe the event..."></textarea>
+          <textarea formControlName="description" class="form-control" rows="3"
+            placeholder="Describe the event..."></textarea>
         </div>
 
         <div class="form-row">
@@ -885,7 +899,8 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Registration Fee (₹)</label>
-            <input type="number" formControlName="registrationFee" class="form-control" min="0" placeholder="0 for free">
+            <input type="number" formControlName="registrationFee" class="form-control" min="0"
+              placeholder="0 for free">
           </div>
           <div class="form-group">
             <label class="form-label">Contact Email *</label>
@@ -897,20 +912,21 @@
           <label class="form-label">Event Image</label>
           <div class="image-upload-container">
             @if (imagePreviewUrl) {
-              <div class="image-preview-container">
-                <img [src]="imagePreviewUrl" class="image-preview" alt="Preview">
-                <button type="button" class="btn-remove-image" (click)="clearImage()">✕</button>
-              </div>
+            <div class="image-preview-container">
+              <img [src]="imagePreviewUrl" class="image-preview" alt="Preview">
+              <button type="button" class="btn-remove-image" (click)="clearImage()">✕</button>
+            </div>
             }
             @if (!imagePreviewUrl) {
-              <div class="file-input-wrapper">
-                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" (change)="onImageSelected($event)" class="file-input">
-                <span class="file-input-hint">Click to upload (max 5 MB)</span>
-              </div>
+            <div class="file-input-wrapper">
+              <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" (change)="onImageSelected($event)"
+                class="file-input">
+              <span class="file-input-hint">Click to upload (max 5 MB)</span>
+            </div>
             } @else {
-              <div class="change-image-btn">
-                <button type="button" class="btn btn-secondary btn-sm" (click)="clearImage()">Change Image</button>
-              </div>
+            <div class="change-image-btn">
+              <button type="button" class="btn btn-secondary btn-sm" (click)="clearImage()">Change Image</button>
+            </div>
             }
           </div>
           @if (formError) { <div class="form-error">{{ formError }}</div> }
@@ -1014,20 +1030,21 @@
           <label class="form-label">Event Image</label>
           <div class="image-upload-container">
             @if (imagePreviewUrl) {
-              <div class="image-preview-container">
-                <img [src]="imagePreviewUrl" class="image-preview" alt="Preview">
-                <button type="button" class="btn-remove-image" (click)="clearImage()" title="Remove image">✕</button>
-              </div>
-              <div class="change-image-btn">
-                <button type="button" class="btn btn-secondary btn-sm" (click)="clearImage()">Change Image</button>
-              </div>
+            <div class="image-preview-container">
+              <img [src]="imagePreviewUrl" class="image-preview" alt="Preview">
+              <button type="button" class="btn-remove-image" (click)="clearImage()" title="Remove image">✕</button>
+            </div>
+            <div class="change-image-btn">
+              <button type="button" class="btn btn-secondary btn-sm" (click)="clearImage()">Change Image</button>
+            </div>
             }
             @if (!imagePreviewUrl) {
-              <div class="file-input-wrapper">
-                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" (change)="onImageSelected($event)" class="file-input">
-                <span class="file-input-hint">Click to upload new image (max 5 MB)</span>
-                <small class="form-hint">Leave blank to keep the existing image.</small>
-              </div>
+            <div class="file-input-wrapper">
+              <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" (change)="onImageSelected($event)"
+                class="file-input">
+              <span class="file-input-hint">Click to upload new image (max 5 MB)</span>
+              <small class="form-hint">Leave blank to keep the existing image.</small>
+            </div>
             }
           </div>
           @if (formError) { <div class="form-error">{{ formError }}</div> }
@@ -1063,21 +1080,42 @@
           <span class="avg-label">{{ selectedEventFeedback.length }} review(s)</span>
         </div>
       </div>
-      
-      @if (selectedEventFeedback.length === 0) {
-        <div class="empty-state">
-          <p>No feedback yet for this event.</p>
-        </div>
+
+      <!-- Feedback Filter Chips -->
+      @if (selectedEventFeedback.length > 0) {
+      <div class="feedback-filter-chips">
+        <button class="fb-chip" [class.active]="feedbackFilter === 'all'"
+          (click)="setFeedbackFilter('all')">All</button>
+        <button class="fb-chip" [class.active]="feedbackFilter === 'positive'"
+          (click)="setFeedbackFilter('positive')">Positive (4-5&#9733;)</button>
+        <button class="fb-chip" [class.active]="feedbackFilter === 'neutral'"
+          (click)="setFeedbackFilter('neutral')">&#128528; Neutral (3&#9733;)</button>
+        <button class="fb-chip" [class.active]="feedbackFilter === 'negative'"
+          (click)="setFeedbackFilter('negative')">&#128078; Negative (1-2&#9733;)</button>
+        <button class="fb-chip" [class.active]="feedbackFilter === 'recent'"
+          (click)="setFeedbackFilter('recent')">Most Recent</button>
+      </div>
+      <p class="fb-count">Showing {{ filteredFeedback.length }} of {{ selectedEventFeedback.length }} review(s)</p>
       }
-      
-      <!-- Individual Feedback List -->
-      @for (fb of selectedEventFeedback; track $index) {
+
+      @if (selectedEventFeedback.length === 0) {
+      <div class="empty-state">
+        <p>No feedback yet for this event.</p>
+      </div>
+      }
+
+      <!-- Individual Feedback List (filtered) -->
+      @for (fb of filteredFeedback; track $index) {
       <div class="feedback-item">
         <div class="feedback-author">
           <div class="fb-avatar">{{ (fb.fullName || 'S').charAt(0) }}</div>
           <div>
             <div class="fb-name">{{ fb.fullName || 'Anonymous' }}</div>
             @if(fb.college){<div class="fb-college">{{ fb.college }}</div>}
+          </div>
+          <div class="fb-rating-badge" [class.positive]="fb.rating >= 4" [class.neutral]="fb.rating === 3"
+            [class.negative]="fb.rating <= 2">
+            {{ fb.rating }}&#9733;
           </div>
         </div>
         <div class="feedback-stars">{{ getStars(fb.rating) }}</div>
@@ -1092,6 +1130,109 @@
   </div>
 </div>
 }
+
+
+<!-- ================================================================
+     DISCUSSION FORUM MODAL
+     ================================================================ -->
+@if (showForumModal && forumEvent) {
+<div class="modal-overlay forum-overlay" (click)="closeForum()">
+  <div class="modal-box forum-box" (click)="$event.stopPropagation()">
+    <div class="modal-header forum-header">
+      <div class="forum-title-wrap">
+        <!-- <span class="forum-icon">&#128172;</span> -->
+        <div>
+          <h3>Discussion Forum</h3>
+          <p class="forum-subtitle">{{ forumEvent.title }}</p>
+        </div>
+      </div>
+      <button class="modal-close" (click)="closeForum()">&#10005;</button>
+    </div>
+
+    <div class="modal-body forum-body">
+      <!-- Moderator Banner -->
+      <div class="moderator-banner">
+        <span> You are the Forum Moderator — your posts appear pinned at the top</span>
+      </div>
+
+      <!-- Sort / Filter Chips -->
+      <div class="forum-filter-row">
+        <span class="filter-label">Sort:</span>
+        <button class="forum-chip" [class.active]="forumCommentFilter === 'pinned-first'"
+          (click)="setForumFilter('pinned-first')">Admin First</button>
+        <button class="forum-chip" [class.active]="forumCommentFilter === 'most-recent'"
+          (click)="setForumFilter('most-recent')">Most Recent</button>
+        <button class="forum-chip" [class.active]="forumCommentFilter === 'most-upvoted'"
+          (click)="setForumFilter('most-upvoted')">Most Upvoted</button>
+      </div>
+
+      <!-- Compose Box -->
+      <div class="forum-compose">
+        <div class="compose-avatar admin-avatar">{{ getForumUserInitial() }}</div>
+        <div class="compose-area">
+          <textarea class="compose-input" [(ngModel)]="newCommentText"
+            placeholder="Post an announcement or message to all participants..." rows="2"
+            (keydown.enter)="$event.preventDefault(); submitForumComment()"></textarea>
+          <div class="compose-actions">
+            <span class="compose-hint">&#9166; Enter to post</span>
+            <button class="btn-post" (click)="submitForumComment()"
+              [disabled]="postingComment || !newCommentText.trim()">
+              @if (postingComment) { Posting... } @else { &#128228; Post }
+            </button>
+          </div>
+        </div>
+      </div>
+
+      @if (forumError) {
+      <div class="forum-error">{{ forumError }}</div>
+      }
+
+      <!-- Comments List -->
+      @if (forumLoading) {
+      <div class="forum-loading">Loading comments...</div>
+      } @else if (forumComments.length === 0) {
+      <div class="forum-empty">
+        <p>&#128172; No messages yet. Be the first to post!</p>
+      </div>
+      } @else {
+      <div class="forum-comments-list">
+        @for (cm of forumComments; track cm._id) {
+        <div class="forum-comment" [class.pinned]="cm.isPinned" [class.admin-comment]="cm.isAdmin">
+          @if (cm.isPinned) {
+          <div class="pinned-badge">Moderator</div>
+          }
+          <div class="comment-header">
+            <div class="comment-avatar" [class.admin-av]="cm.isAdmin">
+              {{ (cm.fullName || 'U').charAt(0) }}
+            </div>
+            <div class="comment-meta">
+              <span class="comment-name">{{ cm.fullName }}</span>
+              @if (cm.isAdmin) { <span class="admin-tag"> Moderator</span> }
+              @if (cm.college && !cm.isAdmin) { <span class="comment-college">{{ cm.college }}</span> }
+              <span class="comment-time">{{ formatForumTime(cm.createdAt) }}</span>
+            </div>
+            <button class="comment-delete" title="Delete" (click)="deleteForumComment(cm._id)">Delete</button>
+          </div>
+          <p class="comment-text">{{ cm.text }}</p>
+          <div class="comment-footer">
+            <button class="upvote-btn" (click)="upvoteForumComment(cm)">
+            ❤  {{ cm.upvotes }}
+            </button>
+          </div>
+        </div>
+        }
+      </div>
+      }
+    </div>
+
+    <div class="modal-footer">
+      <span class="forum-total">{{ forumComments.length }} message(s)</span>
+      <button class="btn btn-secondary" (click)="closeForum()">Close</button>
+    </div>
+  </div>
+</div>
+}
+
 
 <!-- ═══════════════════════════════════════════════════════════
      PARTICIPANTS MODAL
@@ -1108,28 +1249,32 @@
       <div class="bulk-actions-bar">
         <div class="selection-info">{{ selectedParticipantIds.size }} selected</div>
         <div class="bulk-buttons">
-          <button class="btn-bulk approve" [disabled]="selectedParticipantIds.size === 0" (click)="bulkApprove()">✅ Approve Selected</button>
-          <button class="btn-bulk reject" [disabled]="selectedParticipantIds.size === 0" (click)="openBulkRejectModal()">❌ Reject Selected</button>
+          <button class="btn-bulk approve" [disabled]="selectedParticipantIds.size === 0" (click)="bulkApprove()">✅
+            Approve Selected</button>
+          <button class="btn-bulk reject" [disabled]="selectedParticipantIds.size === 0"
+            (click)="openBulkRejectModal()">❌ Reject Selected</button>
         </div>
       </div>
       }
 
       @if (bulkActionStatus === 'success') {
-        <div class="alert-success-bar">✅ {{ bulkActionMessage }}</div>
+      <div class="alert-success-bar">✅ {{ bulkActionMessage }}</div>
       }
       @if (bulkActionStatus === 'error') {
-        <div class="alert-error-bar">❌ {{ bulkActionMessage }}</div>
+      <div class="alert-error-bar">❌ {{ bulkActionMessage }}</div>
       }
 
       @if (loadingParticipants) {
-        <div class="loading-spinner">Loading participants...</div>
+      <div class="loading-spinner">Loading participants...</div>
       } @else if (participants.length === 0) {
-        <div class="empty-state"><p>No registrations yet.</p></div>
+      <div class="empty-state">
+        <p>No registrations yet.</p>
+      </div>
       } @else {
       <div class="table-wrap">
         <table class="data-table">
           <thead>
-             <tr>
+            <tr>
               <th><input type="checkbox" [checked]="isAllSelected()" (change)="toggleSelectAll()"></th>
               <th>Name</th>
               <th>Email</th>
@@ -1137,12 +1282,13 @@
               <th>Slot</th>
               <th>Status</th>
               <th>Actions</th>
-             </tr>
+            </tr>
           </thead>
           <tbody>
             @for (p of participants; track p.registrationId) {
             <tr [class.selected]="selectedParticipantIds.has(p.registrationId)">
-              <td><input type="checkbox" [checked]="selectedParticipantIds.has(p.registrationId)" (change)="toggleParticipantSelection(p.registrationId)"></td>
+              <td><input type="checkbox" [checked]="selectedParticipantIds.has(p.registrationId)"
+                  (change)="toggleParticipantSelection(p.registrationId)"></td>
               <td><strong>{{ p.fullName }}</strong></td>
               <td>{{ p.email }}</td>
               <td>{{ p.college || '—' }}</td>
@@ -1154,15 +1300,17 @@
                   @else { ⏳ Pending }
                 </span>
                 @if (p.approvalStatus === 'rejected' && p.rejectionReason) {
-                  <div class="rejection-note">{{ p.rejectionReason }}</div>
+                <div class="rejection-note">{{ p.rejectionReason }}</div>
                 }
               </td>
               <td class="actions-cell">
                 @if (p.approvalStatus !== 'approved') {
-                <button class="btn-action approve-btn" (click)="approveRegistration(p.registrationId)" title="Approve">✅</button>
+                <button class="btn-action approve-btn" (click)="approveRegistration(p.registrationId)"
+                  title="Approve">✅</button>
                 }
                 @if (p.approvalStatus !== 'rejected') {
-                <button class="btn-action reject-btn" (click)="openRejectModal(p.registrationId)" title="Reject">❌</button>
+                <button class="btn-action reject-btn" (click)="openRejectModal(p.registrationId)"
+                  title="Reject">❌</button>
                 }
               </td>
             </tr>
@@ -1189,7 +1337,8 @@
     </div>
     <div class="modal-body">
       <p style="margin-bottom:12px;color:#666;">Provide a reason for rejection (optional but recommended):</p>
-      <textarea class="reject-textarea" [(ngModel)]="rejectReason" placeholder="e.g. Capacity full, eligibility criteria not met..." rows="4"></textarea>
+      <textarea class="reject-textarea" [(ngModel)]="rejectReason"
+        placeholder="e.g. Capacity full, eligibility criteria not met..." rows="4"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" (click)="closeRejectModal()">Cancel</button>
@@ -1209,7 +1358,8 @@
     </div>
     <div class="modal-body">
       <p style="margin-bottom:12px;color:#666;">Rejection reason (optional):</p>
-      <textarea class="reject-textarea" [(ngModel)]="bulkRejectReason" placeholder="Reason for rejection..." rows="3"></textarea>
+      <textarea class="reject-textarea" [(ngModel)]="bulkRejectReason" placeholder="Reason for rejection..."
+        rows="3"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" (click)="closeBulkRejectModal()">Cancel</button>

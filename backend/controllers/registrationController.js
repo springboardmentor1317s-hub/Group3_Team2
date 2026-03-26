@@ -3,167 +3,244 @@ const Event        = require('../models/Event');
 const User         = require('../models/User');
 const Notification = require('../models/Notification');
 
-// ── Helper: create notification ───────────────────────────
+// ── Helper: create notification ──────────────────────────
 async function notify(userId, type, title, message, eventId = null) {
   try { await Notification.create({ userId, type, title, message, eventId }); }
   catch (e) { console.error('Notification error:', e.message); }
 }
 
+// ── Helper: refund payment when admin rejects ─────────────
+async function processRefund(registration) {
+  if (!registration || registration.paymentAmount <= 0 || registration.paymentStatus !== 'paid') {
+    return { refundProcessed: false, refundMessage: '' };
+  }
+  let refundProcessed = false;
+  let refundMessage   = '';
+
+  if (registration.paymentMethod === 'wallet') {
+    await User.findByIdAndUpdate(registration.userId, {
+      $inc: { walletBalance: registration.paymentAmount }
+    });
+    refundProcessed = true;
+    refundMessage   = `Rs.${registration.paymentAmount} refunded to your wallet`;
+    console.log(`Wallet refund: Rs.${registration.paymentAmount} to user ${registration.userId}`);
+  } else {
+    refundProcessed = true;
+    const m = (registration.paymentMethod || 'payment method').toUpperCase();
+    refundMessage = `Rs.${registration.paymentAmount} will be refunded to your ${m} (TXN: ${registration.paymentTxnId || '-'})`;
+    console.log(`External refund flagged: ${refundMessage}`);
+  }
+
+  // Use findByIdAndUpdate to avoid Mongoose enum validation on stale document
+  await Registration.findByIdAndUpdate(registration._id, {
+    $set: { paymentStatus: 'refunded' }
+  });
+
+  return { refundProcessed, refundMessage };
+}
+
+// ── Helper: re-charge payment when admin re-approves ──────
+// Called when approving a student whose paymentStatus is 'refunded'
+async function processReCharge(registration, event) {
+  // Only applies to paid events where payment was previously refunded
+  if (!registration || registration.paymentAmount <= 0 || registration.paymentStatus !== 'refunded') {
+    return { chargeProcessed: false, chargeMessage: '', requiresStudentAction: false };
+  }
+
+  const amount = registration.paymentAmount;
+
+  // Wallet payment: try to re-deduct from wallet
+  if (registration.paymentMethod === 'wallet') {
+    const student = await User.findById(registration.userId).select('walletBalance fullName');
+    if (!student) return { chargeProcessed: false, chargeMessage: 'Student not found', requiresStudentAction: false };
+
+    if (student.walletBalance >= amount) {
+      // Sufficient balance — deduct silently
+      await User.findByIdAndUpdate(registration.userId, {
+        $inc: { walletBalance: -amount }
+      });
+      await Registration.findByIdAndUpdate(registration._id, {
+        $set: { paymentStatus: 'paid' }
+      });
+      console.log(`Re-charge: Rs.${amount} deducted from wallet of user ${registration.userId}`);
+      return {
+        chargeProcessed:      true,
+        chargeMessage:        `Rs.${amount} re-deducted from student's wallet`,
+        requiresStudentAction: false
+      };
+    } else {
+      // Insufficient balance — mark as payment_pending and notify student
+      await Registration.findByIdAndUpdate(registration._id, {
+        $set: { paymentStatus: 'payment_pending' }
+      });
+      console.log(`Re-charge: Insufficient wallet balance for user ${registration.userId}. Needs Rs.${amount}, has Rs.${student.walletBalance}`);
+      return {
+        chargeProcessed:      false,
+        chargeMessage:        `Student has insufficient wallet balance (has Rs.${student.walletBalance}, needs Rs.${amount}). Student notified to pay.`,
+        requiresStudentAction: true,
+        shortfall:            amount - student.walletBalance
+      };
+    }
+  }
+
+  // UPI/Card/NetBanking: cannot auto-charge, mark as payment_pending and notify student
+  await Registration.findByIdAndUpdate(registration._id, {
+    $set: { paymentStatus: 'payment_pending' }
+  });
+  const method = (registration.paymentMethod || 'original payment method').toUpperCase();
+  console.log(`Re-charge: Cannot auto-charge ${method} for user ${registration.userId}. Marked payment_pending.`);
+  return {
+    chargeProcessed:      false,
+    chargeMessage:        `Student needs to re-pay Rs.${amount} via ${method}. Student has been notified.`,
+    requiresStudentAction: true
+  };
+}
+
 // ── POST /:eventId/register ───────────────────────────────
 exports.registerForEvent = async (req, res) => {
   try {
-    const { id } = req.params;   // eventId
+    const { id } = req.params;
     const { selectedSlot, paymentMethod, paymentTxnId, paymentAmount, useWallet } = req.body;
     const userId = req.userId;
-
-    console.log(`📝 Registration Request:`);
-    console.log(`   Event ID: ${id}`);
-    console.log(`   User ID: ${userId}`);
-    console.log(`   Payment Method: ${paymentMethod}`);
-    console.log(`   Use Wallet: ${useWallet}`);
-    console.log(`   Payment Amount: ${paymentAmount}`);
-    console.log(`   Transaction ID: ${paymentTxnId}`);
 
     const event = await Event.findById(id);
     if (!event) return res.status(404).json({ message: 'Event not found' });
     if (event.status === 'cancelled') return res.status(400).json({ message: 'Event is cancelled' });
     if (event.currentParticipants >= event.maxParticipants) return res.status(400).json({ message: 'Event is full' });
 
-    // Check already registered
+    // Check existing registration
     const existing = await Registration.findOne({ eventId: id, userId });
-    if (existing) return res.status(400).json({ message: 'You are already registered for this event' });
+    if (existing) {
+      // Allow re-registration only if payment_pending (student needs to pay again)
+      if (existing.paymentStatus === 'payment_pending') {
+        return res.status(400).json({
+          message: 'You have a pending payment for this event. Please complete the payment.',
+          paymentPending: true,
+          registrationId: existing._id,
+          amountDue: existing.paymentAmount
+        });
+      }
+      if (existing.approvalStatus === 'rejected') {
+        return res.status(400).json({
+          message: 'Your registration was previously rejected by the organizer. This decision is final.',
+          finalRejection: true
+        });
+      }
+      return res.status(400).json({ message: 'You are already registered for this event' });
+    }
 
-    // Payment logic
-    let payStatus = 'free';
-    let txnId = paymentTxnId || '';
-    let finalAmount = 0;
-    let updatedWalletBalance = null;
-    let paymentProcessed = false;
-    
+    let payStatus = 'free', txnId = paymentTxnId || '', finalAmount = 0, paymentProcessed = false;
+
     if (event.registrationFee > 0) {
       finalAmount = event.registrationFee;
-      
       if (useWallet === true || paymentMethod === 'wallet') {
-        // WALLET PAYMENT - Deduct from wallet
         const student = await User.findById(userId);
-        if (!student || student.walletBalance < event.registrationFee) {
+        if (!student || student.walletBalance < event.registrationFee)
           return res.status(400).json({ message: 'Insufficient wallet balance' });
-        }
-        
         student.walletBalance -= event.registrationFee;
         await student.save();
-        
         payStatus = 'paid';
         txnId = 'WALLET-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
-        updatedWalletBalance = student.walletBalance;
         paymentProcessed = true;
-        
-        console.log(`💰 Wallet payment successful: ₹${event.registrationFee} deducted, New balance: ${updatedWalletBalance}`);
-        
-      } else if (paymentMethod === 'upi') {
-        // UPI PAYMENT
-        console.log(`💳 Processing UPI payment of ₹${event.registrationFee}`);
-        
-        // Generate transaction ID if not provided
-        if (!txnId) {
-          txnId = 'UPI-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
-        }
-        
-        payStatus = 'paid';
-        paymentProcessed = true;
-        
-        console.log(`✅ UPI payment successful! Transaction ID: ${txnId}`);
-        
-      } else if (paymentMethod === 'card') {
-        // CARD PAYMENT
-        console.log(`💳 Processing Card payment of ₹${event.registrationFee}`);
-        
-        if (!txnId) {
-          txnId = 'CARD-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
-        }
-        
-        payStatus = 'paid';
-        paymentProcessed = true;
-        
-        console.log(`✅ Card payment successful! Transaction ID: ${txnId}`);
-        
-      } else if (paymentMethod === 'netbanking') {
-        // NET BANKING PAYMENT
-        console.log(`🏦 Processing Net Banking payment of ₹${event.registrationFee}`);
-        
-        if (!txnId) {
-          txnId = 'NB-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
-        }
-        
-        payStatus = 'paid';
-        paymentProcessed = true;
-        
-        console.log(`✅ Net Banking payment successful! Transaction ID: ${txnId}`);
-        
+      } else if (['upi','card','netbanking'].includes(paymentMethod)) {
+        if (!txnId) txnId = paymentMethod.toUpperCase() + '-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+        payStatus = 'paid'; paymentProcessed = true;
       } else if (paymentMethod && paymentAmount) {
-        // OTHER PAYMENT METHODS
-        console.log(`💳 Processing ${paymentMethod} payment of ₹${event.registrationFee}`);
-        
-        if (!txnId) {
-          txnId = 'PAY-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
-        }
-        
-        payStatus = 'paid';
-        paymentProcessed = true;
-        
-        console.log(`✅ ${paymentMethod} payment successful! Transaction ID: ${txnId}`);
-        
+        if (!txnId) txnId = 'PAY-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+        payStatus = 'paid'; paymentProcessed = true;
       } else {
         return res.status(400).json({ message: 'Payment required for this event' });
       }
     }
 
-    // Create registration
     const registration = await Registration.create({
-      eventId:       id,
+      eventId:        id,
       userId,
-      selectedSlot:  selectedSlot || '',
+      selectedSlot:   selectedSlot || '',
       approvalStatus: 'pending',
-      paymentStatus: payStatus,
-      paymentMethod: useWallet ? 'wallet' : (paymentMethod || ''),
-      paymentTxnId:  txnId,
-      paymentAmount: finalAmount
+      paymentStatus:  payStatus,
+      paymentMethod:  useWallet ? 'wallet' : (paymentMethod || ''),
+      paymentTxnId:   txnId,
+      paymentAmount:  finalAmount
     });
 
-    // Update event participant count
     event.currentParticipants += 1;
     await event.save();
 
-    // Notify event creator about new registration
     if (event.createdBy) {
       const student = await User.findById(userId);
-      await notify(event.createdBy, 'new-registration', '📋 New Registration Request',
+      await notify(event.createdBy, 'new-registration', 'New Registration Request',
         `${student?.fullName || 'A student'} from ${student?.college || 'unknown'} wants to join "${event.title}"`,
         event._id);
     }
 
-    // Get updated user for wallet balance
     const updatedUser = await User.findById(userId).select('walletBalance');
-    const currentWalletBalance = updatedUser?.walletBalance || updatedWalletBalance;
-
-    // Return success response
     res.status(201).json({
-      message:           `Successfully registered for ${event.title}`,
-      registrationId:    registration._id,
-      walletBalance:     currentWalletBalance,
-      paymentStatus:     payStatus,
-      paymentMethod:     useWallet ? 'wallet' : (paymentMethod || ''),
-      paymentTxnId:      txnId,
-      paymentAmount:     finalAmount,
-      paymentProcessed:  paymentProcessed,
+      message:          `Successfully registered for ${event.title}`,
+      registrationId:   registration._id,
+      walletBalance:    updatedUser?.walletBalance || 0,
+      paymentStatus:    payStatus,
+      paymentMethod:    useWallet ? 'wallet' : (paymentMethod || ''),
+      paymentTxnId:     txnId,
+      paymentAmount:    finalAmount,
+      paymentProcessed,
       registration
     });
-    
   } catch (err) {
-    if (err.code === 11000) {
-      return res.status(400).json({ message: 'Already registered for this event' });
+    if (err.code === 11000) return res.status(400).json({ message: 'Already registered for this event' });
+    console.error('registerForEvent error:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ── POST /:eventId/pay — student re-pays after re-approval ─
+exports.payForRegistration = async (req, res) => {
+  try {
+    const { id } = req.params; // registrationId
+    const { paymentMethod, paymentTxnId, useWallet } = req.body;
+    const userId = req.userId;
+
+    const reg = await Registration.findOne({ _id: id, userId });
+    if (!reg) return res.status(404).json({ message: 'Registration not found' });
+    if (reg.paymentStatus !== 'payment_pending') return res.status(400).json({ message: 'No payment pending for this registration' });
+
+    const event = await Event.findById(reg.eventId);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    const amount = reg.paymentAmount;
+    let txnId = paymentTxnId || '';
+
+    if (useWallet === true || paymentMethod === 'wallet') {
+      const student = await User.findById(userId);
+      if (!student || student.walletBalance < amount)
+        return res.status(400).json({ message: `Insufficient wallet balance. You need Rs.${amount}, you have Rs.${student?.walletBalance || 0}` });
+      await User.findByIdAndUpdate(userId, { $inc: { walletBalance: -amount } });
+      txnId = 'WALLET-REPAY-' + Date.now();
+    } else if (['upi','card','netbanking'].includes(paymentMethod)) {
+      if (!txnId) txnId = paymentMethod.toUpperCase() + '-REPAY-' + Date.now();
+    } else {
+      return res.status(400).json({ message: 'Valid payment method required' });
     }
-    console.error('❌ registerForEvent error:', err.message);
+
+    await Registration.findByIdAndUpdate(id, {
+      $set: {
+        paymentStatus: 'paid',
+        paymentMethod: useWallet ? 'wallet' : paymentMethod,
+        paymentTxnId:  txnId
+      }
+    });
+
+    const updatedUser = await User.findById(userId).select('walletBalance');
+    await notify(userId, 'general', 'Payment Successful',
+      `Your payment of Rs.${amount} for "${event.title}" was successful. You are confirmed!`, event._id);
+
+    res.json({
+      message:       'Payment successful! Your registration is now confirmed.',
+      walletBalance: updatedUser?.walletBalance || 0,
+      paymentTxnId:  txnId
+    });
+  } catch (err) {
+    console.error('payForRegistration error:', err.message);
     res.status(500).json({ message: err.message });
   }
 };
@@ -171,45 +248,36 @@ exports.registerForEvent = async (req, res) => {
 // ── GET /:id/registrations (admin) ────────────────────────
 exports.getEventRegistrations = async (req, res) => {
   try {
-    const { id } = req.params;
-    const registrations = await Registration.find({ eventId: id })
-      .populate('userId', 'fullName email college')
+    const registrations = await Registration.find({ eventId: req.params.id })
+      .populate('userId', 'fullName email college walletBalance')
       .sort({ registeredAt: -1 });
 
-    const formatted = registrations.map(r => {
-      const rid = r._id.toString();
-      return {
-        _id:             rid,
-        registrationId:  rid,
-        fullName:        r.userId?.fullName  || 'Unknown',
-        email:           r.userId?.email     || '',
-        college:         r.userId?.college   || '',
-        selectedSlot:    r.selectedSlot      || '',
-        approvalStatus:  r.approvalStatus,
-        rejectionReason: r.rejectionReason   || '',
-        paymentStatus:   r.paymentStatus,
-        paymentMethod:   r.paymentMethod     || '—',
-        paymentAmount:   r.paymentAmount     || 0,
-        registeredAt:    r.registeredAt
-      };
-    });
+    const formatted = registrations.map(r => ({
+      _id:             r._id.toString(),
+      registrationId:  r._id.toString(),
+      fullName:        r.userId?.fullName  || 'Unknown',
+      email:           r.userId?.email     || '',
+      college:         r.userId?.college   || '',
+      walletBalance:   r.userId?.walletBalance || 0,
+      selectedSlot:    r.selectedSlot      || '',
+      approvalStatus:  r.approvalStatus,
+      rejectionReason: r.rejectionReason   || '',
+      paymentStatus:   r.paymentStatus,
+      paymentMethod:   r.paymentMethod     || '-',
+      paymentAmount:   r.paymentAmount     || 0,
+      registeredAt:    r.registeredAt
+    }));
 
     res.json({ registrations: formatted });
-  } catch (err) {
-    console.error('getEventRegistrations error:', err.message);
-    res.status(500).json({ message: err.message });
-  }
+  } catch (err) { res.status(500).json({ message: err.message }); }
 };
 
 // ── GET /my/registrations ─────────────────────────────────
 exports.getMyRegistrations = async (req, res) => {
   try {
-    const userId = req.userId;
-    const regs   = await Registration.find({ userId })
+    const regs = await Registration.find({ userId: req.userId })
       .populate('eventId')
       .sort({ registeredAt: -1 });
-
-    console.log(`🔍 Found ${regs.length} registrations for user ${userId}`);
 
     const now = new Date();
     const formatted = regs.map(r => {
@@ -236,13 +304,10 @@ exports.getMyRegistrations = async (req, res) => {
         paymentAmount:   r.paymentAmount,
         hasFeedback:     r.hasFeedback || false
       };
-    }).filter(x => x !== null);
+    }).filter(Boolean);
 
     res.json(formatted);
-  } catch (err) {
-    console.error('getMyRegistrations error:', err.message);
-    res.status(500).json({ message: err.message });
-  }
+  } catch (err) { res.status(500).json({ message: err.message }); }
 };
 
 // ── PATCH /:id/status (single approve/reject) ────────────
@@ -255,21 +320,52 @@ exports.updateStatus = async (req, res) => {
     const reg = await Registration.findById(req.params.id);
     if (!reg) return res.status(404).json({ message: 'Registration not found' });
 
-    reg.approvalStatus  = status;
-    reg.rejectionReason = status === 'rejected' ? (rejectionReason || '') : '';
-    await reg.save();
-
     const event = await Event.findById(reg.eventId);
     const title = event?.title || 'the event';
 
-    if (status === 'approved')
-      await notify(reg.userId, 'registration-approved', '✅ Registration Approved!',
-        `Your registration for "${title}" has been approved. Get ready!`, reg.eventId);
-    else if (status === 'rejected')
-      await notify(reg.userId, 'registration-rejected', '❌ Registration Rejected',
-        `Your registration for "${title}" was rejected.${rejectionReason ? ' Reason: ' + rejectionReason : ''}`, reg.eventId);
+    let refundInfo  = { refundProcessed: false, refundMessage: '' };
+    let chargeInfo  = { chargeProcessed: false, chargeMessage: '', requiresStudentAction: false };
 
-    res.json({ message: `Registration ${status}`, registration: reg });
+    if (status === 'rejected' && reg.approvalStatus !== 'rejected') {
+      // Rejecting — refund if paid
+      refundInfo = await processRefund(reg);
+
+    } else if (status === 'approved' && reg.paymentStatus === 'refunded') {
+      // Re-approving after previous rejection — re-charge payment
+      chargeInfo = await processReCharge(reg, event);
+    }
+
+    // Update approval status
+    await Registration.findByIdAndUpdate(req.params.id, {
+      $set: {
+        approvalStatus:  status,
+        rejectionReason: status === 'rejected' ? (rejectionReason || '') : ''
+      }
+    });
+
+    // Send notifications
+    if (status === 'approved') {
+      if (chargeInfo.requiresStudentAction) {
+        // Student needs to pay again
+        await notify(reg.userId, 'general', 'Re-Approval: Payment Required',
+          `Good news! Your registration for "${title}" has been re-approved. However, you need to complete payment of Rs.${reg.paymentAmount} to confirm your spot. Please visit the event and complete payment.`,
+          reg.eventId);
+      } else {
+        await notify(reg.userId, 'registration-approved', 'Registration Approved!',
+          `Your registration for "${title}" has been approved. Get ready!`, reg.eventId);
+      }
+    } else if (status === 'rejected') {
+      const refundNote = refundInfo.refundProcessed ? ` ${refundInfo.refundMessage}.` : '';
+      await notify(reg.userId, 'registration-rejected', 'Registration Rejected',
+        `Your registration for "${title}" was rejected.${rejectionReason ? ' Reason: ' + rejectionReason : ''}${refundNote}`,
+        reg.eventId);
+    }
+
+    res.json({
+      message: `Registration ${status}`,
+      ...refundInfo,
+      ...chargeInfo
+    });
   } catch (err) {
     console.error('updateStatus error:', err.message);
     res.status(500).json({ message: err.message });
@@ -284,65 +380,95 @@ exports.bulkUpdateStatus = async (req, res) => {
     if (!['approved','rejected','pending'].includes(status))
       return res.status(400).json({ message: 'Invalid status' });
 
-    const update = { approvalStatus: status };
-    if (status === 'rejected') update.rejectionReason = rejectionReason || '';
-    else update.rejectionReason = '';
-
-    await Registration.updateMany({ _id: { $in: ids } }, { $set: update });
-
     const regs = await Registration.find({ _id: { $in: ids } }).populate('eventId', 'title');
+    let totalRefunded   = 0;
+    let totalRecharged  = 0;
+    let pendingPayments = 0;
+
     for (const reg of regs) {
       const title = reg.eventId?.title || 'the event';
-      if (status === 'approved')
-        await notify(reg.userId, 'registration-approved', '✅ Registration Approved!',
-          `Your registration for "${title}" has been approved!`, reg.eventId?._id);
-      else if (status === 'rejected')
-        await notify(reg.userId, 'registration-rejected', '❌ Registration Rejected',
-          `Your registration for "${title}" was rejected.${rejectionReason ? ' Reason: ' + rejectionReason : ''}`, reg.eventId?._id);
+
+      if (status === 'rejected') {
+        const refundInfo = await processRefund(reg);
+        if (refundInfo.refundProcessed) totalRefunded++;
+
+        await Registration.findByIdAndUpdate(reg._id, {
+          $set: { approvalStatus: 'rejected', rejectionReason: rejectionReason || '' }
+        });
+
+        const refundNote = refundInfo.refundProcessed ? ` ${refundInfo.refundMessage}.` : '';
+        await notify(reg.userId, 'registration-rejected', 'Registration Rejected',
+          `Your registration for "${title}" was rejected.${rejectionReason ? ' Reason: ' + rejectionReason : ''}${refundNote}`,
+          reg.eventId?._id);
+
+      } else if (status === 'approved') {
+        let chargeInfo = { chargeProcessed: false, requiresStudentAction: false };
+
+        if (reg.paymentStatus === 'refunded') {
+          chargeInfo = await processReCharge(reg, reg.eventId);
+          if (chargeInfo.chargeProcessed) totalRecharged++;
+          if (chargeInfo.requiresStudentAction) pendingPayments++;
+        }
+
+        await Registration.findByIdAndUpdate(reg._id, {
+          $set: { approvalStatus: 'approved', rejectionReason: '' }
+        });
+
+        if (chargeInfo.requiresStudentAction) {
+          await notify(reg.userId, 'general', 'Re-Approval: Payment Required',
+            `Your registration for "${title}" has been re-approved! Please complete payment of Rs.${reg.paymentAmount} to confirm your spot.`,
+            reg.eventId?._id);
+        } else {
+          await notify(reg.userId, 'registration-approved', 'Registration Approved!',
+            `Your registration for "${title}" has been approved!`, reg.eventId?._id);
+        }
+
+      } else {
+        await Registration.findByIdAndUpdate(reg._id, {
+          $set: { approvalStatus: status }
+        });
+      }
     }
 
-    res.json({ success: true, message: `Successfully updated ${ids.length} registrations to ${status}` });
+    res.json({
+      success:          true,
+      message:          `Updated ${ids.length} registrations to ${status}`,
+      refundsProcessed: totalRefunded,
+      rechargesProcessed: totalRecharged,
+      pendingPayments
+    });
   } catch (err) {
     console.error('bulkUpdateStatus error:', err.message);
     res.status(500).json({ message: err.message });
   }
 };
 
-// ── DELETE /:id (unregister) ──────────────────────────────
+// ── DELETE /:id (student self-cancel) ────────────────────
 exports.unregisterFromEvent = async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.userId;
+    const { id }  = req.params;
+    const userId  = req.userId;
 
-    // Try by eventId first, then by registrationId
     let registration = await Registration.findOne({ eventId: id, userId });
     if (!registration) registration = await Registration.findOne({ _id: id, userId });
     if (!registration) return res.status(404).json({ message: 'Registration not found' });
 
-    let refundProcessed = false;
-    let refundMessage = '';
-    let updatedWalletBalance = null;
+    if (registration.approvalStatus === 'rejected') {
+      return res.status(400).json({ message: 'Cannot cancel a rejected registration.' });
+    }
 
-    // Refund if payment was made
+    let refundProcessed = false, refundMessage = '', updatedWalletBalance = null;
+
     if (registration.paymentAmount > 0 && registration.paymentStatus === 'paid') {
-      
       if (registration.paymentMethod === 'wallet') {
-        // Refund to wallet
         await User.findByIdAndUpdate(userId, { $inc: { walletBalance: registration.paymentAmount } });
         refundProcessed = true;
-        refundMessage = `₹${registration.paymentAmount} refunded to wallet`;
-        
-        const updatedUser = await User.findById(userId).select('walletBalance');
-        updatedWalletBalance = updatedUser?.walletBalance;
-        
-        console.log(`💰 Wallet refund: ₹${registration.paymentAmount} added back, New balance: ${updatedWalletBalance}`);
-        
+        refundMessage   = `Rs.${registration.paymentAmount} refunded to wallet`;
+        const u = await User.findById(userId).select('walletBalance');
+        updatedWalletBalance = u?.walletBalance;
       } else {
-        // For UPI/Card/NetBanking - refund to original payment method
         refundProcessed = true;
-        refundMessage = `₹${registration.paymentAmount} will be refunded to your ${registration.paymentMethod.toUpperCase()}`;
-        
-        console.log(`💰 ${registration.paymentMethod.toUpperCase()} refund initiated for ₹${registration.paymentAmount}, TXN: ${registration.paymentTxnId}`);
+        refundMessage   = `Rs.${registration.paymentAmount} will be refunded to your ${registration.paymentMethod.toUpperCase()}`;
       }
     }
 
@@ -350,17 +476,14 @@ exports.unregisterFromEvent = async (req, res) => {
     await registration.deleteOne();
     await Event.findByIdAndUpdate(eventId, { $inc: { currentParticipants: -1 } });
 
-    console.log(`✅ Unregistration successful: Event ${eventId}, User ${userId}`);
-
-    res.json({ 
+    res.json({
       message: 'Registration cancelled successfully',
       refundProcessed,
       refundMessage,
       walletBalance: updatedWalletBalance
     });
-    
   } catch (err) {
-    console.error('❌ unregisterFromEvent error:', err.message);
+    console.error('unregisterFromEvent error:', err.message);
     res.status(500).json({ message: err.message });
   }
 };
