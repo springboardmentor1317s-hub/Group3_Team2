@@ -264,14 +264,15 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         return event.status || 'upcoming';
       };
       
-      // Split registrations based on status - PRESERVE ALL FIELDS including hasFeedback
+      // Split registrations based on status - PRESERVE ALL FIELDS including hasFeedback and feedback
       const newRegisteredEvents = list.filter((ev: any) => 
         ev.approvalStatus === 'approved' && ev.status !== 'cancelled'
       ).map((e: any) => ({ 
         ...e, 
         status: computeEventStatus(e),
         approvalStatus: e.approvalStatus,
-        hasFeedback: e.hasFeedback || false
+        hasFeedback: e.hasFeedback || false,
+        feedback: e.feedback || []  // ✅ ADDED: include feedback array
       }));
       
       const newPendingEvents = list.filter((ev: any) => 
@@ -309,17 +310,18 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         cancelled: newCancelledEvents.length
       });
       
-      // ✅ FIXED: Safely log feedback data
+      // Log events with feedback data
       if (newRegisteredEvents && newRegisteredEvents.length > 0) {
-  console.log('📝 Events with feedback data:', newRegisteredEvents.map((e: any) => ({
-    title: e.title,
-    status: e.status,
-    approvalStatus: e.approvalStatus,
-    hasFeedback: e.hasFeedback
-  })));
-} else {
-  console.log('📝 No approved events found');
-}
+        console.log('📝 Events with feedback data:', newRegisteredEvents.map((e: any) => ({
+          title: e.title,
+          status: e.status,
+          approvalStatus: e.approvalStatus,
+          hasFeedback: e.hasFeedback,
+          feedbackCount: e.feedback?.length || 0
+        })));
+      } else {
+        console.log('📝 No approved events found');
+      }
 
       // Check for newly cancelled events
       if (list.length > 0 && (this.registeredEvents.length > 0 || this.pendingEvents.length > 0 || this.rejectedEvents.length > 0)) {
@@ -592,6 +594,17 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
            this.pendingEvents.find(r => String(r._id || r.id) === String(eventId)) ||
            this.rejectedEvents.find(r => String(r._id || r.id) === String(eventId)) ||
            this.cancelledEvents.find(r => String(r._id || r.id) === String(eventId)) || null;
+  }
+
+  // ✅ NEW: Get user's feedback for a specific event
+  getUserFeedback(eventId: string): any {
+    const event = this.registeredEvents.find(e => String(e._id || e.id) === String(eventId));
+    if (!event || !event.feedback) return null;
+    
+    const userId = this.authService.getUserId();
+    const userFeedback = event.feedback.find((f: any) => String(f.userId) === String(userId));
+    
+    return userFeedback || null;
   }
 
   // ✅ FIXED: Check if user can give feedback (now using computed status)

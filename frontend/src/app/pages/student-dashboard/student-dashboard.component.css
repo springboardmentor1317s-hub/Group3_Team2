@@ -917,3 +917,68 @@
   50% { transform: scale(1.2); opacity: 0.7; }
   100% { transform: scale(1); opacity: 1; }
 }
+/* User Feedback Display */
+.user-feedback {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  border-left: 3px solid #fbbf24;
+}
+
+.feedback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.feedback-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f59e0b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.feedback-rating {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.feedback-stars-display {
+  font-size: 14px;
+  color: #fbbf24;
+  margin-bottom: 8px;
+  letter-spacing: 2px;
+}
+
+.feedback-comment-display {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 0;
+  border-top: 1px solid #e9ecef;
+}
+
+.feedback-comment-display .comment-icon {
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.feedback-comment-display p {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+  font-style: italic;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.feedback-date {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 6px;
+  text-align: right;
+}

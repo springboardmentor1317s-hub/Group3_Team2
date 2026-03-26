@@ -383,52 +383,70 @@
         }
 
         <!-- Approved Events Section -->
-        @if (registeredEvents && registeredEvents.length > 0) {
-        <h2 class="section-subtitle">✅ Approved Events ({{ registeredEvents.length }})</h2>
-        <div class="my-events-list">
-          @for (ev of registeredEvents; track ev._id) {
-          <div class="my-ev-card border-approved">
-            <div class="mev-img">
-              <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=200&q=70'" [alt]="ev.title">
-              <span class="mev-status-badge" [ngClass]="ev.status">{{ ev.status }}</span>
-            </div>
-            <div class="mev-body">
-              <div class="mev-title-row">
-                <h3>{{ ev.title }}</h3>
-                <span class="mev-approval approved">✅ Approved</span>
-              </div>
-              <div class="mev-meta">
-                <span>📍 {{ ev.venue }}</span>
-                <span>📅 {{ formatDate(ev.startDate) }}</span>
-                <span>🏷 {{ ev.type | titlecase }}</span>
-                @if (ev.selectedSlot) { <span>🕐 {{ ev.selectedSlot }}</span> }
-              </div>
-              @if ((ev.paymentAmount || 0) > 0) {
-              <div class="mev-payment">
-                <span class="pay-label">Payment:</span>
-                <span class="pay-status" [ngClass]="ev.paymentStatus">
-                  {{ ev.paymentStatus === 'paid' ? '💳 Paid ₹' + ev.paymentAmount : ev.paymentStatus }}
-                </span>
-              </div>
-              }
-            </div>
-            <div class="mev-actions">
-              <!--: Feedback button for completed events -->
-              @if (ev.status === 'completed' && ev.approvalStatus === 'approved') {
-                @if (!ev.hasFeedback) {
-                <button class="btn-feedback" (click)="openFeedback(ev)">⭐ Give Feedback</button>
-                } @else {
-                <span class="feedback-done">✅ Reviewed</span>
-                }
-              }
-              @if (ev.status === 'upcoming' || ev.status === 'ongoing') {
-              <button class="btn-cancel-sm" (click)="cancelRegistration(ev)">Cancel</button>
-              }
-            </div>
-          </div>
-          }
+@if (registeredEvents && registeredEvents.length > 0) {
+<h2 class="section-subtitle">✅ Approved Events ({{ registeredEvents.length }})</h2>
+<div class="my-events-list">
+  @for (ev of registeredEvents; track ev._id) {
+  <div class="my-ev-card border-approved">
+    <div class="mev-img">
+      <img [src]="ev.imageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=200&q=70'" [alt]="ev.title">
+      <span class="mev-status-badge" [ngClass]="ev.status">{{ ev.status }}</span>
+    </div>
+    <div class="mev-body">
+      <div class="mev-title-row">
+        <h3>{{ ev.title }}</h3>
+        <span class="mev-approval approved">✅ Approved</span>
+      </div>
+      <div class="mev-meta">
+        <span>📍 {{ ev.venue }}</span>
+        <span>📅 {{ formatDate(ev.startDate) }}</span>
+        <span>🏷 {{ ev.type | titlecase }}</span>
+        @if (ev.selectedSlot) { <span>🕐 {{ ev.selectedSlot }}</span> }
+      </div>
+      @if ((ev.paymentAmount || 0) > 0) {
+      <div class="mev-payment">
+        <span class="pay-label">Payment:</span>
+        <span class="pay-status" [ngClass]="ev.paymentStatus">
+          {{ ev.paymentStatus === 'paid' ? '💳 Paid ₹' + ev.paymentAmount : ev.paymentStatus }}
+        </span>
+      </div>
+      }
+      
+      <!-- ✅ NEW: Show user's feedback if already given -->
+      @if (ev.hasFeedback && getUserFeedback(ev._id)) {
+      <div class="user-feedback">
+        <div class="feedback-header">
+          <span class="feedback-label">⭐ Your Review</span>
+          <span class="feedback-rating">{{ getUserFeedback(ev._id).rating }} / 5</span>
+        </div>
+        <div class="feedback-stars-display">{{ getStars(getUserFeedback(ev._id).rating) }}</div>
+        @if (getUserFeedback(ev._id).comment) {
+        <div class="feedback-comment-display">
+          <span class="comment-icon">💬</span>
+          <p>"{{ getUserFeedback(ev._id).comment }}"</p>
         </div>
         }
+        <div class="feedback-date">Reviewed on {{ formatDate(getUserFeedback(ev._id).createdAt) }}</div>
+      </div>
+      }
+    </div>
+    <div class="mev-actions">
+      <!-- Feedback button for completed events -->
+      @if (ev.status === 'completed' && ev.approvalStatus === 'approved') {
+        @if (!ev.hasFeedback) {
+        <button class="btn-feedback" (click)="openFeedback(ev)">⭐ Give Feedback</button>
+        } @else {
+        <span class="feedback-done">✅ Reviewed</span>
+        }
+      }
+      @if (ev.status === 'upcoming' || ev.status === 'ongoing') {
+      <button class="btn-cancel-sm" (click)="cancelRegistration(ev)">Cancel</button>
+      }
+    </div>
+  </div>
+  }
+</div>
+}
 
         <!-- Rejected Events Section -->
         @if (rejectedEvents && rejectedEvents.length > 0) {
@@ -841,7 +859,6 @@
 }
 
 <!-- ══ FEEDBACK MODAL ════════════════════════════════════════════════════ -->
-<!-- ✅ UNCOMMENTED: Feedback modal is now active -->
 @if (showFeedbackModal && feedbackEvent) {
 <div class="modal-backdrop" (click)="closeFeedback()">
   <div class="feedback-modal" (click)="$event.stopPropagation()">
