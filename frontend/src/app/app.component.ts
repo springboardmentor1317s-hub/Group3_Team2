@@ -8,10 +8,8 @@ import { ChatService } from './services/chat.service';
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet, ChatbotComponent],
-  template: `
-    <router-outlet></router-outlet>
-    <app-chatbot></app-chatbot>
-  `
+  templateUrl: './app.component.html',
+  styleUrl: './app.component.css'
 })
 // export class AppComponent implements OnInit {
 export class AppComponent {

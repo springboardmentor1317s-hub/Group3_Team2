@@ -540,10 +540,8 @@
                   <td class="actions-cell">
                     <button class="icon-btn" title="Edit" (click)="openEdit(ev)">✏️</button>
                     <button class="icon-btn" title="Participants" (click)="openParticipants(ev)">👥</button>
-                    <!-- ✅ Feedback button for completed events - shows star icon -->
-                    @if (ev.status === 'completed') {
+                    <!-- ✅ Feedback button for all events - shows star icon -->
                     <button class="icon-btn" title="View Feedback" (click)="openFeedback(ev)">⭐</button>
-                    }
                     @if (ev.status !== 'cancelled') {
                     <button class="icon-btn forum-btn" title="Discussion Forum" (click)="openForum(ev)">💬</button>
                     }

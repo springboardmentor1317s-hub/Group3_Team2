@@ -1,10 +1,10 @@
-<div class="chatbot-container" [class.open]="chatService.isOpen()">
-    <!-- Chat Button toggle -->
+<div class="chatbot-container">
+    <!-- Premium Chat Trigger -->
     <button class="chat-toggle" (click)="chatService.toggleChat()" *ngIf="!chatService.isOpen()">
         <span class="icon">💬</span>
     </button>
 
-    <!-- Chat Window -->
+    <!-- Glassmorphism Chat Window -->
     <div class="chat-window" *ngIf="chatService.isOpen()">
         <div class="chat-header">
             <div class="header-info">
@@ -13,7 +13,7 @@
             </div>
             <div class="header-actions">
                 <button class="action-btn" (click)="chatService.clearChat()" title="Restart Chat">🔄</button>
-                <button class="action-btn close-btn" (click)="chatService.toggleChat()">&times;</button>
+                <button class="action-btn" (click)="chatService.toggleChat()">&times;</button>
             </div>
         </div>
 
@@ -44,6 +44,7 @@
         </div>
     </div>
 </div>
+
 
 <!-- <div class="chat-window" *ngIf="chatService.isOpen()">
     <div class="chat-header">

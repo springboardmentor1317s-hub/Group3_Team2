@@ -1,6 +1,6 @@
 .home-container {
   min-height: 100vh;
-  background: var(--bg-body);
+  background: transparent;
   font-family: var(--font-sans);
 }
 
@@ -290,7 +290,8 @@
   max-width: 1280px;
   margin: 0 auto;
   padding: 4rem 2rem;
-  background: var(--gray-50);
+  background: rgba(248, 250, 252, 0.4);
+  backdrop-filter: blur(10px);
   border-radius: var(--radius-2xl);
 }
 
@@ -646,16 +647,34 @@
   100% { background-position: 0% 50%; }
 }
 
-/* Enhanced hero section */
 .hero {
   position: relative;
-  background: linear-gradient(-45deg, #f8fafc, #eef2ff, #e0e7ff, #c7d2fe);
-  background-size: 400% 400%;
-  animation: gradientShift 15s ease infinite;
-  border-radius: 0 0 3rem 3rem;
+  background: transparent !important;
   padding: 4rem 2rem;
   margin-bottom: 2rem;
+  overflow: hidden;
 }
+
+/* Hero Background Glow Overlay */
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120%;
+  height: 120%;
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.12) 0%, transparent 60%);
+  z-index: 0;
+  pointer-events: none;
+  animation: hero-glow 10s infinite alternate ease-in-out;
+}
+
+@keyframes hero-glow {
+  from { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0.8; transform: translate(-45%, -55%) scale(1.1); }
+}
+
 
 /* Glass morphism effect for cards */
 .feature-card {
@@ -761,6 +780,25 @@
   position: relative;
   overflow: hidden;
 }
+
+.footer::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 10%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.05) 0%, transparent 70%);
+  z-index: 0;
+  pointer-events: none;
+  animation: footer-glow 15s infinite alternate ease-in-out;
+}
+
+@keyframes footer-glow {
+  from { transform: translate(0, 0) scale(1); opacity: 0.3; }
+  to { transform: translate(-30px, -20px) scale(1.2); opacity: 0.6; }
+}
+
 
 .footer::before {
   content: '';

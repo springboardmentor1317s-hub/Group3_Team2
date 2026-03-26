@@ -29,28 +29,12 @@ export interface Event {
 
 @Injectable({ providedIn: 'root' })
 export class EventService {
-  private apiUrl = 'http://localhost:5000/api/events';
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-
-<<<<<<< Updated upstream
   private apiUrl    = 'http://localhost:5000/api/events';
   private regUrl    = 'http://localhost:5000/api/registrations';
   private collegeUrl = 'http://localhost:5000/api/colleges';
   private reportUrl  = 'http://localhost:5000/api/reports';
 
   constructor(private http: HttpClient) {}
-=======
-  constructor(private http: HttpClient) { }
->>>>>>> Stashed changes
-=======
-=======
-
-  constructor(private http: HttpClient) { }
->>>>>>> Stashed changes
-
-  constructor(private http: HttpClient) { }
->>>>>>> Stashed changes
 
   // ── Events ──────────────────────────────────────────────
   getAllEvents(filters?: { startDate?: string; endDate?: string; status?: string; type?: string; category?: string; organizer?: string; college?: string; createdBy?: string; }): Observable<Event[]> {

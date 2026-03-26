@@ -18,7 +18,6 @@ exports.registerUser = async (req, res) => {
       return res.status(400).json({ message: 'User already registered. Please login.' });
     }
 
-<<<<<<< Updated upstream
     const hashed = await bcrypt.hash(password, 10);
     const user   = await User.create({
       fullName,
@@ -26,15 +25,6 @@ exports.registerUser = async (req, res) => {
       password: hashed,
       college:  college || '',
       role:     role    || 'student'
-=======
-    // Create user
-    const user = await User.create({
-      fullName,
-      email,
-      college,
-      role,
-      password // The pre-save hook in User model will hash this
->>>>>>> Stashed changes
     });
 
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
@@ -82,7 +72,6 @@ exports.loginUser = async (req, res) => {
     res.json({
       message:       'Login successful',
       token,
-<<<<<<< Updated upstream
       userId:        user._id,
       _id:           user._id,
       role:          user.role,
@@ -90,11 +79,6 @@ exports.loginUser = async (req, res) => {
       email:         user.email,
       college:       user.college,
       walletBalance: user.walletBalance
-=======
-      role: user.role,
-      fullName: user.fullName,
-      email: user.email
->>>>>>> Stashed changes
     });
   } catch (error) {
     console.error('Login error:', error.message);
