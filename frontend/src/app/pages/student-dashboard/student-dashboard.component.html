@@ -440,6 +440,11 @@
         <span class="feedback-done">✅ Reviewed</span>
         }
       }
+
+      @if (ev.approvalStatus === 'approved') {
+    <button class="btn-forum" (click)="openStudentForum(ev)">💬 Forum</button>
+  }
+  
       <!-- Cancel button for upcoming/ongoing events -->
       @if (ev.status === 'upcoming' || ev.status === 'ongoing') {
       <button class="btn-cancel-sm" (click)="cancelRegistration(ev)">Cancel</button>
