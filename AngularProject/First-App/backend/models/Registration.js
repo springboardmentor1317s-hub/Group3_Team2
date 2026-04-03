@@ -15,6 +15,8 @@ const RegistrationSchema = new mongoose.Schema({
   paymentTxnId:    { type: String, default: '' },
   paymentAmount:   { type: Number, default: 0 },
   hasFeedback:     { type: Boolean, default: false },
+  attendanceStatus: { type: String, enum: ['absent', 'present'], default: 'absent' },
+  checkedInAt:      { type: Date },
   registeredAt:    { type: Date, default: Date.now }
 }, { timestamps: true });
 

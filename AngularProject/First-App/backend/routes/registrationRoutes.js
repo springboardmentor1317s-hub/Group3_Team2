@@ -35,6 +35,8 @@ router.post('/:id/register',     auth,        registrationController.registerFor
 router.post('/:id/pay',          auth,        registrationController.payForRegistration);
 router.patch('/:id/status',      auth, admin, registrationController.updateStatus);
 router.get('/:id/registrations', auth, admin, registrationController.getEventRegistrations);
+router.get('/:id/ticket',        auth,        registrationController.getTicket);
+router.post('/:id/check-in',     auth, admin, registrationController.checkIn); // Assuming 'protect' is 'auth' and 'authorize' is 'admin' based on existing middleware
 router.delete('/:id',            auth,        registrationController.unregisterFromEvent);
 
 module.exports = router;

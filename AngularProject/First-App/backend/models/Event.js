@@ -17,6 +17,7 @@ const EventSchema = new mongoose.Schema({
   contactEmail:         { type: String, required: true },
   status:               { type: String, enum: ['upcoming','ongoing','completed','cancelled'], default: 'upcoming' },
   imageUrl:             { type: String, default: '' },
+  college:              { type: String, default: '' },
   createdBy:            { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
   registeredUsers: {
